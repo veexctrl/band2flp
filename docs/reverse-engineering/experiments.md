@@ -208,6 +208,24 @@
 
 **Next:** Use controlled track-count fixtures and visible track names/types to determine whether arrange tracks can be distinguished from the full `AuCO` channel-strip set.
 
+## TRK-004 — falsify one-to-one `AuCO` arrange-track mapping
+
+**Question:** Does each validated Logic-shaped `AuCO` candidate correspond to exactly one GarageBand arrange track?
+
+**Fixtures:** Both locally supplied GarageBand projects. They contain different songs and are not a controlled pair. Project-specific names and media are omitted.
+
+**Method:** Parsed each `DfLogicModelLogicSong` chunk stream and applied the TRK-002 marker, record-size, printable-name, and NUL-padding checks. Compared the candidate count with the `Output/metadata.plist` arrange-track count. Opened each extracted logic-song payload in IDA MCP; byte-pattern search found the same stored `AuCO` tag and marker. Direct IDA byte reads of representative candidate headers agreed with Python, including the little-endian field at header offset 14.
+
+**Observation:** Fixture A has 23 validated candidates with unique contiguous field values 0–22 and 7 declared arrange tracks. Fixture B has 27 validated candidates with unique contiguous field values 0–26 and 12 declared arrange tracks. The same marker and fixed record shape occur in both. Representative header bytes read through IDA match the Python offsets and values.
+
+**Result:** The one-record-per-arrange-track hypothesis is falsified for these fixtures: the candidate counts exceed the declared arrange-track counts in both. This does not establish whether the candidates represent mixer channels, auxiliary channels, or a mixture, nor whether arrange tracks are a subset. Because the projects differ in content, the count difference cannot identify how edits affect these records.
+
+**Confidence:** CONFIRMED that the stated marker/record pattern occurs with those counts and that a direct one-to-one count mapping does not hold for these two fixtures. UNKNOWN which records, if any, map to arrange tracks.
+
+**Alternative considered:** Metadata may count only arrange tracks while `AuCO` describes a broader set of channel strips. That would explain the excess records, but remains unverified without controlled track-count changes or authoritative track identifiers.
+
+**Next:** Create otherwise matched projects with zero, one, and two added arrange tracks. Compare `AuCO` entries and candidate IDs, plus visible track names/types, against the changes.
+
 ## ID-001 — candidate group-value reuse across chunk families
 
 **Question:** Is the chunk-header value at offset 8 a globally unique object or track identifier?

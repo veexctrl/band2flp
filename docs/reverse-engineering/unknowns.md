@@ -11,7 +11,7 @@
 - Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
 - Track names, complete track ordering (including the unpopulated track slot), mixer settings, and mute/solo state. Audio placement track numbers 2 through 7 are recovered for this fixture.
 - ARR-021 corroborated grouping and start positions against six preview rows, but numeric track labels are absent from the image; a controlled reorder/add-track experiment is still needed to confirm absolute track indices.
-- Whether the 23 `AuCO` records with the Logic-like channel-strip shape correspond to GarageBand arrange tracks, mixer channels, auxiliary channels, or a mixture; validate the descriptor and ordering fields with controlled track-count fixtures.
+- Which `AuCO` records, if any, correspond to arrange tracks, mixer channels, auxiliary channels, or other channels. TRK-004 falsified a one-to-one count mapping in two supplied projects (23 candidates versus 7 arrange tracks; 27 versus 12); controlled track-count fixtures are still needed to identify any subset.
 - Meaning of the eight-byte `AuCO` descriptor for GarageBand and how arrange-track records can be distinguished from non-arrangement channel strips.
 - Region source offsets, trims, loops, and mute state. ARR-024 visually measures five preview clip lengths in one fixture, but the serialized duration field remains unknown; decoded placement starts are in beats.
 - Whether the Logic-derived offsets on 80-byte GarageBand `0x90` events mean pitch, velocity, onset, and duration; candidate fields are exposed but remain unconfirmed pending controlled one-note GarageBand fixtures.
