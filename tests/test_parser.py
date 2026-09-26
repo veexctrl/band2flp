@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 import plistlib
 import subprocess
 import struct
@@ -17,7 +18,14 @@ from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.media import MediaExtractionError, extract_referenced_audio
-from band2flp.flp_export import AudioInfo, FLPExportError, _beats_to_ticks, audio_info, export_flp
+from band2flp.flp_export import (
+    AudioInfo,
+    FLPExportError,
+    _beats_to_ticks,
+    _validate_clock_roundtrip,
+    audio_info,
+    export_flp,
+)
 from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
@@ -123,6 +131,29 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_clock_roundtrip_checks_recovered_tempo_and_meter(self) -> None:
+        roundtrip = SimpleNamespace(
+            tempo=137.5,
+            arrangements=SimpleNamespace(time_signature=SimpleNamespace(num=7, beat=8)),
+        )
+        project = Project(tempo_bpm=137.5, time_signature=(7, 8))
+
+        report = _validate_clock_roundtrip(roundtrip, project)
+
+        self.assertTrue(report["tempo_matches_input"])
+        self.assertTrue(report["time_signature_matches_input"])
+        self.assertEqual(report["time_signature"], [7, 8])
+
+    def test_flp_clock_roundtrip_rejects_changed_tempo_or_meter(self) -> None:
+        roundtrip = SimpleNamespace(
+            tempo=120.0,
+            arrangements=SimpleNamespace(time_signature=SimpleNamespace(num=4, beat=4)),
+        )
+        with self.assertRaisesRegex(FLPExportError, "changed or lost the project tempo"):
+            _validate_clock_roundtrip(roundtrip, Project(tempo_bpm=121.0, time_signature=(4, 4)))
+        with self.assertRaisesRegex(FLPExportError, "changed or lost the project time signature"):
+            _validate_clock_roundtrip(roundtrip, Project(tempo_bpm=120.0, time_signature=(3, 4)))
+
     def test_flp_beat_conversion_preserves_exact_fractional_ticks(self) -> None:
         self.assertEqual(_beats_to_ticks("1/3", 96, "start"), 32)
         self.assertEqual(_beats_to_ticks("1/192", 96, "start"), 0)

@@ -8,6 +8,7 @@ from fractions import Fraction
 import importlib
 import importlib.metadata
 import json
+import math
 import os
 from pathlib import Path
 import struct
@@ -27,6 +28,32 @@ class FLPExportError(ValueError):
 class AudioInfo:
     frames: int
     sample_rate: int
+
+
+def _validate_clock_roundtrip(roundtrip: Any, project: Project) -> dict[str, Any]:
+    """Verify project-level tempo and meter after FLP save/reload."""
+    tempo = roundtrip.tempo
+    signature = roundtrip.arrangements.time_signature
+    actual_meter = (int(signature.num), int(signature.beat))
+    tempo_matches = None
+    meter_matches = None
+    if project.tempo_bpm is not None:
+        try:
+            tempo_matches = math.isclose(float(tempo), float(project.tempo_bpm), rel_tol=0, abs_tol=0.0001)
+        except (TypeError, ValueError, OverflowError):
+            tempo_matches = False
+        if not tempo_matches:
+            raise FLPExportError("PyFLP round-trip changed or lost the project tempo")
+    if project.time_signature is not None:
+        meter_matches = actual_meter == project.time_signature
+        if not meter_matches:
+            raise FLPExportError("PyFLP round-trip changed or lost the project time signature")
+    return {
+        "tempo_bpm": tempo,
+        "tempo_matches_input": tempo_matches,
+        "time_signature": list(actual_meter),
+        "time_signature_matches_input": meter_matches,
+    }
 
 
 def _beats_to_ticks(value: str, ppq: int, label: str) -> int:
@@ -318,6 +345,7 @@ def export_flp(
             report_tmp = Path(temp.name)
         pyflp.save(fl_project, str(flp_tmp))
         roundtrip = pyflp.parse(str(flp_tmp))
+        clock_report = _validate_clock_roundtrip(roundtrip, project)
         roundtrip_playlist = next(
             event for event in roundtrip.arrangements[0].events
             if event.id == ArrangementID.Playlist
@@ -332,8 +360,7 @@ def export_flp(
 
         report = {
             "flp_version": str(roundtrip.version),
-            "tempo_bpm": roundtrip.tempo,
-            "time_signature": list(project.time_signature) if project.time_signature else None,
+            **clock_report,
             "ppq": roundtrip.ppq,
             "audio_channels": roundtrip.channel_count,
             "playlist_items": len(exported_items),

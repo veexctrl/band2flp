@@ -8,8 +8,8 @@ GarageBand parsing populates the neutral `Project`, `Track`, and `Region` model.
 
 | GarageBand information | Current neutral representation | Export status |
 | --- | --- | --- |
-| Summary tempo | `Project.tempo_bpm` | Exported when present |
-| Summary time signature | `Project.time_signature` | Exported when present |
+| Summary tempo | `Project.tempo_bpm` | Exported when present; saved FLP is reparsed and the value is checked |
+| Summary time signature | `Project.time_signature` | Exported when present; saved FLP is reparsed and numerator/denominator are checked |
 | Audio placement start | `Region.start_beats` | Exported as playlist position in template PPQ ticks |
 | Audio track number | `Track.index` plus raw candidate in `Region.unknown` | High confidence for audio preview fixture; cross-fixture mapping needs validation |
 | Audio source | `Region.source` and `MediaReference` | Extracted into a user-selected media directory and referenced by a sampler channel |
@@ -57,3 +57,4 @@ Parser tests cover WAVE and CAF timing metadata and rejection of unknown lengths
 - **FLP-004:** Python 3.14 compatibility shim probe. A local sentinel member in PyFLP's `EventEnum` internals enabled blank-template parse/save/reparse. This is experimental only; upstream's same error report is tracked in #183, and the proposed fix in #196 remains open.
 - **FLP-005:** Local arrangement/audio serialization probe. Starting from the installed empty template, PyFLP created six sampler channels, five named playlist tracks, and ten audio playlist items from the private fixture's recovered starts. All six local media paths and the playlist position/length fields survived PyFLP save/reparse. Clip lengths deliberately use each complete source duration as a placeholder because GarageBand region trims and loops remain unknown. The `.flp`, sidecar, and extracted media are ignored local files; FL Studio 25 GUI loading and media playback have not yet been checked.
 - **FLP-006:** Implemented the experimental `export-flp` command with an optional PyFLP backend, duration-policy guard, WAVE/CAF frame probing, FLP save/reparse verification, and a JSON report. The private local integration emitted six audio channels and ten clips, with all playlist positions and lengths preserved through PyFLP round-trip. This is a serializer check only; FL Studio 25 GUI load and playback remain unverified. Automated suite: 27 tests passed.
+- **FLP-007:** Added explicit post-save/reparse assertions for recovered tempo and meter. A local integration using the installed FL Studio 25 blank template, optional PyFLP 2.2.1 compatibility shim, and private extracted media preserved both project clock settings along with all playlist records. The assertion paths also have unit tests for matching values and changed/lost settings. This validates PyFLP serialization and parsing only; loading or playback in the FL Studio GUI remains unverified. No template, FLP, media, or song-specific clock values are committed.
