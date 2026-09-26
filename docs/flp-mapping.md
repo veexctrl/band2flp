@@ -24,6 +24,10 @@ A local PyFLP 2.2.1 copy was tested without adding it to project dependencies. U
 
 The same PyFLP copy fails to parse that template under Python 3.14 with `TypeError: <enum 'EventEnum'> has no members`. The repository currently requires Python 3.11 or newer, so compatibility with its supported runtimes is not established. PyFLP 2.2.1 declares GPL-3.0; the repository currently has no selected license. Do not add it as a mandatory runtime dependency until runtime compatibility and the project's licensing choice are resolved.
 
+### FL Studio 25 template check
+
+The installed FL Studio executable reports version 25.1.5.4976. The three available empty templates under that installation all report FLP project version 24.2.99.4720 when read through PyFLP. FL Studio 9 is also present on the machine but is not used for exporter research. The 25.1.5 executable satisfies the requested DAW generation; the bundled template's older saved-project version means it is not evidence of an FL Studio 25-authored project. A blank project saved by FL Studio 25 should be used as the next template before claiming a current-version load/save round trip.
+
 The template and generated probes remain local and ignored. The audio extractor is covered by synthetic fixtures; it has not been run against the supplied private audio project. No FL Studio template, demo project, proprietary plugin state, GarageBand media, or private song content is committed.
 
 ## Required exporter work
@@ -40,3 +44,4 @@ The template and generated probes remain local and ignored. The audio extractor 
 
 - **FLP-001:** Blank-template parse/save/reparse. The template round-tripped byte-for-byte through PyFLP 2.2.1 under Python 3.10. Python 3.14 parsing failed as described above.
 - **FLP-002:** Playlist-event serialization probe. One synthetic playlist event survived PyFLP save/reparse. It was not linked to a resolved audio sampler and was not loaded in the FL Studio GUI; this confirms serializer mechanics only.
+- **FLP-003:** FL Studio 25 installation/template check. The installed executable reports 25.1.5.4976, while all three bundled empty templates tested report project version 24.2.99.4720. The older FL Studio 9 installation was excluded. No claim of FL Studio 25 GUI load/save validation is made from this check.
