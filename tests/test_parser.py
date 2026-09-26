@@ -7,6 +7,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import wave
 import zipfile
 from pathlib import Path
 
@@ -14,8 +15,9 @@ from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
-from band2flp.model import MediaReference, Project
+from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.media import MediaExtractionError, extract_referenced_audio
+from band2flp.flp_export import AudioInfo, FLPExportError, audio_info, export_flp
 from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
@@ -121,6 +123,41 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_audio_info_reads_wave_frame_rate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "short.wav"
+            with wave.open(str(path), "wb") as output:
+                output.setparams((1, 2, 48_000, 12, "NONE", "not compressed"))
+                output.writeframes(bytes(24))
+            self.assertEqual(audio_info(path), AudioInfo(frames=12, sample_rate=48_000))
+
+    def test_flp_audio_info_reads_caf_packet_table(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "short.caf"
+            description = struct.pack(">d4sIIIIII", 44_100.0, b"aac ", 0, 0, 1024, 0, 1, 16)
+            packet_table = bytes(8) + struct.pack(">q", 1234) + bytes(8)
+            path.write_bytes(
+                b"caff" + struct.pack(">HH", 1, 0)
+                + b"desc" + struct.pack(">q", len(description)) + description
+                + b"pakt" + struct.pack(">q", len(packet_table)) + packet_table
+            )
+            self.assertEqual(audio_info(path), AudioInfo(frames=1234, sample_rate=44_100))
+
+    def test_flp_export_rejects_unknown_region_length_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            template = root / "template.flp"
+            template.write_bytes(b"template placeholder")
+            project = Project(tracks=[Track(index=0, regions=[Region(kind="audio", source="asset", start_beats="0")])])
+            with self.assertRaisesRegex(FLPExportError, "durations are unknown"):
+                export_flp(
+                    project,
+                    template_path=template,
+                    output_path=root / "out.flp",
+                    media_by_reference={},
+                    length_policy="reject-unknown",
+                )
+
     def test_extract_referenced_audio_reports_unembedded_references_without_creating_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project_path = Path(directory) / "fixture.band"

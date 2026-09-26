@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import json
+from pathlib import Path
 import sys
 
 from .parser import BandFormatError, parse_band
 from .media import MediaExtractionError, extract_referenced_audio
+from .flp_export import FLPExportError, export_flp
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,6 +28,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     extract_audio.add_argument("project", help="GarageBand .band package")
     extract_audio.add_argument("output_dir", help="new directory for the extracted audio files")
+    export = subparsers.add_parser("export-flp", help="export recovered audio starts to an FL Studio project")
+    export.add_argument("project", help="GarageBand .band package")
+    export.add_argument("output", help="new FL Studio .flp output path")
+    export.add_argument("--template", required=True, help="path to a blank FL Studio project template")
+    export.add_argument("--media-dir", required=True, help="new directory for referenced audio used by the FLP")
+    export.add_argument(
+        "--length-policy", choices=("reject-unknown", "source-full"), default="reject-unknown",
+        help="reject unknown region lengths, or use full source-file lengths as explicit placeholders",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -34,7 +45,35 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(report, indent=2, ensure_ascii=False))
             return 0
         project = parse_band(args.project)
-    except (BandFormatError, MediaExtractionError, OSError) as exc:
+        if args.command == "export-flp":
+            if args.length_policy == "reject-unknown" and any(
+                region.kind == "audio" and region.duration_beats is None
+                for track in project.tracks for region in track.regions
+            ):
+                raise FLPExportError(
+                    "GarageBand audio region lengths are unknown; rerun with --length-policy source-full "
+                    "to use full-source placeholders explicitly"
+                )
+            extraction = extract_referenced_audio(args.project, args.media_dir)
+            media_root = Path(args.media_dir).expanduser().resolve()
+            media_by_reference = {
+                entry["reference"]: media_root / entry["file"]
+                for entry in extraction.get("extracted", [])
+            }
+            report = export_flp(
+                project,
+                template_path=args.template,
+                output_path=args.output,
+                media_by_reference=media_by_reference,
+                length_policy=args.length_policy,
+            )
+            report["media_extraction"] = {
+                "file_count": len(extraction.get("extracted", [])),
+                "unresolved_reference_count": extraction.get("unresolved_audio_reference_count", 0),
+            }
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+            return 0
+    except (BandFormatError, MediaExtractionError, FLPExportError, OSError) as exc:
         print(f"band2flp: {exc}", file=sys.stderr)
         return 2
 
