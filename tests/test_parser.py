@@ -17,7 +17,7 @@ from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.media import MediaExtractionError, extract_referenced_audio
-from band2flp.flp_export import AudioInfo, FLPExportError, audio_info, export_flp
+from band2flp.flp_export import AudioInfo, FLPExportError, _beats_to_ticks, audio_info, export_flp
 from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
@@ -123,6 +123,12 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_beat_conversion_preserves_exact_fractional_ticks(self) -> None:
+        self.assertEqual(_beats_to_ticks("1/3", 96, "start"), 32)
+        self.assertEqual(_beats_to_ticks("1/192", 96, "start"), 0)
+        with self.assertRaisesRegex(FLPExportError, "finite beat value"):
+            _beats_to_ticks("not-a-beat", 96, "start")
+
     def test_flp_audio_info_reads_wave_frame_rate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "short.wav"

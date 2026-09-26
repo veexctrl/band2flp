@@ -34,7 +34,7 @@ The template and generated probes remain local and ignored. No FL Studio templat
 
 ## Experimental audio export
 
-The CLI now offers `band2flp export-flp PROJECT OUTPUT --template EMPTY.flp --media-dir NEW_MEDIA_DIR`. It uses a user-supplied empty FL Studio template, extracts uniquely embedded audio, creates sampler channels and playlist clips, and writes a `.band2flp.json` report beside the FLP. PyFLP 2.2.1 is loaded optionally and is not declared as a project dependency because its GPL-3.0 licensing and runtime support remain unresolved.
+The CLI now offers `band2flp export-flp PROJECT OUTPUT --template EMPTY.flp --media-dir NEW_MEDIA_DIR`. It uses a user-supplied empty FL Studio template, extracts uniquely embedded audio, creates sampler channels and playlist clips, and writes a `.band2flp.json` report beside the FLP. Exact fractional beat strings are converted to PPQ ticks with rational arithmetic. PyFLP 2.2.1 is loaded optionally and is not declared as a project dependency because its GPL-3.0 licensing and runtime support remain unresolved.
 
 The default `--length-policy reject-unknown` refuses to export if any audio region duration is unknown. `--length-policy source-full` opts into using each complete source file's frame count to estimate the clip duration at project tempo. The resulting clip length is only a placeholder: GarageBand trim, loop, and playback-stretch behavior is not recovered. The command refuses nonzero source offsets and requires each source to resolve to uniquely embedded audio. The Python 3.12+ workaround modifies PyFLP 2.2.1 enum internals; it is isolated to the exporter and must be replaced if upstream fixes the issue.
 

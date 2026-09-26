@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+from fractions import Fraction
 import importlib
 import importlib.metadata
 import json
@@ -26,6 +27,14 @@ class FLPExportError(ValueError):
 class AudioInfo:
     frames: int
     sample_rate: int
+
+
+def _beats_to_ticks(value: str, ppq: int, label: str) -> int:
+    """Convert an exact beat string to ticks without an intermediate float."""
+    try:
+        return round(Fraction(value) * ppq)
+    except (ValueError, ZeroDivisionError, TypeError, OverflowError) as exc:
+        raise FLPExportError(f"an audio region {label} is not a finite beat value") from exc
 
 
 def audio_info(path: str | Path) -> AudioInfo:
@@ -257,20 +266,19 @@ def export_flp(
                 continue
             if region.start_beats is None:
                 raise FLPExportError("an audio region has no recovered start position")
-            try:
-                start_ticks = round(float(region.start_beats) * ppq)
-            except (TypeError, ValueError, OverflowError) as exc:
-                raise FLPExportError("an audio region start is not a finite beat value") from exc
+            start_ticks = _beats_to_ticks(region.start_beats, ppq, "start")
             if start_ticks < 0:
                 raise FLPExportError("negative audio region starts are not supported")
             if region.duration_beats is not None:
-                try:
-                    length_ticks = round(float(region.duration_beats) * ppq)
-                except (TypeError, ValueError, OverflowError) as exc:
-                    raise FLPExportError("an audio region duration is not a finite beat value") from exc
+                length_ticks = _beats_to_ticks(region.duration_beats, ppq, "duration")
             else:
                 info = source_info[region.source]
-                length_ticks = round(info.frames / info.sample_rate * fl_project.tempo / 60 * ppq)
+                length_ticks = round(
+                    Fraction(info.frames, info.sample_rate)
+                    * Fraction(str(fl_project.tempo))
+                    * ppq
+                    / 60
+                )
             length_ticks = max(1, length_ticks)
             iid = source_iid[region.source]
             playlist.append({
