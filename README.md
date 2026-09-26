@@ -2,7 +2,9 @@
 
 Research tools for recovering GarageBand project structure and converting supported data into a neutral project model and FL Studio projects.
 
-The current parser inventories `.band` ZIP packages and reads summary tempo, meter, duration, and track-count values from `Output/metadata.plist`. It validates the outer logic-song chunk stream, preserves the source bytes and unknown event records, and reports tempo/meter candidates that agree with project metadata. It also retains media references and candidate links to audio-file and region chunks. It does not yet decode track identities, region timing/placement, MIDI notes, or produce FLP files; the output marks those structures unknown rather than guessing.
+The parser inventories `.band` ZIP packages and reads summary tempo, meter, duration, and track-count values from `Output/metadata.plist`. It validates the logic-song chunk stream, preserves raw project bytes and unknown event records, and reports tempo/meter candidates that agree with project metadata.
+
+For inspected fixtures it also decodes audio placement start candidates, track-number candidates, and source links into neutral audio regions. The start positions agree with one project's arrangement preview. Region duration, source offset, trimming, looping, and full track identity remain unresolved. MIDI placement candidates are linked to `MSeq` chunks; note-shaped events that share a linked chunk are exposed in JSON, but note pitch, velocity, onset, duration, MIDI track mapping, and placement timing have not been confirmed in controlled GarageBand fixtures. No FLP exporter is implemented yet.
 
 ## Use
 
@@ -20,7 +22,7 @@ Run the regression suite with:
 python -m unittest discover -s tests -v
 ```
 
-See [architecture](docs/architecture.md), [format observations](docs/band-format.md), and [research findings](docs/reverse-engineering/findings.md).
+See [architecture](docs/architecture.md), [format observations](docs/band-format.md), [FL Studio mapping research](docs/flp-mapping.md), and [reverse-engineering findings](docs/reverse-engineering/findings.md).
 
 Compare a raw component or matching members from two ZIP packages with:
 

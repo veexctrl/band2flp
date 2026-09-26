@@ -307,6 +307,8 @@
 
 **Next:** Create or obtain a one-note GarageBand fixture, vary pitch, velocity, onset, and duration independently, then compare the corresponding `EvSq` and `MSeq` records. Separately identify the `0x20` placement link to the correct `MSeq` region and arrange track.
 
+**Follow-up:** MIDI-006 links the four note-shaped events in this audio-bearing fixture to placed MIDI regions through shared `MSeq` chunks. Their track and individual field semantics remain unresolved.
+
 ## MIDI-003 — MIDI placement cluster links to `MSeq`
 
 **Question:** Which field in a `0x20` event links a MIDI placement to its `MSeq` region record?
@@ -395,12 +397,30 @@
 
 **Method:** Inspected plist and `projectData` members in memory, emitting only version strings and aggregate counts. Compared the version with Apple's iOS/iPadOS GarageBand release notes published August 24, 2026.
 
-**Observation:** Each archive contains one plist member with the literal version string `2.3.19`. Apple's release notes list 2.3.19 as the newest version as of September 26, 2026. Device product-type strings occur in package metadata, but their presence is mixed across internal records; the inspected data does not establish which device authored or last edited each project.
+**Observation:** Each archive contains one plist member with the literal version string `2.3.19`. Apple's release notes list 2.3.19 as the newest version as of September 26, 2026. Device product-type strings occur in package metadata, but their presence is mixed across internal records and does not independently identify the originating device. The user confirms that the initial audio-free and later audio-bearing projects came from different iPhone models. Exact model attribution is retained only in ignored local research notes under the repository privacy rules. Project titles and media are intentionally omitted.
 
-**Result:** Record GarageBand 2.3.19 as archive-supported provenance for these fixtures. Do not attribute either archive to a particular iPhone model. Hardware identifiers may be useful in future controlled comparisons, but the current evidence does not establish their role in serialization.
+**Result:** Record GarageBand 2.3.19 as archive-supported provenance and device models as user-reported fixture provenance. Device class is relevant to possible serialization differences, but the projects have different content and are not a controlled cross-device comparison. The later project's title and recorded audio remain private and are not included in this repository.
 
-**Confidence:** HIGH CONFIDENCE for the version string present in both archives; HIGH CONFIDENCE that the package scan did not establish originating-device attribution.
+**Confidence:** HIGH CONFIDENCE for the version string present in both archives; USER-REPORTED for different-device fixture provenance; UNKNOWN for device-specific serialization effects.
 
 **Source:** [Apple GarageBand for iOS and iPadOS release notes](https://support.apple.com/en-au/106346).
 
-**Next:** If device-dependent serialization becomes a research question, compare controlled projects with the same GarageBand version and content created on known devices, and identify authoritative creator metadata before drawing conclusions.
+**Next:** Compare controlled projects with identical content created on the known devices, and identify authoritative creator metadata before drawing conclusions about device-dependent serialization.
+
+## MIDI-006 - note-shaped events share linked `MSeq` chunks with placements
+
+**Question:** Do the `0x90` note-shaped records in the audio-bearing fixture share their candidate `MSeq` records with MIDI placement events?
+
+**Fixture:** The locally supplied audio-bearing project. Its project title, exact device model, audio, and note values are not included in this log. The project remains local.
+
+**Method:** Compared each note candidate's event group with `MSeq` chunk groups, then compared those chunk indices with the unique `MSeq` targets of recognized `0x20` placements. Independently opened the decoded logic-song payload in IDA and read all candidate event records at the parser-reported offsets.
+
+**Observation:** The parser found 19 recognized MIDI placement candidates, each uniquely linked to an `MSeq` chunk, and four `0x90` note-shaped events. Each note event's group matched one `MSeq` chunk, and that same chunk was targeted by exactly one placement candidate. IDA's bytes matched the Python parser's bytes exactly for all 23 candidate records. The private project contains audio payloads, but none were extracted for this experiment.
+
+**Result:** The shared-`MSeq` relationship supports a note-event-to-placed-region candidate link in this fixture. The parser now exposes matching MIDI placement event indices in each note candidate's JSON. It still does not normalize note pitch, velocity, onset, duration, or track, and does not attach the candidates to the neutral model.
+
+**Confidence:** HIGH CONFIDENCE for the shared-`MSeq` event relationship in this fixture and for byte agreement between IDA and the parser; HYPOTHESIS for note field semantics and generalization to other GarageBand projects.
+
+**Alternative considered:** The shared group/chunk could be a broader container association rather than a direct note-to-region relationship. A controlled one-note project with the note added, moved, and removed independently would test that interpretation.
+
+**Next:** Create controlled same-device fixtures that vary one note property at a time. Determine whether `0x90` fields track the GarageBand piano-roll values while preserving the `MSeq` and placement link.

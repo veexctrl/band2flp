@@ -24,9 +24,9 @@
 - The 59 `Trak` chunks form at least two payload-size families (33 empty and 26 with 58 bytes); track identity and order are not established by this count.
 - 23 `AuCO` chunks in the inspected project match a Logic Pro channel-strip marker and fixed-offset record shape; their unique header values form 0–22. This is a cross-format layout observation, not a confirmed GarageBand track mapping.
 
-## Additional private-fixture hypothesis
+## Additional private-fixture observations
 
-- A second local `.band` project contains 80-byte `0x90` `EvSq` records whose marker and candidate field offsets resemble the Logic Pro note-event layout. The sequence shares a candidate group value with an `MSeq` chunk, but its group does not match a recognized `0x20` placement target, so its connection to the arrangement remains unresolved. The parser exposes candidate fields and raw records without assigning musical content to a track. The fixture and its media are not included in the repository.
+- The private, audio-bearing fixture contains four 80-byte `0x90` note-shaped `EvSq` events. Each event group matches one `MSeq` chunk, and that same chunk is the unique target of one recognized `0x20` MIDI placement event. IDA and the Python parser read identical bytes for all 19 placement candidates and four note-shaped events (MIDI-006). This is HIGH CONFIDENCE for the shared-chunk relation in this fixture; note-field meanings, track mapping, and generality remain unresolved. The fixture, project title, audio, and note values are not included in the repository.
 - Exact one-note GarageBand differential fixtures are still required before treating the candidate pitch, velocity, onset, or duration fields as confirmed GarageBand semantics.
 
 ## High confidence
@@ -37,6 +37,7 @@
 - The chunk framing is shared with a described Logic Pro container format, but that does not validate its chunk semantics for iOS GarageBand.
 - Audio source-to-`AuRg` chunk links have HIGH CONFIDENCE in this fixture from both group-value agreement and exact filename-stem strings. The group field's general scope and the region placement/timing fields need controlled validation.
 - MIDI `0x20` placement-to-`MSeq` group linkage has HIGH CONFIDENCE for two fixtures: the low-order cluster value at event `+0x20`, shifted left 16 bits, uniquely selects one `MSeq` chunk group for each recognized placement. Track-number and position-unit interpretations remain unconfirmed.
+- MIDI-006 established a HIGH CONFIDENCE note-event-to-shared-`MSeq` candidate relation for four note-shaped events in the private audio-bearing fixture. All four link through a unique `MSeq` chunk to exactly one recognized `0x20` placement; this does not confirm note fields or arrangement timing.
 - The nine audio placement positions, track numbers, and source links are HIGH CONFIDENCE for this fixture because they match the arrangement preview and audio-resource mappings. Region durations and generalization across project versions remain unverified.
 - The `AuRg +0x16` frame-count interpretation is HIGH CONFIDENCE by cross-format layout and 44.1 kHz plausibility, but is not used as beat duration. The two extended-event correlations are fixture-specific and do not yet decode region identity generally.
 - Group-zero 160 BPM and 4/4 records match both summary plists. Raw positions and the meaning of nonzero-group tempo records are unresolved.

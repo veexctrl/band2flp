@@ -373,11 +373,20 @@ class ParserTests(unittest.TestCase):
         struct.pack_into("<I", note, 0x1C, 480)
         not_note = bytearray(note)
         not_note[0x17] = 0
+        placement = bytearray(80)
+        placement[:4] = b"\x20\x00\x00\x00"
+        placement[0x20] = 0x10  # Resolves to the 0x00100000 MSeq group.
+        placement[0x17] = 0x89
+        placement[0x27] = 0x88
+        placement[0x37] = 0x8A
+        placement[0x47] = 0x88
         events = {"records": [
             {"type_byte": 0x90, "chunk_index": 9, "event_index": 0,
              "group_id_candidate": 0x00100000, "raw_hex": note.hex()},
             {"type_byte": 0x90, "chunk_index": 9, "event_index": 1,
              "group_id_candidate": 0x00100000, "raw_hex": not_note.hex()},
+            {"type_byte": 0x20, "chunk_index": 10, "event_index": 3,
+             "group_id_candidate": 0x00040000, "raw_hex": placement.hex()},
         ]}
         chunks = {"chunks": [
             {"type": "MSeq", "index": 5, "group_id_candidate": 0x00100000},
@@ -388,6 +397,10 @@ class ParserTests(unittest.TestCase):
 
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["candidate_mseq_chunk_indices_for_group"], [5])
+        self.assertEqual(
+            candidates[0]["candidate_midi_region_placements_for_group"],
+            [{"source_chunk_index": 10, "source_event_index": 3}],
+        )
         self.assertEqual(candidates[0]["position_ticks_from_38400_candidate"], 960)
         self.assertEqual(candidates[0]["pitch_candidate"], 60)
         self.assertEqual(candidates[0]["velocity_candidate"], 64)

@@ -417,6 +417,14 @@ def _parse_midi_note_candidates(
         if chunk.get("type") == "MSeq":
             mseq_groups.setdefault(chunk["group_id_candidate"], []).append(chunk["index"])
 
+    placements_by_mseq: dict[int, list[dict[str, int]]] = {}
+    for placement in _parse_midi_region_placement_candidates(event_sequences, chunk_stream):
+        for mseq_index in placement["candidate_mseq_chunk_indices"]:
+            placements_by_mseq.setdefault(mseq_index, []).append({
+                "source_chunk_index": placement["source_chunk_index"],
+                "source_event_index": placement["source_event_index"],
+            })
+
     candidates: list[dict[str, Any]] = []
     for record in event_sequences.get("records", []):
         raw = bytes.fromhex(record["raw_hex"])
@@ -426,11 +434,24 @@ def _parse_midi_note_candidates(
         if len(raw) < 32 or raw[0] != 0x90 or raw[0x17] != 0x89:
             continue
         group_id = record.get("group_id_candidate")
+        mseq_indices = mseq_groups.get(group_id, [])
+        placement_links = {
+            (placement["source_chunk_index"], placement["source_event_index"])
+            for mseq_index in mseq_indices
+            for placement in placements_by_mseq.get(mseq_index, [])
+        }
         candidates.append({
             "source_chunk_index": record["chunk_index"],
             "source_event_index": record["event_index"],
             "source_group_id_candidate": group_id,
-            "candidate_mseq_chunk_indices_for_group": mseq_groups.get(group_id, []),
+            "candidate_mseq_chunk_indices_for_group": mseq_indices,
+            "candidate_midi_region_placements_for_group": [
+                {"source_chunk_index": chunk_index, "source_event_index": event_index}
+                for chunk_index, event_index in sorted(placement_links)
+            ],
+            "midi_region_link_interpretation": (
+                "Candidate shared-MSeq link; note fields and GarageBand semantics remain unconfirmed"
+            ),
             "event_size": len(raw),
             "position_raw": struct.unpack_from("<I", raw, 4)[0],
             "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],

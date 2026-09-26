@@ -15,7 +15,7 @@
 - Meaning of the eight-byte `AuCO` descriptor for GarageBand and how arrange-track records can be distinguished from non-arrangement channel strips.
 - Region durations, source offsets, trims, loops, and mute state. Audio placement start positions are decoded in beats for the supplied fixture.
 - Whether the Logic-derived offsets on 80-byte GarageBand `0x90` events mean pitch, velocity, onset, and duration; candidate fields are exposed but remain unconfirmed pending controlled one-note GarageBand fixtures.
-- Whether the same-group `0x90` note sequence belongs to the candidate `MSeq` region, and how that region connects to `0x20` placements and arrange tracks.
+- Whether the shared-`MSeq` relation between `0x90` note-shaped events and `0x20` MIDI placements generalizes beyond the private fixture; MIDI-006 observed one unique shared chunk/placement link per note event there, but controlled note edits are still needed.
 - GarageBand-specific `MSeq` record fields for MIDI region duration, internal start, and name. Logic Pro offsets are not yet independently validated in GarageBand.
 - MIDI-005's linked-`MSeq` position scan was inconclusive because the fixture had too few distinct nonzero starts; no scanned payload offset is treated as region start.
 - Whether `0x20` event `+0x14` values are direct arrange-track numbers and whether `+0x04` uses the Logic-derived 34,560/960 PPQ conversion in GarageBand. The `+0x20` cluster-to-`MSeq` association is now HIGH CONFIDENCE in two fixtures, but track and timing semantics still need controlled validation.
@@ -27,4 +27,5 @@
 - Which structures differ across GarageBand versions and desktop/mobile projects.
 
 The next useful inputs are sanitized or private local fixtures created by changing one property at a time: empty project, one track, one note, note pitch/duration/start changes, region position/length changes, tempo/meter changes, and a simple audio region. Do not add private song content to the public source repository.
-- PROV-001 found GarageBand 2.3.19 in both inspected project archives. Device product-type strings are present but do not identify an authoritative creator device; model attribution remains unrecorded pending controlled evidence.
+- PROV-001 found GarageBand 2.3.19 in both inspected project archives. User confirms the initial audio-free and later private audio fixtures came from different iPhone models; exact model attribution is kept in local-only notes, and archive product-type strings do not independently establish the mapping. Device-specific serialization effects remain unknown because project contents differ.
+- FLP-001/002 showed PyFLP can preserve an FL Studio 2025 blank template and serialize a playlist event under Python 3.10, but the tested version fails to parse that template under Python 3.14 and did not validate a playable clip. FLP exporter strategy and supported runtime remain open.
