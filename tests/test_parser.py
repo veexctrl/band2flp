@@ -10,6 +10,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.parser import BandFormatError, _match_audio_file_references, _parse_chunk_stream, _parse_event_sequences, parse_band
@@ -157,6 +158,22 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(report["modified"]), 1)
         self.assertEqual(report["modified"][0]["changed_header_ranges"][0]["offset_start"], 4)
         self.assertEqual(report["modified"][0]["changed_ranges"], [])
+
+    def test_auco_probe_validates_candidate_record_without_emitting_name(self) -> None:
+        payload = bytearray(84)
+        payload[60] = 0x20
+        payload[61:68] = b"Track X"
+        payload[68:76] = bytes(8)
+        chunk = bytearray(make_chunk("AuCO", 0x00240000, bytes(payload)))
+        chunk[4:8] = bytes.fromhex("07000e00")
+        struct.pack_into("<H", chunk, 14, 3)
+        raw = bytes.fromhex("2347c0ab") + bytes(20) + bytes(chunk)
+        result = probe_logic_payload(raw, _parse_chunk_stream(raw))
+        self.assertEqual(result["marker_candidate_count"], 1)
+        self.assertEqual(result["validated_record_count"], 1)
+        self.assertEqual(result["strip_index_candidates"], [3])
+        self.assertNotIn("Track X", json.dumps(result))
+        self.assertIn("HYPOTHESIS", result["interpretation"])
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

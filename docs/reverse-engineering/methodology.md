@@ -8,4 +8,6 @@ Use IDA MCP to inspect raw bytes and related binary components when useful. Repr
 
 `python -m research.scripts.projectdata_diff before.band after.band` compares decompressed logic-song chunks after validating each package through the parser. It pairs chunks by tag, candidate group value, and ordinal within that pair, then reports changed header/payload ranges and added/removed pairs. This alignment is a hypothesis for organizing comparisons, not a semantic record identity: inserting a same-type chunk can shift later ordinals. Review diffs against controlled fixtures and the raw chunk order before identifying fields.
 
+`python -m research.scripts.auco_probe project.band` checks the candidate `AuCO` header marker and fixed-offset record structure described in TRK-002. It validates the padded printable-name shape without including names in its report. Its counts are structural observations; the script does not assign GarageBand track semantics.
+
 Do not infer region or note timing from summary duration, cache images, or resource lists. Preserve unknown payload bytes and report unsupported structures.

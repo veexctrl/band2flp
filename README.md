@@ -27,6 +27,7 @@ Compare a raw component or matching members from two ZIP packages with:
 ```powershell
 python research/scripts/binary_diff.py old.band new.band --member-suffix /projectData
 python -m research.scripts.projectdata_diff old.band new.band
+python -m research.scripts.auco_probe project.band
 ```
 
-The byte diff flags absolute-offset alignment limits and labels integer/float readings as candidates. The ProjectData diff pairs chunks by type, candidate group value, and ordinal within that pair; it reports header and payload changes, and warns that ordinal matches can shift when a same-type chunk is inserted or deleted.
+The byte diff flags absolute-offset alignment limits and labels integer/float readings as candidates. The ProjectData diff pairs chunks by type, candidate group value, and ordinal within that pair; it reports header and payload changes, and warns that ordinal matches can shift when a same-type chunk is inserted or deleted. The AuCO probe checks a Logic-like channel-strip record candidate and reports structural counts without outputting track names or assigning GarageBand semantics.
