@@ -20,9 +20,13 @@ This layout agrees with the published description of Logic Pro's [ProjectData co
 
 The parser emits every observed tag, offset, payload size, and raw chunk-header bytes, while retaining the entire original NSData payload. It splits aligned `EvSq` atoms into event records and preserves their raw bytes. Track and region fields are not yet decoded.
 
+## Audio payload presence
+
+The supplied archive has nine members totaling 3,795,565 uncompressed bytes. They are `projectData`, package/plist metadata, cache metadata, and PNG images; none is a nested archive or recognized audio media file. The audio names and paths found in metadata and `AuFl` payloads therefore identify references available to the project, not audio payloads embedded in this `.band` file. Dragged-in GarageBand live loops may be resolved from a library outside the saved project package. This conclusion concerns the supplied archive only.
+
 ## Audio resource cross-links
 
-In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each have one literal basename match in a UTF-16LE string inside one of six `AuFl` chunk payloads. Each matched `AuFl` and its associated `AuRg` chunks share the same unsigned 32-bit little-endian value at chunk-header offset 8. The six shared values and `AuRg` counts are:
+In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each have one literal basename match in a UTF-16LE string inside one of six `AuFl` chunk payloads. Each matched `AuFl` and one or two candidate-related `AuRg` chunks share the same unsigned 32-bit little-endian value at chunk-header offset 8. The six values and same-value `AuRg` counts are:
 
 | Header value | `AuRg` chunks sharing it |
 | --- | ---: |
@@ -33,7 +37,7 @@ In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each hav
 | `0x00200000` | 1 |
 | `0x00280000` | 1 |
 
-Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. This is HIGH CONFIDENCE evidence that `AuFl` stores audio-file references and `AuRg` stores related audio-region data in this fixture. The parser records the literal name match and shared header value in diagnostic data and neutral `MediaReference` entries. References remain separate from package members and placed regions: a resource may be external to the ZIP, and a linked region has no decoded placement yet. It does not claim that this field's meaning is universal or decode region positions, source offsets, trim, or loop behavior.
+Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. However, the same candidate header values are used by a 32-entry `TxSt` sequence at `0x00000000` through `0x007C0000` in `0x00040000` increments. Thus offset 8 is not a globally unique ID across chunk families. Exact audio basenames were absent from same-value `AuRg` payloads. The `AuFl`/`AuRg` relationship is a family-local inference supported by shared values and the region count, not a confirmed reference encoding. The parser records name matches and candidate values in diagnostic data and neutral `MediaReference` entries. References remain separate from package members and placed regions; no region placement, source offset, trim, or loop behavior is decoded.
 
 ## Event records and global timing candidates
 
