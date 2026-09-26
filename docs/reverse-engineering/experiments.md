@@ -335,3 +335,35 @@
 **Alternative considered:** The value could be a one-based arrange-track number, an index in a different object table, or a scoped identifier. Raw chunk order alone cannot distinguish these interpretations.
 
 **Next:** Use controlled projects with one software-instrument track, then add a second track and move the same MIDI region between them. Compare the `+0x14` byte with visible track order and any associated track identifiers before normalizing it.
+
+## MIDI-005 — `MSeq` position scan is dominated by origin-position regions
+
+**Question:** Does a fixed 32-bit field in a linked `MSeq` payload reproduce the start position from its `0x20` placement event?
+
+**Fixture:** The additional local project used for MIDI-003. No project name, note data, or media is included in the repository.
+
+**Method:** For each uniquely linked placement, compare its origin-adjusted raw position against little-endian 32-bit values throughout the linked `MSeq` payload. Repeat the count after excluding placements whose adjusted position is zero, since zero values can match default or padding fields.
+
+**Observation:** A byte-level scan appeared to produce a high match rate at one payload offset. That result was dominated by zero-position placements. After excluding those, only two nonzero placement positions remained; no single aligned 32-bit field matched both. The corresponding fixture does not provide enough independent position variation to identify an `MSeq` start field.
+
+**Result:** No `MSeq` start offset is assigned. The apparent match is treated as an inconclusive zero-value coincidence, and MIDI position remains a candidate on the placement event only.
+
+**Confidence:** CONFIRMED that this fixture lacks enough varying nonzero placements for the scan to establish a field; UNKNOWN for `MSeq` internal-start semantics.
+
+**Next:** Use two or more controlled MIDI regions at distinct nonzero starts, then move each region independently and compare the linked `MSeq` payloads.
+
+## ARR-020 — compare `AuRg` frame candidates with embedded source frame counts
+
+**Question:** Does the little-endian integer at `AuRg` payload `+0x16` always equal the complete embedded source file's frame count?
+
+**Fixture:** One locally supplied package with embedded audio. The project and its audio remain outside the repository. `research/scripts/audio_frame_probe.py` reads the embedded file members in memory, inspects WAVE, AIFF, or CAF frame-count metadata, and emits only aggregate counts; it does not extract or output audio.
+
+**Observation:** The probe decoded the embedded audio references and compared same-source `AuRg +0x16` candidates. Only a subset matched a complete source frame count, and the matches were associated with one source. Other candidates did not match their complete source length. Exact project-specific counts are kept out of this public log.
+
+**Result:** `AuRg +0x16` cannot be used as a universal complete-source frame count or arrangement duration. Exact matches on a subset leave open whether the field is a trim/region length for some records, a source length for those records, or another value with coincidental equality.
+
+**Confidence:** CONFIRMED that matching is not consistent across the compared candidates in this package; UNKNOWN for the field semantics.
+
+**Alternative considered:** The comparison could be affected by format-specific valid-frame, priming, or packet-count conventions. The probe uses the WAVE data size and block alignment, AIFF/AIFC `COMM` sample-frame count, or CAF packet-table valid-frame count; this does not establish GarageBand's treatment of priming or edit lists.
+
+**Next:** Make a controlled audio fixture with a known source length, then trim without moving, move without trimming, and compare the source frame count, `AuRg +0x16`, and placement suffix independently.

@@ -4,6 +4,7 @@
 - Whether Logic Pro chunk decoders transfer unchanged to iOS GarageBand versions.
 - Scope and semantics of the 32-bit header value at offset 8: it is reused by `TxSt` and audio chunk families, so it is not globally unique. Its role in source/region grouping needs validation with controlled projects and edits.
 - Whether `AuRg +0x16` is source-frame length for all GarageBand versions versus another cached length. Its values are preserved as candidates, not used as timeline duration.
+- ARR-020 compared `AuRg +0x16` against embedded source frame counts: only a subset of candidates in one project matched. The field is not a universal full-source length; trimming and region-length semantics remain unknown.
 - Exact beat duration/source-offset/trim/loop fields in `AuRg`, exact mapping from each placement event to a specific same-source region object, and meaning of the extra 80-byte suffix on two placement events. Two suffix dwords match same-source region `+0x16` values, but starts and track/source placement links remain the only complete arrangement fields recovered with HIGH CONFIDENCE for this fixture.
 - Meaning of the repeated 16-byte `0xF1` `EvSq` payloads and the scope of their candidate group values.
 - Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
@@ -14,6 +15,7 @@
 - Whether the Logic-derived offsets on 80-byte GarageBand `0x90` events mean pitch, velocity, onset, and duration; candidate fields are exposed but remain unconfirmed pending controlled one-note GarageBand fixtures.
 - Whether the same-group `0x90` note sequence belongs to the candidate `MSeq` region, and how that region connects to `0x20` placements and arrange tracks.
 - GarageBand-specific `MSeq` record fields for MIDI region duration, internal start, and name. Logic Pro offsets are not yet independently validated in GarageBand.
+- MIDI-005's linked-`MSeq` position scan was inconclusive because the fixture had too few distinct nonzero starts; no scanned payload offset is treated as region start.
 - Whether `0x20` event `+0x14` values are direct arrange-track numbers and whether `+0x04` uses the Logic-derived 34,560/960 PPQ conversion in GarageBand. The `+0x20` cluster-to-`MSeq` association is now HIGH CONFIDENCE in two fixtures, but track and timing semantics still need controlled validation.
 - MIDI-004's raw `Trak` chunk-order comparison did not establish a direct mapping for `0x20 +0x14`; repeated chunk groups make ordinal equality insufficient.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
