@@ -424,3 +424,39 @@
 **Alternative considered:** The shared group/chunk could be a broader container association rather than a direct note-to-region relationship. A controlled one-note project with the note added, moved, and removed independently would test that interpretation.
 
 **Next:** Create controlled same-device fixtures that vary one note property at a time. Determine whether `0x90` fields track the GarageBand piano-roll values while preserving the `MSeq` and placement link.
+
+## ARR-023 - repeat placement suffix and source-region candidate comparison
+
+**Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?
+
+**Fixtures:** Both locally supplied GarageBand projects. One has no embedded audio members; the other contains private recorded audio. No media was extracted or included in the comparison. The projects and their identifying details remain local.
+
+**Method:** Used the Python parser to identify extended `0x24` placement records and compare each trailing 32-bit candidate with the `+0x16` frame-count candidate of same-source, filename-stem-matched `AuRg` records. Opened the second fixture's serialized logic-song payload in IDA and independently read the three extended event byte ranges at the parser-reported offsets.
+
+**Observation:** The first fixture has two extended placement events and both suffix candidates equal one same-source `AuRg +0x16` candidate. The second fixture has three extended events; two suffix candidates match a same-source region candidate and one does not. IDA's bytes match Python's complete event bytes for all three second-fixture events.
+
+**Result:** The numeric correlation repeats across the two fixtures but is not universal. It may be meaningful only for some region states or may be a coincidental value match; it does not establish a general region ordinal, region duration, trim, or source-offset encoding. The parser continues to preserve the suffix as unknown raw data.
+
+**Confidence:** HIGH CONFIDENCE in the aggregate counts and byte-level IDA/Python agreement for the second fixture; HYPOTHESIS that the matched suffix values refer to region frame-count fields.
+
+**Alternative considered:** A frame-count value can recur in multiple regions from one source, and equal values alone cannot prove object identity. The unmatched longer event also rules out treating this candidate as a universal placement-to-region link.
+
+**Next:** Change only one region property in a controlled GarageBand project (first position, then trim/length) and compare the suffix and `AuRg` candidates before assigning semantics.
+
+## ARR-024 - arrangement-preview boundaries constrain audio-duration hypotheses
+
+**Question:** Can the cached arrangement preview corroborate audio-region lengths, and do the source-associated `AuRg +0x16` candidates directly represent those lengths?
+
+**Fixture:** The local project used in ARR-021, with its generated arrangement-preview image. The image remains local and its track labels are omitted here.
+
+**Method:** Read the four-bar ruler spacing and visible region edges from the preview, then compare those bar lengths with the parser's source-associated `AuRg +0x16` frame candidates. Used the summary meter (4/4), tempo (160 BPM), and sample rate (44.1 kHz) only to calculate what un-stretched PCM frame lengths would be for the visible durations.
+
+**Observation:** In two rows, four adjacent clips span bar 1 to 5 and bar 5 to 9 (16 beats each). In another row, a clip spans bar 1 to 33 (128 beats), followed by another clip at bar 33. Other clips continue beyond the right edge of the image and have no visible end. At 160 BPM, the visible durations would correspond to 264,600 and 2,116,800 frames at 44.1 kHz if playback consumed source frames at the project tempo without looping or time stretching. None of the associated `AuRg +0x16` candidates equals those values.
+
+**Result:** The preview supports concrete region-length observations for five clips in this fixture, but it does not reveal which serialized field stores those lengths. The frame-count candidate is not a direct match for visible beat duration under an un-stretched playback assumption; looping, time stretching, and cached source lengths remain alternatives. The parser continues to leave `duration_beats` unknown.
+
+**Confidence:** HIGH CONFIDENCE for the visible grid-aligned boundaries in the preview; UNKNOWN for the serialized duration field and the behavior used to render those lengths.
+
+**Alternative considered:** The generated preview may be stale or may draw looped/stretched audio whose source-frame count differs from its arrangement length. Its starts agree with ARR-021, but a controlled moved/trimmed project is still required to tie boundaries to binary fields.
+
+**Next:** Save a simple single-source project, then change only region length while retaining its start and source. Compare preview edge, `AuRg` payload, and the full placement event.

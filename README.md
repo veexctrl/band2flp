@@ -6,6 +6,8 @@ The parser inventories `.band` ZIP packages and reads summary tempo, meter, dura
 
 For inspected fixtures it also decodes audio placement start candidates, track-number candidates, and source links into neutral audio regions. The start positions agree with one project's arrangement preview. Region duration, source offset, trimming, looping, and full track identity remain unresolved. MIDI placement candidates are linked to `MSeq` chunks; note-shaped events that share a linked chunk are exposed in JSON, but note pitch, velocity, onset, duration, MIDI track mapping, and placement timing have not been confirmed in controlled GarageBand fixtures. No FLP exporter is implemented yet.
 
+Special thanks to @zazasys (Instagram: `_zaaaaan_`) for sharing a few fun GarageBand projects for reverse-engineering and helping make band2flp possible.
+
 ## Use
 
 ```powershell
