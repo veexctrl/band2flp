@@ -750,6 +750,9 @@ def parse_band(path: str | Path) -> Project:
             project.warnings.append(
                 "Audio placement beat conversion uses a Logic-derived 34,560 origin and 960 PPQ; preview-validated only for this fixture."
             )
+            project.warnings.append(
+                "Audio track indices use a candidate one-based event field; placement grouping agrees with one preview, but absolute track-index mapping is not controlled-fixture validated."
+            )
         return project
 
 

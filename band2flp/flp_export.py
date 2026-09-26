@@ -339,6 +339,7 @@ def export_flp(
             "playlist_items": len(exported_items),
             "duration_policy": length_policy,
             "compatibility_shim_used": shim_used,
+            "project_warnings": list(project.warnings),
             "items": exported_items,
             "warnings": ([
                 "Full-source placeholder lengths do not represent GarageBand trims, loops, or playback stretching."

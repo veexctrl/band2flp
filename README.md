@@ -4,6 +4,10 @@ Research tools for recovering GarageBand project structure and converting suppor
 
 This project is licensed under the [MIT License](LICENSE).
 
+<p align="center"><img src="docs/progress.svg" alt="Estimated GarageBand reverse-engineering progress, with work areas and milestones"></p>
+
+This headline is a rough weighted estimate of format knowledge, not converter completeness. Update the workstream estimates in [docs/progress.json](docs/progress.json), then run `python -m research.scripts.progress_card` to refresh the milestone image.
+
 The parser inventories `.band` ZIP packages and reads summary tempo, meter, duration, and track-count values from `Output/metadata.plist`. It validates the logic-song chunk stream, preserves raw project bytes and unknown event records, and reports tempo/meter candidates that agree with project metadata.
 
 For inspected fixtures it also decodes audio placement starts, track-number candidates, and source links into neutral audio regions. The start positions agree with one project's arrangement preview. Region duration, source offset, trimming, looping, and full track identity remain unresolved. MIDI placement candidates are linked to `MSeq` chunks; note-shaped events that share a linked chunk are exposed in JSON, but note pitch, velocity, onset, duration, MIDI track mapping, and placement timing have not been confirmed in controlled GarageBand fixtures. An experimental audio-only FLP exporter is available; it requires a blank FL Studio template and optional PyFLP, and documents unknown clip lengths rather than claiming a faithful conversion.

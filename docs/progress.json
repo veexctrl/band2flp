@@ -1,0 +1,56 @@
+{
+  "as_of": "2026-09-26",
+  "title": "GarageBand reverse-engineering progress",
+  "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
+  "categories": [
+    {
+      "name": "Package and summary metadata",
+      "weight": 12,
+      "recovered": 85,
+      "basis": "ZIP inventory and plist summary fields are parsed; metadata authority and cross-version differences remain open."
+    },
+    {
+      "name": "Logic payload framing and event inventory",
+      "weight": 13,
+      "recovered": 75,
+      "basis": "Chunk boundaries and event records are decoded and preserved; most chunk and event semantics are unknown."
+    },
+    {
+      "name": "Audio references and placement starts",
+      "weight": 18,
+      "recovered": 60,
+      "basis": "Embedded source links and starts are recovered in inspected fixtures; track identity and placement links need broader validation."
+    },
+    {
+      "name": "Region lengths, trims, loops, and offsets",
+      "weight": 17,
+      "recovered": 10,
+      "basis": "Preview boundaries constrain some lengths, but serialized duration and edit fields remain unidentified."
+    },
+    {
+      "name": "MIDI placement and note semantics",
+      "weight": 18,
+      "recovered": 15,
+      "basis": "Candidate placements and note-shaped events are linked to MSeq chunks; note and placement field meanings remain hypotheses."
+    },
+    {
+      "name": "Tempo and meter timeline",
+      "weight": 8,
+      "recovered": 35,
+      "basis": "Summary tempo and meter are recovered; event scope, position units, changes, and completeness remain unresolved."
+    },
+    {
+      "name": "Tracks, mixer, sections, and automation",
+      "weight": 14,
+      "recovered": 5,
+      "basis": "Track candidates exist; names, mixer state, sections, and automation are largely unparsed."
+    }
+  ],
+  "milestones": [
+    {"name": "Package and metadata parser", "state": "complete"},
+    {"name": "Audio source and start recovery", "state": "partial"},
+    {"name": "MIDI interpretation", "state": "early"},
+    {"name": "Region boundaries and track state", "state": "open"},
+    {"name": "FL Studio reconstruction", "state": "experimental"}
+  ]
+}
