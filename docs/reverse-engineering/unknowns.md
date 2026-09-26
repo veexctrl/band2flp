@@ -15,6 +15,7 @@
 - Whether the same-group `0x90` note sequence belongs to the candidate `MSeq` region, and how that region connects to `0x20` placements and arrange tracks.
 - GarageBand-specific `MSeq` record fields for MIDI region duration, internal start, and name. Logic Pro offsets are not yet independently validated in GarageBand.
 - Whether `0x20` event `+0x14` values are direct arrange-track numbers and whether `+0x04` uses the Logic-derived 34,560/960 PPQ conversion in GarageBand. The `+0x20` cluster-to-`MSeq` association is now HIGH CONFIDENCE in two fixtures, but track and timing semantics still need controlled validation.
+- MIDI-004's raw `Trak` chunk-order comparison did not establish a direct mapping for `0x20 +0x14`; repeated chunk groups make ordinal equality insufficient.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
 - Audio source references and region-to-media mapping.
 - Tempo and time-signature changes, sections, automation, fades, and region gain.

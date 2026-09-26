@@ -319,3 +319,19 @@
 **Alternative considered:** The `MSeq` chunk-group match could be a coincidence if candidate group values were a small common set. Each placement instead yields a distinct target, with one matching `MSeq` record and no ambiguous or missing matches in either fixture, which makes coincidence less likely.
 
 **Next:** Make one software-instrument region in GarageBand, then move it and change its track independently. Verify which event fields change, whether the cluster transform remains stable, and whether the position and track candidates match GarageBand's visible arrangement.
+
+## MIDI-004 — placement track byte does not map directly to `Trak` chunk order
+
+**Question:** Can the `0x20` placement byte at `+0x14` be matched to arrange tracks by its ordinal among `Trak` chunks?
+
+**Fixtures:** The two locally inspected projects used for MIDI-003. The second project remains private; only aggregate counts are recorded.
+
+**Observation:** In the second project, IDA found 59 `Trak` chunks, 27 distinct candidate group values among them, and 19 recognized `0x20` placements. The placement byte had 14 distinct values ranging from 1 through 18. Comparing those byte values with raw `Trak` chunk ordinals gave nearby ordinal hits because the placement values are small, but the chunk stream contains repeated `Trak` group values and substantially more `Trak` chunks than placements. No stable one-to-one mapping to a track record was established.
+
+**Result:** The ordinal comparison is inconclusive and is not evidence that `+0x14` is a direct `Trak` index. The parser continues to expose it as `track_number_1_based_candidate` only; it does not use MIDI placements to create tracks.
+
+**Confidence:** CONFIRMED for these aggregate counts and the absence of an established direct ordinal mapping; UNKNOWN for the field's GarageBand meaning.
+
+**Alternative considered:** The value could be a one-based arrange-track number, an index in a different object table, or a scoped identifier. Raw chunk order alone cannot distinguish these interpretations.
+
+**Next:** Use controlled projects with one software-instrument track, then add a second track and move the same MIDI region between them. Compare the `+0x14` byte with visible track order and any associated track identifiers before normalizing it.
