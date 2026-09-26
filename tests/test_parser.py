@@ -471,6 +471,7 @@ class ParserTests(unittest.TestCase):
             make_fixture(fixture, include_audio_placement=True)
             project = parse_band(fixture)
         self.assertEqual(len(project.project_data["audio_placements"]), 1)
+        self.assertIn("HYPOTHESIS for this project", project.project_data["audio_placements"][0]["position_confidence"])
         self.assertEqual(len(project.tracks), 1)
         track = project.tracks[0]
         self.assertEqual(track.index, 2)
@@ -478,6 +479,18 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(track.regions), 1)
         self.assertEqual(track.regions[0].start_beats, "16")
         self.assertEqual(track.regions[0].source, "${CONTENT:loops/example.caf")
+        self.assertTrue(any("not validated for this project" in warning for warning in project.warnings))
+
+    def test_text_inspection_labels_audio_starts_as_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture, include_audio_placement=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "band2flp.cli", "inspect", str(fixture)],
+                cwd=Path(__file__).parents[1], capture_output=True, text=True, check=True,
+            )
+        self.assertIn("candidate beat starts", result.stdout)
+        self.assertIn("not validated for this project", result.stdout)
 
     def test_midi_note_fields_are_exposed_as_unconfirmed_candidates(self) -> None:
         note = bytearray(80)

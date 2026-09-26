@@ -91,7 +91,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Decoded tracks and regions: {sum(len(track.regions) for track in project.tracks)} regions")
         placements = project.project_data.get("audio_placements", [])
         if placements:
-            print(f"Audio placement events decoded: {len(placements)} (position units: beats; region durations unknown)")
+            print(
+                f"Audio placement events decoded: {len(placements)} "
+                "(candidate beat starts; origin/PPQ transfer is preview-checked in one research fixture; region durations unknown)"
+            )
             for track in project.tracks:
                 for region in track.regions:
                     source_name = region.source.rsplit("/", 1)[-1] if region.source else "unknown source"

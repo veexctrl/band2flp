@@ -400,7 +400,10 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "placement_record_size": 80,
             "trailing_u32_at_0_candidate": struct.unpack_from("<I", raw, 80)[0] if len(raw) >= 84 else None,
             "trailing_event_data_hex": raw[80:].hex(),
-            "position_confidence": "HIGH CONFIDENCE for the supplied fixture; matches its arrangement preview",
+            "position_confidence": (
+                "HYPOTHESIS for this project: Logic-derived 34,560 origin and 960 PPQ; "
+                "preview agreement was observed in one research fixture only"
+            ),
             "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
             "u32_at_0x18_candidate": struct.unpack_from("<I", raw, 0x18)[0],
             "u32_at_0x18_interpretation": "UNKNOWN; preserved as a raw candidate, not used as duration or end position",
@@ -783,10 +786,12 @@ def parse_band(path: str | Path) -> Project:
         _attach_audio_placements(project, project.project_data.get("audio_placements", []))
         if project.project_data.get("audio_placements"):
             project.warnings.append(
-                "Audio placement beat conversion uses a Logic-derived 34,560 origin and 960 PPQ; preview-validated only for this fixture."
+                "Audio placement starts are beat candidates using a Logic-derived 34,560 origin and 960 PPQ; "
+                "preview agreement was observed in one research fixture, not validated for this project."
             )
             project.warnings.append(
-                "Audio track indices use a candidate one-based event field; placement grouping agrees with one preview, but absolute track-index mapping is not controlled-fixture validated."
+                "Audio track indices use an unconfirmed one-based event field; one research preview supports row grouping, "
+                "but the mapping has not been validated for this project."
             )
         return project
 
