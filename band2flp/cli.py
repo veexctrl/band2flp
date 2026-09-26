@@ -76,6 +76,11 @@ def main(argv: list[str] | None = None) -> int:
         event_sequences = project.project_data.get("event_sequences")
         if event_sequences:
             print(f"Event records: {event_sequences['record_count']}")
+        midi_candidates = project.project_data.get("midi_note_event_candidates", [])
+        if midi_candidates:
+            print(
+                f"MIDI note-shaped events: {len(midi_candidates)} (field meanings and region/track associations are hypotheses)"
+            )
         if project.tempo_map:
             values = ", ".join(f"{item['bpm']:g} BPM @ raw {item['position_raw']}" for item in project.tempo_map)
             print(f"Group-zero tempo candidates: {values}")

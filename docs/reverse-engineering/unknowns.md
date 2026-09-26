@@ -11,7 +11,8 @@
 - Whether the 23 `AuCO` records with the Logic-like channel-strip shape correspond to GarageBand arrange tracks, mixer channels, auxiliary channels, or a mixture; validate the descriptor and ordering fields with controlled track-count fixtures.
 - Meaning of the eight-byte `AuCO` descriptor for GarageBand and how arrange-track records can be distinguished from non-arrangement channel strips.
 - Region durations, source offsets, trims, loops, and mute state. Audio placement start positions are decoded in beats for the supplied fixture.
-- MIDI note encoding and timing resolution.
+- Whether the Logic-derived offsets on 80-byte GarageBand `0x90` events mean pitch, velocity, onset, and duration; candidate fields are exposed but remain unconfirmed pending controlled one-note GarageBand fixtures.
+- How `0x90` note events pair with MIDI-region `MSeq` records, and how those regions connect to `0x20` placement events and arrange tracks.
 - Meaning of the 12 `0x20` event records: Logic Pro uses this marker for MIDI-region placement, but this fixture lacks `0x90` note events and the `0x20` records do not independently map to the arrange-track count. Do not treat them as MIDI regions without a controlled software-instrument fixture.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
 - Audio source references and region-to-media mapping.

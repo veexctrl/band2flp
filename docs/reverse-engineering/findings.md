@@ -23,6 +23,11 @@
 - The 59 `Trak` chunks form at least two payload-size families (33 empty and 26 with 58 bytes); track identity and order are not established by this count.
 - 23 `AuCO` chunks in the inspected project match a Logic Pro channel-strip marker and fixed-offset record shape; their unique header values form 0–22. This is a cross-format layout observation, not a confirmed GarageBand track mapping.
 
+## Additional private-fixture hypothesis
+
+- A second local `.band` project contains 80-byte `0x90` `EvSq` records whose marker and candidate field offsets resemble the Logic Pro note-event layout. The sequence shares a candidate group value with an `MSeq` chunk, but no MIDI placement-to-region or track link has been validated. The parser exposes candidate fields and raw records without assigning musical content to a track. The fixture and its media are not included in the repository.
+- Exact one-note GarageBand differential fixtures are still required before treating the candidate pitch, velocity, onset, or duration fields as confirmed GarageBand semantics.
+
 ## High confidence
 
 - The tempo and signature metadata keys represent project-level tempo and time signature.

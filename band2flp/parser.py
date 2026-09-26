@@ -406,6 +406,44 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
     return placements
 
 
+def _parse_midi_note_candidates(
+    event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Expose Logic-shaped note fields as candidates without assigning tracks/regions."""
+    mseq_groups: dict[int, list[int]] = {}
+    for chunk in chunk_stream.get("chunks", []):
+        if chunk.get("type") == "MSeq":
+            mseq_groups.setdefault(chunk["group_id_candidate"], []).append(chunk["index"])
+
+    candidates: list[dict[str, Any]] = []
+    for record in event_sequences.get("records", []):
+        raw = bytes.fromhex(record["raw_hex"])
+        # Logic Pro's documented note event has this marker and these fields.
+        # GarageBand uses longer records in the inspected private fixture, so
+        # retain these interpretations as hypotheses rather than normalized notes.
+        if len(raw) < 32 or raw[0] != 0x90 or raw[0x17] != 0x89:
+            continue
+        group_id = record.get("group_id_candidate")
+        candidates.append({
+            "source_chunk_index": record["chunk_index"],
+            "source_event_index": record["event_index"],
+            "source_group_id_candidate": group_id,
+            "candidate_mseq_chunk_indices_for_group": mseq_groups.get(group_id, []),
+            "event_size": len(raw),
+            "position_raw": struct.unpack_from("<I", raw, 4)[0],
+            "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
+            "position_ticks_from_38400_candidate": struct.unpack_from("<I", raw, 4)[0] - 38_400,
+            "ppq_candidate": 960,
+            "fine_velocity_byte_candidate": raw[0x0A],
+            "velocity_candidate": raw[0x0B],
+            "pitch_candidate": raw[0x0C],
+            "duration_ticks_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
+            "field_interpretation_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand note fixtures are not yet controlled",
+            "raw_hex": record["raw_hex"],
+        })
+    return candidates
+
+
 def _attach_audio_placements(project: Project, placements: list[dict[str, Any]]) -> None:
     """Create neutral audio tracks/regions from decoded placement candidates."""
     references = {
@@ -543,11 +581,14 @@ def parse_band(path: str | Path) -> Project:
                         else:
                             project.project_data["event_sequences"] = events
                             project.project_data["audio_placements"] = _parse_audio_placements(events)
+                            project.project_data["midi_note_event_candidates"] = _parse_midi_note_candidates(
+                                events, project.project_data["logic_song_chunk_stream"]
+                            )
                         project.warnings.append(
                             "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
                         )
                 project.warnings.append(
-                    "Logic-song payload is retained as opaque bytes; MIDI notes, audio-region durations, and track names/settings are not decoded."
+                    "Logic-song payload is retained as opaque bytes; MIDI note fields are candidates only, and note-region associations, audio-region durations, and track names/settings remain unknown."
                 )
             else:
                 project.project_data = {"recognized": False, "format": "unrecognized plist root"}

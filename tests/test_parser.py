@@ -21,6 +21,7 @@ from band2flp.parser import (
     _parse_audio_placements,
     _parse_chunk_stream,
     _parse_event_sequences,
+    _parse_midi_note_candidates,
     parse_band,
 )
 
@@ -327,6 +328,39 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(track.regions), 1)
         self.assertEqual(track.regions[0].start_beats, "16")
         self.assertEqual(track.regions[0].source, "${CONTENT:loops/example.caf")
+
+    def test_midi_note_fields_are_exposed_as_unconfirmed_candidates(self) -> None:
+        note = bytearray(80)
+        note[0] = 0x90
+        struct.pack_into("<I", note, 4, 39_360)
+        note[0x0A] = 7
+        note[0x0B] = 64
+        note[0x0C] = 60
+        note[0x17] = 0x89
+        struct.pack_into("<I", note, 0x1C, 480)
+        not_note = bytearray(note)
+        not_note[0x17] = 0
+        events = {"records": [
+            {"type_byte": 0x90, "chunk_index": 9, "event_index": 0,
+             "group_id_candidate": 0x00100000, "raw_hex": note.hex()},
+            {"type_byte": 0x90, "chunk_index": 9, "event_index": 1,
+             "group_id_candidate": 0x00100000, "raw_hex": not_note.hex()},
+        ]}
+        chunks = {"chunks": [
+            {"type": "MSeq", "index": 5, "group_id_candidate": 0x00100000},
+            {"type": "MSeq", "index": 6, "group_id_candidate": 0x00200000},
+        ]}
+
+        candidates = _parse_midi_note_candidates(events, chunks)
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["candidate_mseq_chunk_indices_for_group"], [5])
+        self.assertEqual(candidates[0]["position_ticks_from_38400_candidate"], 960)
+        self.assertEqual(candidates[0]["pitch_candidate"], 60)
+        self.assertEqual(candidates[0]["velocity_candidate"], 64)
+        self.assertEqual(candidates[0]["duration_ticks_candidate"], 480)
+        self.assertEqual(candidates[0]["field_interpretation_confidence"].split(";")[0], "HYPOTHESIS transferred from Logic Pro")
+        self.assertEqual(candidates[0]["raw_hex"], note.hex())
 
     def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
         payload = bytes.fromhex("2347c0ab") + bytes(20)

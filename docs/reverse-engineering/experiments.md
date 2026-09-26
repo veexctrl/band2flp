@@ -287,3 +287,19 @@
 **Alternative considered:** These may be empty MIDI-region placements, internal arrangement objects, or another sequence type that shares the Logic event marker. Their repeated bar-one position and zero links do not establish usable MIDI content.
 
 **Next:** Compare a GarageBand project with one software-instrument track and a known MIDI region, then add one note and compare the region's `MSeq` and `EvSq` chunks. Determine whether a `0x20` event changes and whether any `0x90` note records appear.
+
+## MIDI-002 — Logic-shaped note fields in a local GarageBand project
+
+**Question:** Can the Logic Pro note-event field layout identify MIDI note candidates in another GarageBand project?
+
+**Fixture:** A second locally supplied `.band` project, inspected locally with IDA Python and the independent package parser. The project and its media are excluded from the repository; no note values or audio content are recorded here.
+
+**Observation:** `EvSq` contains records beginning with event byte `0x90`. These records are 80 bytes in this fixture, rather than the 32-byte records described by the Logic Pro reference. Their `+0x17` marker matches the reference, and the bytes at `+0x0B`, `+0x0C`, and `+0x1C` fall within plausible velocity, pitch, and duration ranges. The note-event sequence shares a candidate group value with one `MSeq` chunk. Its note-region placement and track association were not established. The cross-format field map is described in [Logic Pro ProjectData specification §8.5](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions).
+
+**Result:** The parser exposes the reference-layout fields as `midi_note_event_candidates` in inspection JSON, preserving raw bytes and same-group `MSeq` chunk indices. It does not attach these candidates to a track or normalized MIDI region.
+
+**Confidence:** HIGH CONFIDENCE that the fixture contains the observed 80-byte `0x90` records and same-group `MSeq` record; HYPOTHESIS for pitch/velocity/duration field meanings transferred from Logic Pro; UNKNOWN for placement and track association.
+
+**Alternative considered:** `0x90` may be a GarageBand-specific event family whose fields only resemble Logic MIDI notes. The longer record size and lack of a controlled one-note fixture leave this possible.
+
+**Next:** Create or obtain a one-note GarageBand fixture, vary pitch, velocity, onset, and duration independently, then compare the corresponding `EvSq` and `MSeq` records. Separately identify the `0x20` placement link to the correct `MSeq` region and arrange track.
