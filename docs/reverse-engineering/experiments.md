@@ -26,6 +26,22 @@
 
 **Next:** Collect controlled note/region fixtures and correlate changes in this payload.
 
+## PD-002 — arrange-model branch contents
+
+**Question:** Does the keyed archive's `DfDocument arrange model` object contain arrangement track or region collections?
+
+**Fixture:** The supplied project, resolved through the `NSKeyedArchiver` object graph in IDA Python.
+
+**Observation:** The referenced object has scalar editor/arrange settings such as zoom indices, snap/quantize state, visibility flags, count-in and metronome settings, media properties, and active song-part indices. Its `CBData` reference resolves to a dictionary of UI state keys, including panel visibility, importer page, scroll offset, and a previously selected track UUID. No track or region collection is present in this object or dictionary.
+
+**Result:** This archive branch is not a decoded arrangement source in the inspected fixture. Its UI state is still preserved in the original keyed-archive plist. The absence of a collection here does not prove that all other archive objects or chunk structures lack arrangement data.
+
+**Confidence:** CONFIRMED for the keys and references in this object's serialized graph; UNKNOWN for whether another object uses these UI identifiers to refer to arrangement records.
+
+**Alternative considered:** Track-panel visibility and the previous-track UUID could appear related to track data, but they are scalar UI state and do not enumerate track identity or region placement.
+
+**Next:** Continue examining the logic-song chunk stream, especially validated `AuCO` channel-strip candidates and arrangement-bearing chunk families.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?
@@ -143,3 +159,19 @@
 **Alternative considered:** `Trak` may identify nested track-related records or references rather than one chunk per arrange track. The 59 observed chunks also exceed the summary's arrange-track count, so the counts cannot be equated.
 
 **Next:** Compare track-only fixtures and determine which chunk family changes when a track is added, renamed, reordered, or changes type.
+
+## TRK-002 — cross-format `AuCO` channel-strip candidate
+
+**Question:** Does the GarageBand chunk stream contain records shaped like Logic Pro channel-strip records?
+
+**Fixture:** The supplied GarageBand project, examined in IDA MCP and independently re-counted from parser output with Python. Cross-format reference: [`tracks.go` in loov/logicx](https://raw.githubusercontent.com/loov/logicx/main/tracks.go).
+
+**Observation:** The external Logic parser identifies `AuCO` channel-strip chunks by header bytes 4–7 `07 00 0e 00`, then reads a 24-byte record at payload offset 60: a leading byte, a 15-byte NUL-padded printable name, and an eight-byte descriptor. In this GarageBand fixture, 23 of 36 `AuCO` chunks match the marker and minimum length; all 23 contain printable NUL-padded name fields. The little-endian 16-bit value at chunk-header offset 14 is unique and contiguous from 0 through 22 across those records.
+
+**Result:** The layout is a strong cross-format candidate for GarageBand channel-strip records. It is not yet implemented as arrangement tracks: the fixture's summary reports seven arrange tracks, and the 23 records may include mixer, auxiliary, or other channel strips. The external Logic Pro interpretation is not direct evidence that every descriptor field or track kind transfers to GarageBand.
+
+**Confidence:** HIGH CONFIDENCE that this exact marker/record pattern occurs in the inspected GarageBand payload; HYPOTHESIS that it has the same channel-strip meaning as in Logic Pro.
+
+**Alternative considered:** `AuCO` may contain another GarageBand object family with a coincidentally similar record shape. The exact marker, fixed record offset, printable padded names, and sequential strip values make a shared layout plausible, but controlled track-count changes are needed to test it.
+
+**Next:** Compare an empty project and projects with one and two added tracks. Check which `AuCO` records and strip IDs are added, and compare the extracted names to GarageBand's visible track list without committing private project content.

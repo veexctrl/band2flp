@@ -6,6 +6,7 @@
 - Meaning of the repeated 16-byte `0xF1` `EvSq` payloads and the scope of their candidate group values.
 - Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
 - Track identifiers, ordering, names, types, mixer settings, and mute/solo state.
+- Whether the 23 `AuCO` records with the Logic-like channel-strip shape correspond to GarageBand arrange tracks, mixer channels, auxiliary channels, or a mixture; validate the descriptor and ordering fields with controlled track-count fixtures.
 - Region record boundaries, timing units, starts, durations, trims, loops, and mute state.
 - MIDI note encoding and timing resolution.
 - Audio source references and region-to-media mapping.
