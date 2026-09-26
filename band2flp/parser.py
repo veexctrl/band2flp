@@ -510,9 +510,12 @@ def _parse_midi_region_placement_candidates(
 ) -> list[dict[str, Any]]:
     """Link Logic-shaped MIDI placements to MSeq chunks while preserving uncertainty."""
     mseq_groups: dict[int, list[int]] = {}
+    trak_groups: dict[int, list[int]] = {}
     for chunk in chunk_stream.get("chunks", []):
         if chunk.get("type") == "MSeq":
             mseq_groups.setdefault(chunk["group_id_candidate"], []).append(chunk["index"])
+        elif chunk.get("type") == "Trak":
+            trak_groups.setdefault(chunk["group_id_candidate"], []).append(chunk["index"])
 
     placements: list[dict[str, Any]] = []
     for record in event_sequences.get("records", []):
@@ -524,6 +527,7 @@ def _parse_midi_region_placement_candidates(
         region_cluster_candidate = struct.unpack_from("<I", raw, 0x20)[0]
         region_group_candidate = (region_cluster_candidate << 16) & 0xFFFFFFFF
         linked_mseq = mseq_groups.get(region_group_candidate, [])
+        same_group_trak = trak_groups.get(region_group_candidate, [])
         position_raw = struct.unpack_from("<I", raw, 4)[0]
         placements.append({
             "source_chunk_index": record["chunk_index"],
@@ -539,6 +543,11 @@ def _parse_midi_region_placement_candidates(
             "region_cluster_candidate": region_cluster_candidate,
             "region_group_id_candidate": region_group_candidate,
             "candidate_mseq_chunk_indices": linked_mseq,
+            "same_group_trak_chunk_indices_candidate": same_group_trak,
+            "same_group_trak_confidence": (
+                "HIGH CONFIDENCE for one same-group Trak chunk in inspected fixtures; semantics UNKNOWN"
+                if len(same_group_trak) == 1 else "UNKNOWN; same-group Trak match is absent or ambiguous"
+            ),
             "region_link_confidence": (
                 "HIGH CONFIDENCE for a unique MSeq group match in this fixture"
                 if len(linked_mseq) == 1 else "HYPOTHESIS; MSeq group match is absent or ambiguous"

@@ -517,6 +517,24 @@
 
 **Next:** Compare matched one-track/two-track software-instrument projects and move a single MIDI region between tracks. Identify the target through visible track identity or another stable cross-reference before adding MIDI placements to neutral tracks.
 
+## MIDI-010 — MIDI placement groups also occur on empty `Trak` chunks
+
+**Question:** Does the group value that uniquely links a MIDI placement to an `MSeq` chunk also occur on a `Trak` chunk?
+
+**Fixtures:** Both supplied projects. Project-specific content is omitted.
+
+**Method:** For every recognized MIDI placement, followed its `+0x20`-derived group candidate to the unique `MSeq` chunk, then searched `Trak` chunk headers for the same group candidate. Compared the event and chunk offsets in Python, then read every matching 36-byte `Trak` header through IDA MCP.
+
+**Observation:** All 19 MIDI placements in one project and all 12 in the other link to exactly one `MSeq` and exactly one same-group `Trak` chunk. Each matched `Trak` payload has length zero. IDA verified the reversed `Trak` tag, matching little-endian group field, and zero payload-size field in all 31 headers.
+
+**Result:** The parser now exposes `same_group_trak_chunk_indices_candidate` for inspection. This adds a structural cross-component association without treating the `Trak` chunk as an arrange-track record. Empty payloads cannot supply track names or other identity data, and group-value reuse elsewhere means the shared value is not a global object ID by itself.
+
+**Confidence:** CONFIRMED for same-group co-occurrence with one zero-length `Trak` chunk per recognized MIDI placement in these two fixtures and IDA/Python header agreement; UNKNOWN for the semantic relationship to arrange tracks.
+
+**Alternative considered:** A `Trak` chunk may be a group-scoped marker or a placeholder emitted alongside each `MSeq`, rather than the serialized arrange-track object. Its empty payload and overlap with MIDI-region group values leave both interpretations open.
+
+**Next:** In a controlled track-move fixture, check whether this same-group `Trak` chunk changes with the MIDI region or remains associated with the same arrangement track. Locate any non-empty `Trak` records that share a stable track identifier before decoding fields.
+
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 
 **Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?

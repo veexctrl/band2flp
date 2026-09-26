@@ -55,6 +55,8 @@ Two locally inspected projects contain 80-byte `0x20` `EvSq` records with marker
 
 The parser reports these as `midi_region_placement_candidates`, with the corresponding `MSeq` chunk index, raw event, position candidate, and uninterpreted `track_value_candidate`. In both inspected projects this byte exceeds the declared arrange-track range, so it is not treated as a direct track number or index (MIDI-009). Position origin and units remain hypotheses. The parser also does not use unvalidated `MSeq` offsets for region duration or attach note events to placements. Controlled GarageBand edits are still needed before these records populate the neutral track/region model or an FLP.
 
+For every recognized MIDI placement in both inspected projects, the candidate group value that selects its unique `MSeq` chunk also occurs on exactly one zero-payload `Trak` chunk. IDA MCP verified the tag, group value, and empty payload for all 19 and 12 corresponding headers in the two payloads (MIDI-010). This is a reproducible same-group co-occurrence; it does not establish that the empty `Trak` chunk represents the arrange track, nor does it decode track identity.
+
 ## Event records and global timing candidates
 
 All 33 `EvSq` payloads in the inspected fixture have lengths divisible by 16. Splitting atoms where byte 7 has its continuation bit clear yields 71 complete event records. The event summaries retain every record's bytes, chunk index, group value, type byte, and raw offset.

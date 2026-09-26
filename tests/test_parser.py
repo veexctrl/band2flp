@@ -572,12 +572,15 @@ class ParserTests(unittest.TestCase):
         chunks = {"chunks": [
             {"type": "MSeq", "index": 23, "group_id_candidate": 0x00100000},
             {"type": "MSeq", "index": 24, "group_id_candidate": 0x00200000},
+            {"type": "Trak", "index": 25, "group_id_candidate": 0x00100000},
         ]}
 
         placements = _parse_midi_region_placement_candidates(events, chunks)
 
         self.assertEqual(len(placements), 1)
         self.assertEqual(placements[0]["candidate_mseq_chunk_indices"], [23])
+        self.assertEqual(placements[0]["same_group_trak_chunk_indices_candidate"], [25])
+        self.assertIn("semantics UNKNOWN", placements[0]["same_group_trak_confidence"])
         self.assertEqual(
             placements[0]["region_link_confidence"],
             "HIGH CONFIDENCE for a unique MSeq group match in this fixture",
