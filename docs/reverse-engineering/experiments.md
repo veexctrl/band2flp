@@ -425,6 +425,26 @@
 
 **Next:** Create controlled same-device fixtures that vary one note property at a time. Determine whether `0x90` fields track the GarageBand piano-roll values while preserving the `MSeq` and placement link.
 
+## MIDI-007 - linked note positions are inconsistent with absolute timeline positions
+
+**Question:** In the linked GarageBand MIDI candidate group, are note-position candidates more plausibly relative to their region than absolute song positions?
+
+**Fixture:** The same locally supplied audio-bearing project as MIDI-006. Project name, audio, exact note values, and screenshots remain private and are not included here.
+
+**Method:** Reparsed the project and matched note-shaped events to `MSeq` chunks and `0x20` placement candidates. Reopened the extracted logic-song payload in IDA and compared the four Python-reported 80-byte note-event ranges at their exact offsets. Consulted an independent Logic Pro 11.2.2 reverse-engineering write-up as a cross-format lead; it reports 32-byte `0x90` note records with note-position values relative to their MIDI region in controlled Logic projects. This is not treated as GarageBand evidence by itself.
+
+**Observation:** All four note-shaped records matched IDA byte-for-byte. They share one uniquely matched `MSeq` chunk, and that chunk is linked to one `0x20` placement candidate. Under the Logic-derived candidate origins and PPQ, every note-position candidate falls before the linked placement if interpreted as an absolute song position. Treating the values as region-relative yields positions within the linked region. The GarageBand event records are 80 bytes, not the 32-byte Logic records described by the external spec.
+
+**Result:** The parser now exposes `position_scope_candidate: region-relative` for a group only when it has one unique `MSeq`, one unique linked placement, and every note position would otherwise precede that placement. This is an evidence annotation, not a normalized MIDI onset; the GarageBand origins and the note/placement semantics still require controlled validation. Other groups remain `unknown`.
+
+**Confidence:** HIGH CONFIDENCE in the byte agreement and unique shared-chunk/placement links in this fixture; HYPOTHESIS for region-relative position scope in this GarageBand group; UNKNOWN for pitch, velocity, duration, field layout beyond the candidate prefix, and generalization.
+
+**Alternative considered:** The Logic-derived origin or GarageBand placement candidate may have a different meaning, or the `0x90` group may contain note-like data whose time fields are not ordinary MIDI onset. The unique linked region and the pre-region absolute positions favor the relative interpretation but do not settle it.
+
+**Source lead:** [Logic Pro ProjectData note-region findings](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions), based on controlled Logic Pro fixtures. Transfer to iOS GarageBand remains unconfirmed.
+
+**Next:** Create a same-project GarageBand fixture with one MIDI region, record its displayed note positions, then move only the region. Check whether note-event positions stay unchanged while the placement moves, as the Logic model predicts.
+
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 
 **Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?

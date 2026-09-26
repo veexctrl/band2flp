@@ -29,6 +29,7 @@
 ## Additional private-fixture observations
 
 - The private, audio-bearing fixture contains four 80-byte `0x90` note-shaped `EvSq` events. Each event group matches one `MSeq` chunk, and that same chunk is the unique target of one recognized `0x20` MIDI placement event. IDA and the Python parser read identical bytes for all 19 placement candidates and four note-shaped events (MIDI-006). This is HIGH CONFIDENCE for the shared-chunk relation in this fixture; note-field meanings, track mapping, and generality remain unresolved. The fixture, project title, audio, and note values are not included in the repository.
+- MIDI-007 rechecked the four note-event byte ranges in IDA and Python and compared their candidate positions with the unique linked placement. Under Logic-derived origins, an absolute interpretation would place them before the region; a region-relative interpretation places them inside it. This raises region-relative note timing to a fixture-specific HYPOTHESIS, not a GarageBand-confirmed field meaning.
 - Exact one-note GarageBand differential fixtures are still required before treating the candidate pitch, velocity, onset, or duration fields as confirmed GarageBand semantics.
 
 ## High confidence
@@ -41,7 +42,7 @@
 - MIDI `0x20` placement-to-`MSeq` group linkage has HIGH CONFIDENCE for two fixtures: the low-order cluster value at event `+0x20`, shifted left 16 bits, uniquely selects one `MSeq` chunk group for each recognized placement. Track-number and position-unit interpretations remain unconfirmed.
 - MIDI-006 established a HIGH CONFIDENCE note-event-to-shared-`MSeq` candidate relation for four note-shaped events in the private audio-bearing fixture. All four link through a unique `MSeq` chunk to exactly one recognized `0x20` placement; this does not confirm note fields or arrangement timing.
 - The nine audio placement positions, track numbers, and source links are HIGH CONFIDENCE for this fixture because they match the arrangement preview and audio-resource mappings. Region durations and generalization across project versions remain unverified.
-- The `AuRg +0x16` frame-count interpretation is HIGH CONFIDENCE by cross-format layout and 44.1 kHz plausibility, but is not used as beat duration. The two extended-event correlations are fixture-specific and do not yet decode region identity generally.
+- The two extended-event correlations are fixture-specific and do not yet decode region identity generally.
 - Group-zero 160 BPM and 4/4 records match both summary plists. Raw positions and the meaning of nonzero-group tempo records are unresolved.
 - The `AuCO` records likely represent channel strips based on the cross-format marker, padded-name record, and sequential strip values; their relationship to the seven arrange tracks is unknown.
 - Applying the Logic Pro descriptor classifier to the `AuCO` candidates yields a mixture of channel kinds and more audio/instrument candidates than the arrange-track count. This classifier is not used to label GarageBand tracks.
@@ -50,3 +51,5 @@
 
 - The duration summary may be in seconds. Its key and observed value suggest this, but controlled fixtures have not yet confirmed units or exact duration semantics.
 - The large `NS.data` payload contains the serialized logic/song arrangement. Its reference path, chunk types, and exact chunk framing make it the primary candidate, but internal semantics have not yet been decoded.
+- An independent Logic Pro 11.2.2 format write-up identifies `AuRg +0x16` as a region frame-count field in controlled Logic projects. This is a cross-format lead for GarageBand only: ARR-020 found that it does not consistently equal complete source-file frame counts, and ARR-024 found no match to preview-measured durations under an un-stretched playback assumption.
+- The four linked GarageBand note-position candidates may be region-relative, consistent with controlled Logic Pro note-region behavior. Their timing origins and placement interpretation remain cross-format candidates requiring controlled GarageBand validation.

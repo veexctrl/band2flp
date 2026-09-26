@@ -457,6 +457,7 @@ class ParserTests(unittest.TestCase):
         not_note[0x17] = 0
         placement = bytearray(80)
         placement[:4] = b"\x20\x00\x00\x00"
+        struct.pack_into("<I", placement, 4, 52_320)
         placement[0x20] = 0x10  # Resolves to the 0x00100000 MSeq group.
         placement[0x17] = 0x89
         placement[0x27] = 0x88
@@ -487,6 +488,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(candidates[0]["pitch_candidate"], 60)
         self.assertEqual(candidates[0]["velocity_candidate"], 64)
         self.assertEqual(candidates[0]["duration_ticks_candidate"], 480)
+        self.assertEqual(candidates[0]["position_scope_candidate"], "region-relative")
+        self.assertIn("HYPOTHESIS", candidates[0]["position_scope_confidence"])
         self.assertEqual(
             candidates[0]["field_interpretation_confidence"].split(";")[0],
             "HYPOTHESIS transferred from Logic Pro",

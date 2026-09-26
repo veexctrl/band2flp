@@ -423,6 +423,7 @@ def _parse_midi_note_candidates(
             placements_by_mseq.setdefault(mseq_index, []).append({
                 "source_chunk_index": placement["source_chunk_index"],
                 "source_event_index": placement["source_event_index"],
+                "position_raw": placement["position_raw"],
             })
 
     candidates: list[dict[str, Any]] = []
@@ -462,8 +463,42 @@ def _parse_midi_note_candidates(
             "pitch_candidate": raw[0x0C],
             "duration_ticks_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
             "field_interpretation_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand note fixtures are not yet controlled",
+            "position_scope_candidate": "unknown",
+            "position_scope_confidence": "UNKNOWN; no unique linked placement comparison supports a scope yet",
             "raw_hex": record["raw_hex"],
         })
+
+    candidates_by_group: dict[int, list[dict[str, Any]]] = {}
+    for candidate in candidates:
+        if isinstance(candidate["source_group_id_candidate"], int):
+            candidates_by_group.setdefault(candidate["source_group_id_candidate"], []).append(candidate)
+    for group_id, group_notes in candidates_by_group.items():
+        mseq_indices = mseq_groups.get(group_id, [])
+        linked_placements = {
+            (placement["source_chunk_index"], placement["source_event_index"]): placement
+            for mseq_index in mseq_indices
+            for placement in placements_by_mseq.get(mseq_index, [])
+        }
+        if len(mseq_indices) != 1 or len(linked_placements) != 1:
+            continue
+        placement = next(iter(linked_placements.values()))
+        # These origins/units come from Logic Pro and remain hypotheses in GB.
+        region_start_ticks_candidate = placement["position_raw"] - 34_560
+        note_absolute_ticks_candidates = [
+            Fraction(note["position_ticks_from_38400_candidate"])
+            + Fraction(note["position_fraction_raw"], 65_536)
+            for note in group_notes
+        ]
+        if note_absolute_ticks_candidates and all(
+            note_position < region_start_ticks_candidate
+            for note_position in note_absolute_ticks_candidates
+        ):
+            for note in group_notes:
+                note["position_scope_candidate"] = "region-relative"
+                note["position_scope_confidence"] = (
+                    "HYPOTHESIS for this group: every note position precedes its unique linked placement "
+                    "under Logic-derived origins, so treating note positions as absolute would put them before the region"
+                )
     return candidates
 
 

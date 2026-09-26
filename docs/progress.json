@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-09-26",
+  "as_of": "2026-09-27",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,7 +30,7 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 15,
+      "recovered": 20,
       "basis": "Candidate placements and note-shaped events are linked to MSeq chunks; note and placement field meanings remain hypotheses."
     },
     {
