@@ -14,6 +14,7 @@
 - All six asset audio basenames match one `AuFl` payload each as UTF-16LE; candidate group values link those chunks to all nine `AuRg` chunks, matching the metadata root-region count.
 - Aligned `EvSq` records contain a group-zero 160 BPM candidate and a 4/4 candidate that match both summary plists; a distinct 120 BPM candidate exists in a nonzero group and remains unassigned.
 - Seventeen short `EvSq` chunks are identical 16-byte `0xF1` payloads in the inspected project; six share candidate group values with the audio-file/region groups. Their purpose is UNKNOWN.
+- The 59 `Trak` chunks form at least two payload-size families (33 empty and 26 with 58 bytes); track identity and order are not established by this count.
 
 ## High confidence
 

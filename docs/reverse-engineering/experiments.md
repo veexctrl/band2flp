@@ -127,3 +127,19 @@
 **Alternative considered:** The shared group may denote a containing track or object cluster rather than a media region. The repetition across audio and non-audio groups is consistent with a generic sequence marker.
 
 **Next:** Compare empty, MIDI-only, and audio-only projects and observe whether these chunks appear, change, or disappear.
+
+## TRK-001 — observed `Trak` payload families
+
+**Question:** Are `Trak` chunks uniform records in the inspected logic-song stream?
+
+**Fixture:** The same supplied project, read through the validated chunk inventory in IDA MCP.
+
+**Observation:** The 59 `Trak` chunks split into 33 with zero-byte payloads and 26 with 58-byte payloads. The latter family shares an eight-byte payload prefix; their following bytes vary. These records are distributed across multiple candidate group values. The empty-payload family has varying opaque chunk-header bytes.
+
+**Result:** Chunk type and payload size alone are insufficient to treat every `Trak` chunk as a track object. The parser preserves each header, payload size, and offset without assigning track identities or order.
+
+**Confidence:** CONFIRMED for counts and payload-size families in this fixture; UNKNOWN for record semantics.
+
+**Alternative considered:** `Trak` may identify nested track-related records or references rather than one chunk per arrange track. The 59 observed chunks also exceed the summary's arrange-track count, so the counts cannot be equated.
+
+**Next:** Compare track-only fixtures and determine which chunk family changes when a track is added, renamed, reordered, or changes type.
