@@ -27,6 +27,7 @@
 - `AuFl`/`AuRg` source-to-region grouping is high confidence in this one fixture; the group-field semantics and timing fields need controlled validation.
 - Group-zero 160 BPM and 4/4 records match both summary plists. Raw positions and the meaning of nonzero-group tempo records are unresolved.
 - The `AuCO` records likely represent channel strips based on the cross-format marker, padded-name record, and sequential strip values; their relationship to the seven arrange tracks is unknown.
+- Applying the Logic Pro descriptor classifier to the `AuCO` candidates yields a mixture of channel kinds and more audio/instrument candidates than the arrange-track count. This classifier is not used to label GarageBand tracks.
 
 ## Hypotheses
 

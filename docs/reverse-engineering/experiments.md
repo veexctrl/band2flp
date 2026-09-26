@@ -175,3 +175,19 @@
 **Alternative considered:** `AuCO` may contain another GarageBand object family with a coincidentally similar record shape. The exact marker, fixed record offset, printable padded names, and sequential strip values make a shared layout plausible, but controlled track-count changes are needed to test it.
 
 **Next:** Compare an empty project and projects with one and two added tracks. Check which `AuCO` records and strip IDs are added, and compare the extracted names to GarageBand's visible track list without committing private project content.
+
+## TRK-003 — cross-format channel-kind discriminator
+
+**Question:** Does the Logic Pro channel-strip descriptor classifier directly provide GarageBand arrange-track types?
+
+**Fixture:** The same GarageBand project. Descriptor categories were evaluated from the 23 `AuCO` candidates identified in TRK-002. Cross-format reference: [`trackKind` in `tracks.go`](https://github.com/loov/logicx/blob/main/tracks.go#L1119-L1162).
+
+**Observation:** Applying the Logic Pro descriptor rules to the eight-byte records gives 12 audio, two instrument, three input, two bus, one master, and three unknown candidates. The project summary reports seven arrange tracks. No track-kind field in the GarageBand summary independently confirms these categories.
+
+**Result:** The Logic Pro descriptor classifier cannot be used directly to create GarageBand arrange tracks: it yields a broader set of channel-strip categories and more audio/instrument candidates than the arrange-track count. The parser continues to preserve the descriptor bytes without mapping them to GarageBand track kinds. No Logic Pro code was copied.
+
+**Confidence:** CONFIRMED for the observed descriptor-byte distribution and summary count in this fixture; UNKNOWN for GarageBand meanings of these descriptor values.
+
+**Alternative considered:** The extra channel strips may represent mixer, auxiliary, input, output, or other non-arrange entities. This would allow the Logic-like channel-strip structure to coexist with a smaller arrange-track list, but the current evidence does not identify the subset.
+
+**Next:** Use controlled track-count fixtures and visible track names/types to determine whether arrange tracks can be distinguished from the full `AuCO` channel-strip set.
