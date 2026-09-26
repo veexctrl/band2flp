@@ -37,6 +37,7 @@ class MediaReference:
     group_id_candidate: int | None = None
     related_region_chunk_indices: list[int] = field(default_factory=list)
     name_matched_region_chunk_indices: list[int] = field(default_factory=list)
+    region_chunk_metadata_candidates: list[dict[str, Any]] = field(default_factory=list)
     unknown: dict[str, Any] = field(default_factory=dict)
 
 

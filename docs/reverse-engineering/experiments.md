@@ -240,6 +240,22 @@
 
 **Next:** Differential fixtures should move one audio region by one beat and one bar, change the meter, and alter trim/loop state separately. Then decode duration, source offset, region-object linkage, and the 80-byte suffix.
 
+## ARR-018 — region frame-count and extended placement correlation
+
+**Question:** Does `AuRg` contain a source-frame count, and does the extra placement-event data identify a particular region object?
+
+**Fixture:** The supplied project. IDA and Python compared all nine `AuRg` payloads to the nine `0x24` placement events. The Logic Pro ProjectData specification was used as an independent structural reference.
+
+**Observation:** Each `AuRg` has a little-endian 32-bit value at payload offset `0x16`; the values are plausible frame counts at the project summary sample rate of 44.1 kHz. A readable filename stem occurs at payload offset `0x4C`, preceded by a 16-bit length at `0x4A`, matching the Logic Pro audio-region layout. Two placement events are 160 bytes, with an 80-byte suffix. The first suffix dword equals the `+0x16` value of one same-source `AuRg` chunk in each case (the second of two chunks in its group). The other seven placements have no suffix dword that matches a same-source region candidate.
+
+**Result:** The `AuRg +0x16` field is retained as a `frame_count_candidate`, not as an arrangement duration in beats. The two suffix correlations are exposed as candidate region-object links. They do not establish a universal event-to-object link encoding or placement duration. The source spec describes `+0x16` as a frame count and `+0x4A` as the region-name length, but it targets Logic Pro 11.2.2; the matching framing and plausible values in GarageBand are corroborating evidence only ([specification](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#8-audio-regions)).
+
+**Confidence:** HIGH CONFIDENCE for the observed offsets, values, label framing, and two cross-record matches in this fixture; HYPOTHESIS that `+0x16` represents frame count in all GarageBand versions; UNKNOWN for what the matching suffix dword references.
+
+**Alternative considered:** The `+0x16` integers or suffix values could be cached lengths/identifiers rather than source frame counts. The recognized Logic-style layout and plausible duration-at-44.1-kHz values support the frame-count interpretation but do not prove region timeline length.
+
+**Next:** Use a controlled audio region with a known source duration, then trim it without moving it and move it without trimming. Compare `AuRg +0x16`, event suffixes, and placement positions. Verify whether displayed duration changes in source frames, beats, or both.
+
 ## MIDI-001 — unclassified `0x20` event records
 
 **Question:** Do `0x20` event records represent MIDI-region placements in this GarageBand project?

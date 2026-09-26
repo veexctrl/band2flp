@@ -252,7 +252,10 @@ class ParserTests(unittest.TestCase):
         name = "loops/example.caf"
         payload = bytes.fromhex("2347c0ab") + bytes(20)
         payload += make_chunk("AuFl", 0x00100000, name.rsplit("/", 1)[-1].encode("utf-16le"))
-        payload += make_chunk("AuRg", 0x00100000, b"\x07\x00example\x00")
+        region = bytearray(40)
+        struct.pack_into("<I", region, 0x16, 1234)
+        region[30:38] = b"example\x00"
+        payload += make_chunk("AuRg", 0x00100000, bytes(region))
         payload += make_chunk("AuRg", 0x00100000, b"other\x00")
         payload += make_chunk("AuRg", 0x00140000, b"example\x00")
         stream = _parse_chunk_stream(payload)
@@ -261,6 +264,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(matches[0]["group_id_candidate"], 0x00100000)
         self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1, 2])
         self.assertEqual(matches[0]["name_matched_AuRg_chunk_indices"], [1])
+        self.assertEqual(matches[0]["related_AuRg_metadata_candidates"][0]["payload_u32_at_0x16_candidate"], 1234)
 
     def test_audio_placement_recovers_beats_track_and_external_source(self) -> None:
         event = bytearray(160)
@@ -293,6 +297,12 @@ class ParserTests(unittest.TestCase):
             reference="loops/example.caf",
             group_id_candidate=0x140000,
             name_matched_region_chunk_indices=[10],
+            region_chunk_metadata_candidates=[{
+                "chunk_index": 10,
+                "payload_size": 230,
+                "filename_stem_matches": True,
+                "payload_u32_at_0x16_candidate": 0xC7,
+            }],
         )])
         _attach_audio_placements(project, decoded)
         self.assertEqual([(track.index, track.kind) for track in project.tracks], [(2, "audio")])
@@ -302,6 +312,7 @@ class ParserTests(unittest.TestCase):
         self.assertIsNone(region.duration_beats)
         self.assertEqual(region.source, "loops/example.caf")
         self.assertEqual(region.unknown["candidate_region_chunk_indices_for_source"], [10])
+        self.assertEqual(region.unknown["region_chunk_indices_matching_trailing_u32_candidate"], [10])
 
     def test_package_parse_builds_audio_track_and_region_from_placement(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

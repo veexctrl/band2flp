@@ -234,6 +234,21 @@ def _match_audio_file_references(
                     for part in data[other["payload_offset"]:other["payload_offset"] + other["payload_size"]].split(b"\x00")
                 )
             ]
+            related_metadata = []
+            for region_index in related:
+                region_chunk = chunks[region_index]
+                region_payload_start = region_chunk["payload_offset"]
+                region_payload_end = region_payload_start + region_chunk["payload_size"]
+                region_payload = data[region_payload_start:region_payload_end]
+                related_metadata.append({
+                    "chunk_index": region_index,
+                    "payload_size": len(region_payload),
+                    "filename_stem_matches": region_index in name_matched,
+                    "payload_u32_at_0x16_candidate": (
+                        struct.unpack_from("<I", region_payload, 0x16)[0]
+                        if len(region_payload) >= 0x1A else None
+                    ),
+                })
             matched.append({
                 "asset_reference_index": ref_index,
                 "asset_reference": reference,
@@ -242,6 +257,7 @@ def _match_audio_file_references(
                 "group_id_candidate": group_id,
                 "related_AuRg_chunk_indices": related,
                 "name_matched_AuRg_chunk_indices": name_matched,
+                "related_AuRg_metadata_candidates": related_metadata,
                 "basename_encoding": "UTF-16LE",
                 "region_name_match_encoding": "UTF-8 exact NUL-delimited string match",
                 "confidence": "HIGH CONFIDENCE for literal AuFl basename match; same-group AuRg relationship is additionally checked against the filename stem when available",
@@ -272,6 +288,7 @@ def _media_references(
                 group_id_candidate=match["group_id_candidate"] if match else None,
                 related_region_chunk_indices=list(match["related_AuRg_chunk_indices"]) if match else [],
                 name_matched_region_chunk_indices=list(match["name_matched_AuRg_chunk_indices"]) if match else [],
+                region_chunk_metadata_candidates=list(match["related_AuRg_metadata_candidates"]) if match else [],
                 unknown={"ambiguous_package_member_matches": member_matches} if len(member_matches) > 1 else {},
             ))
     return references
@@ -381,6 +398,7 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "media_group_id_candidate": struct.unpack_from("<I", raw, 0x2C)[0] << 16,
             "event_size": len(raw),
             "placement_record_size": 80,
+            "trailing_u32_at_0_candidate": struct.unpack_from("<I", raw, 80)[0] if len(raw) >= 84 else None,
             "trailing_event_data_hex": raw[80:].hex(),
             "position_confidence": "HIGH CONFIDENCE for the supplied fixture; matches its arrangement preview",
             "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
@@ -409,6 +427,14 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
         reference = references.get(placement["media_group_id_candidate"])
         stem = reference.reference.rsplit("/", 1)[-1].rsplit(".", 1)[0] if reference else None
         region_chunk_indices = list(reference.name_matched_region_chunk_indices) if reference else []
+        region_metadata = list(reference.region_chunk_metadata_candidates) if reference else []
+        suffix_value = placement["trailing_u32_at_0_candidate"]
+        suffix_matches = [
+            item["chunk_index"] for item in region_metadata
+            if suffix_value is not None
+            and item["payload_u32_at_0x16_candidate"] == suffix_value
+            and item["filename_stem_matches"]
+        ]
         track.regions.append(Region(
             name=stem,
             start_beats=placement["start_beats"],
@@ -417,6 +443,8 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
             unknown={
                 "placement": placement,
                 "candidate_region_chunk_indices_for_source": region_chunk_indices,
+                "candidate_region_chunk_metadata_for_source": region_metadata,
+                "region_chunk_indices_matching_trailing_u32_candidate": suffix_matches,
                 "duration": "unknown",
                 "region_chunk_to_placement_ordinal": "unknown",
             },
