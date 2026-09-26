@@ -367,3 +367,19 @@
 **Alternative considered:** The comparison could be affected by format-specific valid-frame, priming, or packet-count conventions. The probe uses the WAVE data size and block alignment, AIFF/AIFC `COMM` sample-frame count, or CAF packet-table valid-frame count; this does not establish GarageBand's treatment of priming or edit lists.
 
 **Next:** Make a controlled audio fixture with a known source length, then trim without moving, move without trimming, and compare the source frame count, `AuRg +0x16`, and placement suffix independently.
+
+## ARR-021 — audio placement starts agree with preview rows
+
+**Question:** Do the `0x24` event start and track candidates reproduce the visible audio arrangement row by row?
+
+**Fixture:** The locally supplied project whose archive has no embedded audio payload. The comparison used its generated arrangement preview and parser output; neither the image nor the project is included here.
+
+**Observation:** The preview shows six occupied audio rows. The parser found nine `0x24` placements across six distinct candidate track values, 2 through 7. In displayed row order, the visible region starts align with the corresponding event groups: row 1 at bar 1; rows 2 and 3 at bars 1 and 5; row 4 at bars 1 and 33; row 5 at bar 1; and row 6 at bar 9. With the summary meter of 4/4, these match the candidate starts 0, 16, 32, and 128 beats. The summary declares seven arrange tracks, while only six candidate track values have audio placements.
+
+**Result:** The preview independently corroborates the decoded start positions and the grouping of placements into six occupied rows for this fixture. The correspondence supports using the event track byte to group these audio placements, but the preview does not expose numeric track indices, so it does not by itself confirm that the byte is a universal one-based arrange-track index. The unrepresented summary track could be empty, MIDI, hidden, or omitted from the preview.
+
+**Confidence:** HIGH CONFIDENCE for preview agreement on the observed starts and row groupings in this fixture; HYPOTHESIS for the absolute track-number interpretation.
+
+**Alternative considered:** A cached preview may be stale or may omit tracks. The matching row start pattern and project summary support the comparison, but a controlled track reorder/addition is still needed to resolve absolute indexing.
+
+**Next:** Reorder or add one audio track in a controlled GarageBand project and compare the preview row order, `0x24 +0x14`, and declared track count.

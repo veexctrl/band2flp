@@ -9,6 +9,7 @@
 - Meaning of the repeated 16-byte `0xF1` `EvSq` payloads and the scope of their candidate group values.
 - Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
 - Track names, complete track ordering (including the unpopulated track slot), mixer settings, and mute/solo state. Audio placement track numbers 2 through 7 are recovered for this fixture.
+- ARR-021 corroborated grouping and start positions against six preview rows, but numeric track labels are absent from the image; a controlled reorder/add-track experiment is still needed to confirm absolute track indices.
 - Whether the 23 `AuCO` records with the Logic-like channel-strip shape correspond to GarageBand arrange tracks, mixer channels, auxiliary channels, or a mixture; validate the descriptor and ordering fields with controlled track-count fixtures.
 - Meaning of the eight-byte `AuCO` descriptor for GarageBand and how arrange-track records can be distinguished from non-arrangement channel strips.
 - Region durations, source offsets, trims, loops, and mute state. Audio placement start positions are decoded in beats for the supplied fixture.
