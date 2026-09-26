@@ -18,7 +18,7 @@ An independent parse of the inspected fixture's 239,274-byte `NS.data` value fou
 
 This layout agrees with the published description of Logic Pro's [ProjectData container](https://pkg.go.dev/github.com/loov/logicx#ParseProjectData). That parser targets `.logicx`, while this fixture is an iOS GarageBand keyed archive. The exact boundary consumption in this fixture independently confirms the outer chunk layout for this payload; it does not establish that Logic Pro chunk meanings or record decoders apply unchanged. The implementation here was written independently and uses the external description as corroboration, not as code.
 
-The parser now emits every observed tag, offset, payload size, and raw chunk-header bytes, while retaining the entire original NSData payload. It does not yet interpret chunk field offsets or decode tracks/regions/events.
+The parser emits every observed tag, offset, payload size, and raw chunk-header bytes, while retaining the entire original NSData payload. It splits aligned `EvSq` atoms into event records and preserves their raw bytes. Track and region fields are not yet decoded.
 
 ## Audio resource cross-links
 
@@ -33,7 +33,7 @@ In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each hav
 | `0x00200000` | 1 |
 | `0x00280000` | 1 |
 
-Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. This is HIGH CONFIDENCE evidence that `AuFl` stores audio-file references and `AuRg` stores related audio-region data in this fixture. The parser records the literal name match and shared header value, but does not claim that this field's meaning is universal or decode region positions, source offsets, trim, or loop behavior.
+Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. This is HIGH CONFIDENCE evidence that `AuFl` stores audio-file references and `AuRg` stores related audio-region data in this fixture. The parser records the literal name match and shared header value in diagnostic data and neutral `MediaReference` entries. References remain separate from package members and placed regions: a resource may be external to the ZIP, and a linked region has no decoded placement yet. It does not claim that this field's meaning is universal or decode region positions, source offsets, trim, or loop behavior.
 
 ## Event records and global timing candidates
 

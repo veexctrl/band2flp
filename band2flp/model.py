@@ -27,6 +27,18 @@ class Track:
 
 
 @dataclass
+class MediaReference:
+    index: int
+    category: str
+    reference: str
+    package_member: str | None = None
+    source_chunk_index: int | None = None
+    group_id_candidate: int | None = None
+    related_region_chunk_indices: list[int] = field(default_factory=list)
+    unknown: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class Project:
     source_format: str = "GarageBand .band ZIP package"
     tempo_bpm: float | None = None
@@ -36,6 +48,7 @@ class Project:
     duration_value: float | None = None
     declared_track_count: int | None = None
     tracks: list[Track] = field(default_factory=list)
+    media_references: list[MediaReference] = field(default_factory=list)
     package_members: list[dict[str, Any]] = field(default_factory=list)
     project_data: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)

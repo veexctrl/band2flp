@@ -122,6 +122,10 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(saved_archive["$top"]["fixture_unknown"], "preserve me")
         self.assertEqual(saved_archive["$objects"][2]["NS.data"]["opaque_data_object_index"], 2)
         self.assertEqual(project.project_data["metadata_plist"]["values"]["com_apple_garageband_metadata_songTempo"], 120)
+        self.assertEqual(len(project.media_references), 1)
+        self.assertEqual(project.media_references[0].category, "AudioFiles")
+        self.assertEqual(project.media_references[0].reference, "${CONTENT:loops/example.caf")
+        self.assertIsNone(project.media_references[0].package_member)
         self.assertIn("different track counts", " ".join(project.warnings))
         self.assertIn("track identities and regions remain unknown", " ".join(project.warnings))
 

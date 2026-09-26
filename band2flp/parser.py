@@ -12,7 +12,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from .model import Project
+from .model import MediaReference, Project
 
 MAX_TOTAL_UNCOMPRESSED = 1_000_000_000
 MAX_MEMBER_SIZE = 512_000_000
@@ -236,6 +236,33 @@ def _match_audio_file_references(
     return matched
 
 
+def _media_references(
+    assets: dict[str, Any], members: list[dict[str, Any]], audio_matches: list[dict[str, Any]]
+) -> list[MediaReference]:
+    match_by_index = {item["asset_reference_index"]: item for item in audio_matches}
+    references: list[MediaReference] = []
+    for category, values in assets.items():
+        if not category.endswith("Files") or not isinstance(values, list):
+            continue
+        for index, reference in enumerate(values):
+            if not isinstance(reference, str):
+                continue
+            basename = reference.rsplit("/", 1)[-1]
+            member_matches = [item["path"] for item in members if item["path"].rsplit("/", 1)[-1] == basename]
+            match = match_by_index.get(index) if category == "AudioFiles" else None
+            references.append(MediaReference(
+                index=index,
+                category=category,
+                reference=reference,
+                package_member=member_matches[0] if len(member_matches) == 1 else None,
+                source_chunk_index=match["chunk_index"] if match else None,
+                group_id_candidate=match["group_id_candidate"] if match else None,
+                related_region_chunk_indices=list(match["related_AuRg_chunk_indices"]) if match else [],
+                unknown={"ambiguous_package_member_matches": member_matches} if len(member_matches) > 1 else {},
+            ))
+    return references
+
+
 def _parse_event_sequences(data: bytes, chunk_stream: dict[str, Any]) -> dict[str, Any]:
     """Split 16-byte event atoms and retain all unknown event records verbatim."""
     records: list[dict[str, Any]] = []
@@ -446,10 +473,13 @@ def parse_band(path: str | Path) -> Project:
                     "values": _json_safe(assets),
                 }
                 chunk_stream = project.project_data.get("logic_song_chunk_stream")
+                audio_matches: list[dict[str, Any]] = []
                 if logic_payload is not None and isinstance(chunk_stream, dict):
-                    project.project_data["audio_file_reference_matches"] = _match_audio_file_references(
+                    audio_matches = _match_audio_file_references(
                         logic_payload, chunk_stream, assets
                     )
+                    project.project_data["audio_file_reference_matches"] = audio_matches
+                project.media_references = _media_references(assets, project.package_members, audio_matches)
                 asset_track_count = _integer(assets.get("NumberOfTracks"))
                 if asset_track_count is not None and project.declared_track_count is not None and asset_track_count != project.declared_track_count:
                     project.warnings.append(

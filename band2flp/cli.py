@@ -35,6 +35,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Reported duration: {duration} (unit not established)")
         print(f"Declared arrange tracks: {project.declared_track_count if project.declared_track_count is not None else 'unknown'}")
         print(f"Decoded tracks and regions: {sum(len(track.regions) for track in project.tracks)} regions")
+        if project.media_references:
+            embedded = sum(reference.package_member is not None for reference in project.media_references)
+            print(f"Media references: {len(project.media_references)} ({embedded} matched to package members)")
         if project.project_data.get("opaque_data_objects"):
             sizes = [item["length"] for item in project.project_data["opaque_data_objects"]]
             print(f"Opaque data objects: {len(sizes)} ({sum(sizes)} bytes)")
