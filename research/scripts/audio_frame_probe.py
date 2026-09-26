@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import math
 import struct
 import zipfile
 from pathlib import Path
@@ -86,6 +87,63 @@ def audio_frame_count(data: bytes) -> tuple[int | None, str | None]:
     return None, None
 
 
+def audio_sample_rate(data: bytes) -> int | None:
+    """Read a source sample rate without decoding audio samples."""
+    if data.startswith(b"RIFF") and data[8:12] == b"WAVE":
+        offset = 12
+        while offset + 8 <= len(data):
+            tag = data[offset:offset + 4]
+            size = struct.unpack_from("<I", data, offset + 4)[0]
+            offset += 8
+            if size > len(data) - offset:
+                return None
+            if tag == b"fmt " and size >= 8:
+                rate = struct.unpack_from("<I", data, offset + 4)[0]
+                return rate if rate > 0 else None
+            offset += size + (size & 1)
+        return None
+
+    if data.startswith(b"FORM") and data[8:12] in (b"AIFF", b"AIFC"):
+        offset = 12
+        while offset + 8 <= len(data):
+            tag = data[offset:offset + 4]
+            size = struct.unpack_from(">I", data, offset + 4)[0]
+            offset += 8
+            if size > len(data) - offset:
+                return None
+            if tag == b"COMM" and size >= 18:
+                sign_exp = struct.unpack_from(">H", data, offset + 8)[0]
+                mantissa = struct.unpack_from(">Q", data, offset + 10)[0]
+                exponent = sign_exp & 0x7FFF
+                exponent_value = exponent - 16383
+                if exponent == 0x7FFF or mantissa == 0 or not -63 <= exponent_value <= 32:
+                    return None
+                value = mantissa / (1 << 63) * (2.0 ** exponent_value)
+                if sign_exp & 0x8000:
+                    value = -value
+                rate = round(value)
+                return rate if rate > 0 else None
+            offset += size + (size & 1)
+        return None
+
+    if data.startswith(b"caff"):
+        offset = 8
+        while offset + 12 <= len(data):
+            tag = data[offset:offset + 4]
+            size = struct.unpack_from(">q", data, offset + 4)[0]
+            offset += 12
+            if size < 0 or size > len(data) - offset:
+                return None
+            if tag == b"desc" and size >= 8:
+                value = struct.unpack_from(">d", data, offset)[0]
+                if not math.isfinite(value):
+                    return None
+                rate = round(value)
+                return rate if rate > 0 else None
+            offset += size
+    return None
+
+
 def probe_project(path: str | Path) -> dict[str, Any]:
     project = parse_band(path)
     compared_sources = 0
@@ -95,6 +153,8 @@ def probe_project(path: str | Path) -> dict[str, Any]:
     close_match_count = 0
     sources_with_any_match = 0
     formats: collections.Counter[str] = collections.Counter()
+    sample_rates: collections.Counter[str] = collections.Counter()
+    candidate_frame_relations: collections.Counter[str] = collections.Counter()
     unmatched_layout_count = 0
 
     try:
@@ -107,18 +167,28 @@ def probe_project(path: str | Path) -> dict[str, Any]:
             if reference.category != "AudioFiles" or reference.package_member is None:
                 continue
             compared_sources += 1
-            frame_count, format_name = audio_frame_count(archive.read(reference.package_member))
+            audio_data = archive.read(reference.package_member)
+            frame_count, format_name = audio_frame_count(audio_data)
             if frame_count is None or format_name is None:
                 unmatched_layout_count += 1
                 continue
             decoded_sources += 1
             formats[format_name] += 1
+            sample_rate = audio_sample_rate(audio_data)
+            if sample_rate is not None:
+                sample_rates[str(sample_rate)] += 1
             source_match_count = 0
             for region in reference.region_chunk_metadata_candidates:
                 candidate = region.get("payload_u32_at_0x16_candidate")
                 if not isinstance(candidate, int):
                     continue
                 candidate_count += 1
+                if candidate < frame_count:
+                    candidate_frame_relations["below_source"] += 1
+                elif candidate == frame_count:
+                    candidate_frame_relations["equal_source"] += 1
+                else:
+                    candidate_frame_relations["above_source"] += 1
                 if candidate == frame_count:
                     exact_match_count += 1
                     source_match_count += 1
@@ -136,6 +206,8 @@ def probe_project(path: str | Path) -> dict[str, Any]:
         "candidates_within_0_1_percent": close_match_count,
         "sources_with_at_least_one_exact_candidate": sources_with_any_match,
         "decoded_formats": dict(sorted(formats.items())),
+        "decoded_sample_rates_hz": dict(sorted(sample_rates.items())),
+        "candidate_vs_full_source_frame_counts": dict(sorted(candidate_frame_relations.items())),
         "interpretation": "Aggregate comparison only; a frame-count match does not establish arrangement duration or trim semantics.",
     }
 

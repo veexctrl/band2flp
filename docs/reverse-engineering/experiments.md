@@ -480,3 +480,21 @@
 **Alternative considered:** The generated preview may be stale or may draw looped/stretched audio whose source-frame count differs from its arrangement length. Its starts agree with ARR-021, but a controlled moved/trimmed project is still required to tie boundaries to binary fields.
 
 **Next:** Save a simple single-source project, then change only region length while retaining its start and source. Compare preview edge, `AuRg` payload, and the full placement event.
+
+## ARR-025 - compare candidate region frame counts and source sample rates
+
+**Question:** Do same-source `AuRg +0x16` candidates fall within the complete source's frame range, and what sample rates were used for those comparisons?
+
+**Fixture:** The locally supplied audio-bearing project. It and its audio remain private; no media was extracted, named, or included in this comparison.
+
+**Method:** Extended `audio_frame_probe.py` to read WAVE, AIFF/AIFC extended-80, and CAF sample-rate metadata in memory. For every decoded source, compare same-source `AuRg +0x16` candidates with complete-source frame counts and aggregate whether each candidate is below, equal to, or above its source. The probe emits only aggregate counts and rate histograms.
+
+**Observation:** Six embedded sources had decodable frame counts and sample rates; all six were 44.1 kHz. Eleven source-associated `AuRg +0x16` candidates were compared: nine were below the complete source frame count, two equaled it, and none were above. Two exact candidates belonged to one source.
+
+**Result:** In this fixture, the candidates are numerically consistent with a per-source frame-count quantity that can be shorter than the full media. Combined with the independent Logic Pro layout lead, this supports (but does not prove) a GarageBand trimmed-region-frame-count hypothesis. It still does not map frame counts to arrangement beats or account for loop/stretch behavior.
+
+**Confidence:** HIGH CONFIDENCE in the aggregate source-rate and comparison counts for this fixture; HYPOTHESIS that the candidate is GarageBand region frame length; UNKNOWN for how it relates to displayed region duration.
+
+**Alternative considered:** `+0x16` could be another frame-based cache, edit quantity, or source-specific value. All sources sharing 44.1 kHz means this comparison does not test mixed-rate behavior.
+
+**Next:** Use a controlled source at a known sample rate, record one region, then change only its trim and compare the candidate, source frame count, region display length, and project preview. Repeat with a second source rate if GarageBand permits it.

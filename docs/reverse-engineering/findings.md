@@ -30,6 +30,7 @@
 
 - The private, audio-bearing fixture contains four 80-byte `0x90` note-shaped `EvSq` events. Each event group matches one `MSeq` chunk, and that same chunk is the unique target of one recognized `0x20` MIDI placement event. IDA and the Python parser read identical bytes for all 19 placement candidates and four note-shaped events (MIDI-006). This is HIGH CONFIDENCE for the shared-chunk relation in this fixture; note-field meanings, track mapping, and generality remain unresolved. The fixture, project title, audio, and note values are not included in the repository.
 - MIDI-007 rechecked the four note-event byte ranges in IDA and Python and compared their candidate positions with the unique linked placement. Under Logic-derived origins, an absolute interpretation would place them before the region; a region-relative interpretation places them inside it. This raises region-relative note timing to a fixture-specific HYPOTHESIS, not a GarageBand-confirmed field meaning.
+- ARR-025 decoded sample rates for six embedded sources in the same private fixture: all were 44.1 kHz. Of eleven source-associated `AuRg +0x16` candidates, nine were smaller than the complete source frame count, two equaled it, and none exceeded it. This supports a possible region-frame-length role but does not establish beat duration, trim behavior, or loop/stretch handling.
 - Exact one-note GarageBand differential fixtures are still required before treating the candidate pitch, velocity, onset, or duration fields as confirmed GarageBand semantics.
 
 ## High confidence

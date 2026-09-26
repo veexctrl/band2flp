@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 
 from research.scripts.auco_probe import probe_logic_payload
-from research.scripts.audio_frame_probe import audio_frame_count
+from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -205,18 +205,21 @@ class ParserTests(unittest.TestCase):
         body += b"data" + struct.pack("<I", len(data)) + data
         wave = b"RIFF" + struct.pack("<I", len(body)) + body
         self.assertEqual(audio_frame_count(wave), (10, "WAVE"))
+        self.assertEqual(audio_sample_rate(wave), 44_100)
 
     def test_audio_frame_probe_reads_aiff_comm_count(self) -> None:
-        comm = struct.pack(">HIH", 2, 1234, 16) + bytes(10)
+        comm = struct.pack(">HIH", 2, 1234, 16) + bytes.fromhex("400eac44000000000000")
         body = b"AIFF" + b"COMM" + struct.pack(">I", len(comm)) + comm
         aiff = b"FORM" + struct.pack(">I", len(body)) + body
         self.assertEqual(audio_frame_count(aiff), (1234, "AIFF"))
+        self.assertEqual(audio_sample_rate(aiff), 44_100)
 
     def test_audio_frame_probe_reads_caf_valid_frame_count(self) -> None:
         packet_table = struct.pack(">qqii", 100, 9876, 0, 0)
         caf = b"caff" + struct.pack(">HH", 1, 0)
         caf += b"pakt" + struct.pack(">q", len(packet_table)) + packet_table
         self.assertEqual(audio_frame_count(caf), (9876, "CAF-packet-table"))
+        self.assertEqual(audio_sample_rate(caf), None)
 
     def test_audio_frame_probe_reads_caf_fixed_packet_count(self) -> None:
         description = struct.pack(">d4sIIIII", 44_100.0, b"lpcm", 0, 2, 1, 2, 16)
@@ -225,6 +228,7 @@ class ParserTests(unittest.TestCase):
         caf += b"desc" + struct.pack(">q", len(description)) + description
         caf += b"data" + struct.pack(">q", len(audio_data)) + audio_data
         self.assertEqual(audio_frame_count(caf), (10, "CAF-fixed-packet"))
+        self.assertEqual(audio_sample_rate(caf), 44_100)
 
     def test_binary_diff_loads_a_unique_zip_member(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
