@@ -36,8 +36,8 @@
     {
       "name": "Tempo and meter timeline",
       "weight": 8,
-      "recovered": 35,
-      "basis": "Summary tempo and meter are recovered; event scope, position units, changes, and completeness remain unresolved."
+      "recovered": 40,
+      "basis": "Summary and unique group-zero tempo/meter candidates agree in two projects; position units, change maps, and completeness remain unresolved."
     },
     {
       "name": "Tracks, mixer, sections, and automation",

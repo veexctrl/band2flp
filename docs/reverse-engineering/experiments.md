@@ -128,6 +128,22 @@
 
 **Next:** Create differential projects at known tempo/meter values and tempo-change positions; verify event positions, scaling, grouping, and completeness.
 
+## EVT-003 - replicate group-zero tempo and meter agreement
+
+**Question:** Does the group-zero tempo/meter agreement from EVT-001 repeat in the other supplied project, and do the parser-reported event bytes match the IDA-loaded payload?
+
+**Fixtures:** Both locally supplied `.band` projects. Project names and project-specific tempo values are omitted here.
+
+**Method:** Compared each project's unique group-zero `0x60` tempo candidate and `0x30` meter candidate against `Output/metadata.plist` and `Output/assetsmetadata.plist`. Confirmed that exactly one group-zero candidate of each kind was found in both. For the audio-bearing fixture, compared the extracted logic-song payload hash in memory with the already loaded IDA input, then read the parser-reported meter and tempo event byte ranges from IDA.
+
+**Observation:** In both projects, the two summary plists agree on tempo and meter, and the unique group-zero event candidates agree with those summaries. The audio-bearing fixture's extracted payload is byte-identical to the IDA-loaded file; IDA bytes at both candidate events match the parser. The tempo event raw position is preserved as a nonzero integer and the meter event raw position as zero; neither position unit is identified.
+
+**Result:** HIGH CONFIDENCE that the observed group-zero tempo and meter candidates carry project-level values in these two fixtures. This repeats value agreement across projects, but it does not establish that the event lists are complete, that group zero always means global, or what event position units mean. No tempo-change map behavior is inferred.
+
+**Alternative considered:** The global-looking group may be conventional for these projects but could differ in other project variants. A matching summary value does not prove that every change event has been found or decoded.
+
+**Next:** Create a controlled tempo-change project and compare the change value and position against the serialized candidates and GarageBand display. Vary a meter independently to establish value and timeline behavior.
+
 ## EVT-002 — repeated short event-sequence chunks
 
 **Question:** Do short `EvSq` chunks in audio-resource groups contain event data or a common marker?
