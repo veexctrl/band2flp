@@ -445,6 +445,26 @@
 
 **Next:** Create a same-project GarageBand fixture with one MIDI region, record its displayed note positions, then move only the region. Check whether note-event positions stay unchanged while the placement moves, as the Logic model predicts.
 
+## MIDI-008 - reject zero-only MSeq position matches
+
+**Question:** Does the Logic-documented `MSeq +0x11c` start candidate match GarageBand's linked MIDI placement positions?
+
+**Fixtures:** Both locally supplied projects. Project titles, media, and exact timing values are omitted from this log.
+
+**Method:** Added `midi_region_timing_probe.py` to follow each recognized `0x20` placement to its uniquely linked `MSeq` chunk, then compare the little-endian 32-bit value at payload offset `+0x11c` with the placement position adjusted by the current `34,560`-tick origin candidate. Also counted zero-to-zero and nonzero equalities separately. Reopened the audio-bearing fixture's logic-song payload in IDA and read representative nonzero field candidates at parser-reported offsets.
+
+**Observation:** Project 1 has 12 unique placement-to-`MSeq` links; all 12 proposed comparisons are zero-to-zero, and there are no nonzero placement tick candidates. Project 2 has 19 unique links; 15 comparisons are zero-to-zero, while the two nonzero placement tick candidates both differ from `MSeq +0x11c`. Both nonzero values occur somewhere in the wider aligned-word search window, but not at the proposed field offset. IDA bytes matched Python at the two inspected nonzero field offsets. No media was extracted.
+
+**Result:** The apparent 12/12 and 15/19 exact matches are explained by the zero origin candidates and are not evidence that GarageBand stores placement starts at `MSeq +0x11c`. The cross-format Logic Pro field remains a lead only; the GarageBand field interpretation is UNKNOWN. The origin candidate and any wider-window coincidences also require controlled validation.
+
+**Confidence:** HIGH CONFIDENCE in the aggregate comparisons and Python/IDA byte agreement for the two inspected nonzero offsets; UNKNOWN for GarageBand `MSeq +0x11c` semantics.
+
+**Alternative considered:** The Logic-family record could retain a related start field in a different location or encoding, but the present observations do not identify it. Zero-valued fields and small/repeated integers can coincide without representing time.
+
+**Source lead:** [Logic Pro ProjectData MIDI-region findings](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions). This does not establish the iOS GarageBand layout.
+
+**Next:** Use a controlled GarageBand fixture whose MIDI region begins after bar 1, move only that region, and compare linked `MSeq` payloads. Until then, do not use `+0x11c` as a GarageBand position field.
+
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 
 **Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?
