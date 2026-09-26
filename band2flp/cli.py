@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter, defaultdict
 import json
 import sys
 
@@ -15,6 +16,10 @@ def main(argv: list[str] | None = None) -> int:
     inspect = subparsers.add_parser("inspect", help="inspect a GarageBand project package")
     inspect.add_argument("project")
     inspect.add_argument("--json", action="store_true", help="emit the neutral model as JSON")
+    inspect.add_argument(
+        "--groups", action="store_true",
+        help="show chunks grouped by the opaque candidate group field",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -46,6 +51,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Validated logic-song chunks: {chunks['chunk_count']}")
             top_types = sorted(chunks["type_counts"].items(), key=lambda item: (-item[1], item[0]))[:12]
             print("Chunk tags (top): " + ", ".join(f"{name}={count}" for name, count in top_types))
+            if args.groups:
+                grouped: dict[int, list[dict[str, object]]] = defaultdict(list)
+                for chunk in chunks["chunks"]:
+                    grouped[chunk["group_id_candidate"]].append(chunk)
+                print("Chunk groups (candidate field; meaning unknown):")
+                for group_id, group_chunks in sorted(grouped.items()):
+                    counts = Counter(
+                        chunk["type"] if chunk["type"] is not None else f"raw:{chunk['raw_type_hex']}"
+                        for chunk in group_chunks
+                    )
+                    types = ", ".join(f"{tag}={count}" for tag, count in sorted(counts.items()))
+                    indices = ",".join(str(chunk["index"]) for chunk in group_chunks)
+                    chunk_word = "chunk" if len(group_chunks) == 1 else "chunks"
+                    print(f"  0x{group_id:08X} ({len(group_chunks)} {chunk_word}): {types}")
+                    print(f"    indices: {indices}")
         event_sequences = project.project_data.get("event_sequences")
         if event_sequences:
             print(f"Event records: {event_sequences['record_count']}")

@@ -9,7 +9,10 @@ The current parser inventories `.band` ZIP packages and reads summary tempo, met
 ```powershell
 python -m band2flp.cli inspect path\to\project.band
 python -m band2flp.cli inspect path\to\project.band --json
+python -m band2flp.cli inspect path\to\project.band --groups
 ```
+
+`--groups` lists chunk types and indices by the opaque candidate group field; it does not interpret that field.
 
 Run the regression suite with:
 

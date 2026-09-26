@@ -191,6 +191,18 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(decoded["tracks"], [])
         self.assertEqual(decoded["project_data"]["opaque_data_objects"][0]["length"], 63)
 
+    def test_cli_groups_chunks_without_assigning_group_semantics(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture, include_events=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "band2flp.cli", "inspect", str(fixture), "--groups"],
+                cwd=Path(__file__).parents[1], capture_output=True, text=True, check=True,
+            )
+        self.assertIn("Chunk groups (candidate field; meaning unknown):", result.stdout)
+        self.assertIn("0x00040000 (1 chunk): EvSq=1", result.stdout)
+        self.assertIn("indices: 2", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
