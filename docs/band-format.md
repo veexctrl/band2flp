@@ -49,6 +49,12 @@ The cross-format specification places an audio-region frame count at `AuRg` payl
 
 Position, track, and source-link recovery are HIGH CONFIDENCE for this fixture. The external Logic specification targets Logic Pro 11.2.2, so it is corroboration rather than proof of universal GarageBand behavior. The parser exposes the placements as audio regions with exact beat-string starts and external source references. It does not yet decode arrangement duration, source offset, trim, loop, mute, or track names/settings. Unknown event suffix bytes remain in the raw project data and are also attached to their neutral regions; the candidate frame-count correlation is diagnostic only.
 
+## MIDI placement and region candidates
+
+Two locally inspected projects contain 80-byte `0x20` `EvSq` records with marker bytes `89 88 8A 88` at event offsets `+0x17`, `+0x27`, `+0x37`, and `+0x47`. In both, the little-endian value at event `+0x20`, shifted left 16 bits, matches a chunk-header group value belonging to exactly one `MSeq` chunk for each recognized placement. This is HIGH CONFIDENCE for the cluster-to-`MSeq` relation in those fixtures and agrees with the [Logic Pro MIDI placement description](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#L630-L635).
+
+The parser reports these as `midi_region_placement_candidates`, with the corresponding `MSeq` chunk index, raw event, position candidate, and track-number candidate. It does not yet assign the candidate track byte or position units as confirmed GarageBand semantics. It also does not use unvalidated `MSeq` offsets for region duration or attach note events to placements. Controlled GarageBand edits are still needed before these records populate the neutral track/region model or an FLP.
+
 ## Event records and global timing candidates
 
 All 33 `EvSq` payloads in the inspected fixture have lengths divisible by 16. Splitting atoms where byte 7 has its continuation bit clear yields 71 complete event records. The event summaries retain every record's bytes, chunk index, group value, type byte, and raw offset.

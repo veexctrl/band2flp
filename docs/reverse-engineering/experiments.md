@@ -303,3 +303,19 @@
 **Alternative considered:** `0x90` may be a GarageBand-specific event family whose fields only resemble Logic MIDI notes. The longer record size and lack of a controlled one-note fixture leave this possible.
 
 **Next:** Create or obtain a one-note GarageBand fixture, vary pitch, velocity, onset, and duration independently, then compare the corresponding `EvSq` and `MSeq` records. Separately identify the `0x20` placement link to the correct `MSeq` region and arrange track.
+
+## MIDI-003 — MIDI placement cluster links to `MSeq`
+
+**Question:** Which field in a `0x20` event links a MIDI placement to its `MSeq` region record?
+
+**Fixtures:** The original locally inspected project and the additional locally supplied project. Both were independently traversed through IDA Python and checked by the Python parser. The second project and its media remain local and are not included in the repository.
+
+**Observation:** The recognized `0x20` placement records are 80 bytes and share the marker-byte pattern `+0x17=0x89`, `+0x27=0x88`, `+0x37=0x8A`, `+0x47=0x88`. Interpreting the little-endian word at event `+0x20` as a low-order cluster value and shifting it left 16 bits produces a chunk-header group value present on exactly one `MSeq` chunk for every recognized placement in both fixtures. In the original fixture this matched all 12 recognized events; no target was missing or ambiguous. The same unique-match property held in the second fixture. The relationship is also described by the Logic Pro reference's MIDI region synthesis notes, where the MIDI placement carries the region-cluster value at `+0x20` ([specification §10.9.5](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#L630-L635)).
+
+**Result:** The parser emits `midi_region_placement_candidates` with the raw event, candidate position and track fields, transformed group value, and matching `MSeq` chunk index. The unique cluster-to-`MSeq` relation is HIGH CONFIDENCE for these fixtures. It does not yet attach MIDI regions to neutral tracks because GarageBand track-index and position semantics have not been independently validated.
+
+**Confidence:** HIGH CONFIDENCE for the cluster transform and unique `MSeq` match in these two fixtures; HYPOTHESIS for transferring the marker and position/track field meanings from Logic Pro to GarageBand.
+
+**Alternative considered:** The `MSeq` chunk-group match could be a coincidence if candidate group values were a small common set. Each placement instead yields a distinct target, with one matching `MSeq` record and no ambiguous or missing matches in either fixture, which makes coincidence less likely.
+
+**Next:** Make one software-instrument region in GarageBand, then move it and change its track independently. Verify which event fields change, whether the cluster transform remains stable, and whether the position and track candidates match GarageBand's visible arrangement.

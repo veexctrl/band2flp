@@ -22,6 +22,7 @@ from band2flp.parser import (
     _parse_chunk_stream,
     _parse_event_sequences,
     _parse_midi_note_candidates,
+    _parse_midi_region_placement_candidates,
     parse_band,
 )
 
@@ -359,8 +360,42 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(candidates[0]["pitch_candidate"], 60)
         self.assertEqual(candidates[0]["velocity_candidate"], 64)
         self.assertEqual(candidates[0]["duration_ticks_candidate"], 480)
-        self.assertEqual(candidates[0]["field_interpretation_confidence"].split(";")[0], "HYPOTHESIS transferred from Logic Pro")
+        self.assertEqual(
+            candidates[0]["field_interpretation_confidence"].split(";")[0],
+            "HYPOTHESIS transferred from Logic Pro",
+        )
         self.assertEqual(candidates[0]["raw_hex"], note.hex())
+
+    def test_midi_placement_cluster_links_to_candidate_mseq_group(self) -> None:
+        event = bytearray(80)
+        event[:4] = b"\x20\x00\x00\x00"
+        struct.pack_into("<I", event, 4, 49_920)
+        struct.pack_into("<I", event, 0x10, 0x58)
+        event[0x14] = 3
+        event[0x17] = 0x89
+        event[0x20] = 0x10
+        event[0x27] = 0x88
+        event[0x37] = 0x8A
+        event[0x47] = 0x88
+        events = {"records": [{
+            "type_byte": 0x20, "chunk_index": 12, "event_index": 4,
+            "group_id_candidate": 0x00040000, "raw_hex": event.hex(),
+        }]}
+        chunks = {"chunks": [
+            {"type": "MSeq", "index": 23, "group_id_candidate": 0x00100000},
+            {"type": "MSeq", "index": 24, "group_id_candidate": 0x00200000},
+        ]}
+
+        placements = _parse_midi_region_placement_candidates(events, chunks)
+
+        self.assertEqual(len(placements), 1)
+        self.assertEqual(placements[0]["candidate_mseq_chunk_indices"], [23])
+        self.assertEqual(
+            placements[0]["region_link_confidence"],
+            "HIGH CONFIDENCE for a unique MSeq group match in this fixture",
+        )
+        self.assertEqual(placements[0]["start_beats_candidate"], "16")
+        self.assertEqual(placements[0]["track_number_1_based_candidate"], 3)
 
     def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
         payload = bytes.fromhex("2347c0ab") + bytes(20)

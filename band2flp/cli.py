@@ -81,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"MIDI note-shaped events: {len(midi_candidates)} (field meanings and region/track associations are hypotheses)"
             )
+        midi_placements = project.project_data.get("midi_region_placement_candidates", [])
+        if midi_placements:
+            linked = sum(len(item["candidate_mseq_chunk_indices"]) == 1 for item in midi_placements)
+            print(
+                f"MIDI region placement candidates: {len(midi_placements)} ({linked} uniquely linked to an MSeq group; track/timing semantics unconfirmed)"
+            )
         if project.tempo_map:
             values = ", ".join(f"{item['bpm']:g} BPM @ raw {item['position_raw']}" for item in project.tempo_map)
             print(f"Group-zero tempo candidates: {values}")

@@ -444,6 +444,50 @@ def _parse_midi_note_candidates(
     return candidates
 
 
+def _parse_midi_region_placement_candidates(
+    event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Link Logic-shaped MIDI placements to MSeq chunks while preserving uncertainty."""
+    mseq_groups: dict[int, list[int]] = {}
+    for chunk in chunk_stream.get("chunks", []):
+        if chunk.get("type") == "MSeq":
+            mseq_groups.setdefault(chunk["group_id_candidate"], []).append(chunk["index"])
+
+    placements: list[dict[str, Any]] = []
+    for record in event_sequences.get("records", []):
+        raw = bytes.fromhex(record["raw_hex"])
+        if len(raw) < 80 or raw[:4] != b"\x20\x00\x00\x00":
+            continue
+        if (raw[0x17], raw[0x27], raw[0x37], raw[0x47]) != (0x89, 0x88, 0x8A, 0x88):
+            continue
+        region_cluster_candidate = struct.unpack_from("<I", raw, 0x20)[0]
+        region_group_candidate = (region_cluster_candidate << 16) & 0xFFFFFFFF
+        linked_mseq = mseq_groups.get(region_group_candidate, [])
+        position_raw = struct.unpack_from("<I", raw, 4)[0]
+        placements.append({
+            "source_chunk_index": record["chunk_index"],
+            "source_event_index": record["event_index"],
+            "event_size": len(raw),
+            "event_id_candidate": struct.unpack_from("<I", raw, 0x10)[0],
+            "position_raw": position_raw,
+            "position_origin_raw_candidate": 34_560,
+            "position_ticks_from_origin_candidate": position_raw - 34_560,
+            "ppq_candidate": 960,
+            "start_beats_candidate": str(Fraction(position_raw - 34_560, 960)),
+            "track_number_1_based_candidate": raw[0x14],
+            "region_cluster_candidate": region_cluster_candidate,
+            "region_group_id_candidate": region_group_candidate,
+            "candidate_mseq_chunk_indices": linked_mseq,
+            "region_link_confidence": (
+                "HIGH CONFIDENCE for a unique MSeq group match in this fixture"
+                if len(linked_mseq) == 1 else "HYPOTHESIS; MSeq group match is absent or ambiguous"
+            ),
+            "position_and_track_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand track mapping and timing need controlled validation",
+            "raw_hex": record["raw_hex"],
+        })
+    return placements
+
+
 def _attach_audio_placements(project: Project, placements: list[dict[str, Any]]) -> None:
     """Create neutral audio tracks/regions from decoded placement candidates."""
     references = {
@@ -584,11 +628,14 @@ def parse_band(path: str | Path) -> Project:
                             project.project_data["midi_note_event_candidates"] = _parse_midi_note_candidates(
                                 events, project.project_data["logic_song_chunk_stream"]
                             )
+                            project.project_data["midi_region_placement_candidates"] = _parse_midi_region_placement_candidates(
+                                events, project.project_data["logic_song_chunk_stream"]
+                            )
                         project.warnings.append(
                             "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
                         )
                 project.warnings.append(
-                    "Logic-song payload is retained as opaque bytes; MIDI note fields are candidates only, and note-region associations, audio-region durations, and track names/settings remain unknown."
+                    "Logic-song payload is retained as opaque bytes; MIDI placements, note fields, and their region/track associations remain candidates, while audio-region durations and track names/settings remain unknown."
                 )
             else:
                 project.project_data = {"recognized": False, "format": "unrecognized plist root"}
