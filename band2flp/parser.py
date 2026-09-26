@@ -535,7 +535,7 @@ def _parse_midi_region_placement_candidates(
             "position_ticks_from_origin_candidate": position_raw - 34_560,
             "ppq_candidate": 960,
             "start_beats_candidate": str(Fraction(position_raw - 34_560, 960)),
-            "track_number_1_based_candidate": raw[0x14],
+            "track_value_candidate": raw[0x14],
             "region_cluster_candidate": region_cluster_candidate,
             "region_group_id_candidate": region_group_candidate,
             "candidate_mseq_chunk_indices": linked_mseq,
@@ -543,7 +543,8 @@ def _parse_midi_region_placement_candidates(
                 "HIGH CONFIDENCE for a unique MSeq group match in this fixture"
                 if len(linked_mseq) == 1 else "HYPOTHESIS; MSeq group match is absent or ambiguous"
             ),
-            "position_and_track_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand track mapping and timing need controlled validation",
+            "position_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand position origin and units need controlled validation",
+            "track_value_confidence": "UNKNOWN; preserved without a track-number or index interpretation",
             "raw_hex": record["raw_hex"],
         })
     return placements

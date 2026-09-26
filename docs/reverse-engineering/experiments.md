@@ -367,11 +367,11 @@
 
 **Observation:** In the second project, IDA found 59 `Trak` chunks, 27 distinct candidate group values among them, and 19 recognized `0x20` placements. The placement byte had 14 distinct values ranging from 1 through 18. Comparing those byte values with raw `Trak` chunk ordinals gave nearby ordinal hits because the placement values are small, but the chunk stream contains repeated `Trak` group values and substantially more `Trak` chunks than placements. No stable one-to-one mapping to a track record was established.
 
-**Result:** The ordinal comparison is inconclusive and is not evidence that `+0x14` is a direct `Trak` index. The parser continues to expose it as `track_number_1_based_candidate` only; it does not use MIDI placements to create tracks.
+**Result:** The ordinal comparison is inconclusive and is not evidence that `+0x14` is a direct `Trak` index. MIDI-009 additionally shows that the byte exceeds each fixture's declared arrange-track range. The parser exposes it as an uninterpreted `track_value_candidate` and does not use MIDI placements to create tracks.
 
 **Confidence:** CONFIRMED for these aggregate counts and the absence of an established direct ordinal mapping; UNKNOWN for the field's GarageBand meaning.
 
-**Alternative considered:** The value could be a one-based arrange-track number, an index in a different object table, or a scoped identifier. Raw chunk order alone cannot distinguish these interpretations.
+**Alternative considered:** The value could identify an entry in a different object table or a scoped object; raw chunk order cannot distinguish these interpretations.
 
 **Next:** Use controlled projects with one software-instrument track, then add a second track and move the same MIDI region between them. Compare the `+0x14` byte with visible track order and any associated track identifiers before normalizing it.
 
@@ -498,6 +498,24 @@
 **Source lead:** [Logic Pro ProjectData MIDI-region findings](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions). This does not establish the iOS GarageBand layout.
 
 **Next:** Use a controlled GarageBand fixture whose MIDI region begins after bar 1, move only that region, and compare linked `MSeq` payloads. Until then, do not use `+0x11c` as a GarageBand position field.
+
+## MIDI-009 — placement `+0x14` is not a direct arrange-track number
+
+**Question:** Can the byte at `+0x14` in recognized MIDI placement events safely be interpreted as a zero-based or one-based arrange-track index?
+
+**Fixtures:** Both supplied projects, with seven and twelve declared arrange tracks respectively. The projects differ in content and are not a controlled pair; only aggregate candidate values are recorded.
+
+**Method:** Compared `+0x14` from every recognized 80-byte MIDI placement with each project's arrange-track count. IDA MCP read all 19 candidate bytes in one payload and all 12 in the other; values matched Python's parser at the corresponding event offsets.
+
+**Observation:** In the seven-track project, the 12 candidate events carry values spanning 1–14. In the twelve-track project, the 19 candidate events span 1–18. Both projects therefore contain values outside the valid range for either a zero-based or one-based direct arrange-track index. IDA and Python agree on every checked byte.
+
+**Result:** Do not interpret `+0x14` as a direct arrange-track number or index. The parser now emits `track_value_candidate` and labels its semantics UNKNOWN. This does not rule out a track identifier, an index into another table, or a scoped value.
+
+**Confidence:** CONFIRMED that the candidate values exceed both declared arrange-track ranges in these fixtures; UNKNOWN what the field identifies.
+
+**Alternative considered:** The metadata count might omit some kinds of arrangement objects, but its key explicitly denotes arrange tracks and the out-of-range values occur in both projects. A distinct identifier/table interpretation remains plausible.
+
+**Next:** Compare matched one-track/two-track software-instrument projects and move a single MIDI region between tracks. Identify the target through visible track identity or another stable cross-reference before adding MIDI placements to neutral tracks.
 
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 

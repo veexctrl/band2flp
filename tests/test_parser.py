@@ -583,7 +583,8 @@ class ParserTests(unittest.TestCase):
             "HIGH CONFIDENCE for a unique MSeq group match in this fixture",
         )
         self.assertEqual(placements[0]["start_beats_candidate"], "16")
-        self.assertEqual(placements[0]["track_number_1_based_candidate"], 3)
+        self.assertEqual(placements[0]["track_value_candidate"], 3)
+        self.assertIn("without a track-number or index interpretation", placements[0]["track_value_confidence"])
 
     def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
         payload = bytes.fromhex("2347c0ab") + bytes(20)
