@@ -9,6 +9,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+from research.scripts.binary_diff import compare, load_component
 from band2flp.parser import BandFormatError, parse_band
 
 
@@ -41,6 +42,23 @@ def make_fixture(path: Path) -> None:
 
 
 class ParserTests(unittest.TestCase):
+    def test_binary_diff_loads_a_unique_zip_member(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture)
+            data, member = load_component(fixture, "/projectData")
+        self.assertEqual(member, "fixture.band/projectData")
+        self.assertTrue(data.startswith(b"<?xml"))
+
+    def test_binary_diff_reports_changed_ranges_and_candidate_values(self) -> None:
+        report = compare(b"prefix\x01\x00suffix", b"prefix\x02\x00suffix")
+        self.assertEqual(report["common_prefix_size"], 6)
+        self.assertEqual(report["changed_range_count"], 1)
+        change = report["changed_ranges"][0]
+        self.assertEqual(change["offset_start"], 6)
+        self.assertEqual(change["numeric_candidates_at_start"]["u16_little"], [1, 2])
+        self.assertIn("insertions can shift", report["alignment_warning"])
+
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.band"

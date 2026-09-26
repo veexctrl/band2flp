@@ -4,4 +4,6 @@ Prefer minimal GarageBand projects where one property changes at a time. Compare
 
 Use IDA MCP to inspect raw bytes and related binary components when useful. Reproduce each format claim with Python where practical. IDA database annotations are temporary research aids; parser behavior and findings must be reproducible from the repository.
 
+`research/scripts/binary_diff.py` compares raw files or a uniquely selected member from two ZIP packages. It reports common prefix/suffix lengths, changed byte runs, and candidate integer/float interpretations at each changed-run start. The report explicitly uses absolute offsets; insertion or deletion can shift later structures, so the output is a triage aid rather than a structure-aware conclusion.
+
 Do not infer region or note timing from summary duration, cache images, or resource lists. Preserve unknown payload bytes and report unsupported structures.

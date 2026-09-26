@@ -49,3 +49,17 @@
 **Confidence:** CONFIRMED for the observed distinction in this fixture; intended meanings and generality remain unconfirmed.
 
 **Next:** Compare both counts and asset lists across controlled empty, MIDI-only, and audio-region fixtures.
+
+## BIN-001 — opaque payload markers and resource strings
+
+**Question:** Does the logic-song NSData payload expose repeated candidate record markers or literal resource references?
+
+**Fixture:** The same single supplied project; payload read through IDA Python from the mapped ZIP bytes and then through its `projectData` object graph.
+
+**Observation:** The byte sequence `23 47 C0 AB` occurs at payload offsets 0, 60, and 760. Those occurrences partition the observed payload into spans of 60, 700, and 238,514 bytes. At least one sampler-resource basename from `assetsmetadata.plist` occurs twice as ASCII in the payload. No basename from its `AudioFiles` list was found as a raw ASCII substring.
+
+**Result:** The sequence and string overlaps are observations only. They do not establish record boundaries, reference semantics, or audio placement. In particular, absence of literal basenames does not rule out IDs, indices, or transformed references.
+
+**Confidence:** CONFIRMED for byte/string observations in this fixture; HYPOTHESIS that the repeated sequence is a framing marker.
+
+**Next:** Compare the payload from controlled changes and determine whether marker offsets or nearby values track a known property.

@@ -8,12 +8,15 @@
 - `Output/metadata.plist` has named summary fields for tempo, meter, duration, and arrange-track count.
 - `Output/assetsmetadata.plist` is a binary plist with separate global fields and resource-reference lists. Its track-count field differs from the arrange-track-count field in the inspected fixture.
 - IDA MCP's raw view of the supplied archive agreed with the ZIP local header and member name reported by Python.
+- IDA Python found the byte sequence `23 47 C0 AB` at three offsets in the extracted logic-song NSData payload; its structural meaning is unknown.
+- A sampler-resource basename appears twice as ASCII in that payload, while listed audio-resource basenames were not found as literal ASCII strings.
 
 ## High confidence
 
 - The tempo and signature metadata keys represent project-level tempo and time signature.
 - The arrange-track-count metadata is only a count and cannot reconstruct track identity or arrangement.
 - Asset resource references do not prove that the media is placed in a song arrangement.
+- The repeated payload marker may indicate framing, but one fixture cannot show that the spans correspond to records.
 
 ## Hypotheses
 

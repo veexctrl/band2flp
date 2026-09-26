@@ -18,3 +18,11 @@ python -m unittest discover -s tests -v
 ```
 
 See [architecture](docs/architecture.md), [format observations](docs/band-format.md), and [research findings](docs/reverse-engineering/findings.md).
+
+Compare a raw component or matching members from two ZIP packages with:
+
+```powershell
+python research/scripts/binary_diff.py old.band new.band --member-suffix /projectData
+```
+
+The output flags absolute-offset alignment limits and labels integer/float readings as candidates.
