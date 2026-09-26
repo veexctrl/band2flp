@@ -15,6 +15,7 @@ from research.scripts.audio_frame_probe import audio_frame_count
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.model import MediaReference, Project
+from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
@@ -33,6 +34,8 @@ def make_fixture(
     include_events: bool = False,
     test_payload: bytes = b"abc",
     include_audio_placement: bool = False,
+    embedded_audio: bytes | None = None,
+    audio_reference: str = "${CONTENT:loops/example.caf",
 ) -> None:
     summary_tempo = 160 if include_events else 120
     summary_numerator = 4 if include_events else 3
@@ -76,13 +79,15 @@ def make_fixture(
         "BeatsPerMinute": float(summary_tempo),
         "SongSignatureNumerator": summary_numerator,
         "SongSignatureDenominator": 4,
-        "AudioFiles": ["${CONTENT:loops/example.caf"],
+        "AudioFiles": [audio_reference],
     }
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
         package.writestr("fixture.band/projectData", plistlib.dumps(archive))
         package.writestr("fixture.band/Output/metadata.plist", plistlib.dumps(metadata))
         package.writestr("fixture.band/Output/assetsmetadata.plist", plistlib.dumps(assets, fmt=plistlib.FMT_BINARY))
         package.writestr("fixture.band/Contents/PkgInfo", b"BNDLband")
+        if embedded_audio is not None:
+            package.writestr("fixture.band/Audio Files/example.caf", embedded_audio)
 
 
 def make_chunk(tag: str, group_id: int, payload: bytes) -> bytes:
@@ -116,6 +121,40 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_extract_referenced_audio_reports_unembedded_references_without_creating_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project_path = Path(directory) / "fixture.band"
+            output_dir = Path(directory) / "not-created"
+            make_fixture(project_path)
+
+            report = extract_referenced_audio(project_path, output_dir)
+
+            self.assertEqual(report["extracted"], [])
+            self.assertEqual(report["unresolved_audio_reference_count"], 1)
+            self.assertFalse(output_dir.exists())
+
+    def test_extract_referenced_audio_uses_safe_generated_names_and_no_overwrite(self) -> None:
+        payload = b"synthetic audio payload"
+        with tempfile.TemporaryDirectory() as directory:
+            project_path = Path(directory) / "fixture.band"
+            output_dir = Path(directory) / "extracted"
+            make_fixture(
+                project_path,
+                include_audio_placement=True,
+                embedded_audio=payload,
+                audio_reference="${CONTENT:../private/example.caf",
+            )
+
+            report = extract_referenced_audio(project_path, output_dir)
+
+            self.assertEqual(report["unresolved_audio_reference_count"], 0)
+            self.assertEqual(report["extracted"][0]["file"], "audio-001.caf")
+            extracted_path = output_dir / report["extracted"][0]["file"]
+            self.assertEqual(extracted_path.read_bytes(), payload)
+            with self.assertRaises(MediaExtractionError):
+                extract_referenced_audio(project_path, output_dir)
+            self.assertEqual(extracted_path.read_bytes(), payload)
+
     def test_audio_frame_probe_reads_wave_sample_frames(self) -> None:
         fmt = struct.pack("<HHIIHH", 1, 2, 44_100, 176_400, 4, 16)
         data = bytes(40)

@@ -12,9 +12,12 @@ For inspected fixtures it also decodes audio placement start candidates, track-n
 python -m band2flp.cli inspect path\to\project.band
 python -m band2flp.cli inspect path\to\project.band --json
 python -m band2flp.cli inspect path\to\project.band --groups
+python -m band2flp.cli extract-audio path\to\project.band path\to\new-audio-folder
 ```
 
 `--groups` lists chunk types and indices by the opaque candidate group field; it does not interpret that field.
+
+`extract-audio` copies only audio files uniquely referenced by the project into a new output directory, with generated filenames and a JSON mapping. It does not extract previews, caches, or unreferenced media. The output folder must not already exist. This command is opt-in; inspection does not copy audio.
 
 Run the regression suite with:
 

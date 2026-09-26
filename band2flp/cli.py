@@ -8,6 +8,7 @@ import json
 import sys
 
 from .parser import BandFormatError, parse_band
+from .media import MediaExtractionError, extract_referenced_audio
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,11 +21,20 @@ def main(argv: list[str] | None = None) -> int:
         "--groups", action="store_true",
         help="show chunks grouped by the opaque candidate group field",
     )
+    extract_audio = subparsers.add_parser(
+        "extract-audio", help="extract audio files explicitly referenced by a project"
+    )
+    extract_audio.add_argument("project", help="GarageBand .band package")
+    extract_audio.add_argument("output_dir", help="new directory for the extracted audio files")
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "extract-audio":
+            report = extract_referenced_audio(args.project, args.output_dir)
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+            return 0
         project = parse_band(args.project)
-    except BandFormatError as exc:
+    except (BandFormatError, MediaExtractionError, OSError) as exc:
         print(f"band2flp: {exc}", file=sys.stderr)
         return 2
 

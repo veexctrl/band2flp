@@ -12,7 +12,7 @@ GarageBand parsing populates the neutral `Project`, `Track`, and `Region` model.
 | Summary time signature | `Project.time_signature` | Candidate mapping to FL arrangement meter; not exported |
 | Audio placement start | `Region.start_beats` | Recovered in inspected fixtures; start may be mapped when its confidence is retained |
 | Audio track number | `Track.index` plus raw candidate in `Region.unknown` | High confidence for audio preview fixture; cross-fixture mapping needs validation |
-| Audio source | `Region.source` and `MediaReference` | Resource reference only; may not resolve to a local file |
+| Audio source | `Region.source` and `MediaReference` | Resource reference only; uniquely matched embedded audio can be copied locally with the opt-in `extract-audio` command |
 | Audio duration/source offset/trim/loop | Unknown | Must not be guessed for an arrangement-faithful export |
 | MIDI placement to `MSeq` | Candidate records in `Project.project_data` | Not transferred to neutral tracks yet; track and timing semantics remain unconfirmed |
 | MIDI note to placed `MSeq` | Candidate event indices in `Project.project_data` | Fixture-specific shared-chunk relation; note fields remain hypotheses |
@@ -24,13 +24,13 @@ A local PyFLP 2.2.1 copy was tested without adding it to project dependencies. U
 
 The same PyFLP copy fails to parse that template under Python 3.14 with `TypeError: <enum 'EventEnum'> has no members`. The repository currently requires Python 3.11 or newer, so compatibility with its supported runtimes is not established. PyFLP 2.2.1 declares GPL-3.0; the repository currently has no selected license. Do not add it as a mandatory runtime dependency until runtime compatibility and the project's licensing choice are resolved.
 
-The template and generated probes remain local and ignored. No FL Studio template, demo project, proprietary plugin state, GarageBand media, or private song content is committed.
+The template and generated probes remain local and ignored. The audio extractor is covered by synthetic fixtures; it has not been run against the supplied private audio project. No FL Studio template, demo project, proprietary plugin state, GarageBand media, or private song content is committed.
 
 ## Required exporter work
 
 1. Decide on a template strategy that does not require committing Image-Line project assets. Allow a user-supplied blank FLP template or locate a supported template explicitly.
 2. Establish a supported PyFLP/runtime combination, including the project's Python 3.11+ range, or choose a different maintained writer.
-3. Create and validate named audio tracks and sampler channels with resolved source paths.
+3. Use the opt-in referenced-media extractor and create/validate named audio tracks and sampler channels with resolved source paths.
 4. Add playlist clips at neutral beat positions and preserve the project's tempo and meter where supported.
 5. Reject or clearly diagnose regions with unresolved duration, source offsets, or missing media. Never silently invent their values.
 6. Add MIDI patterns and notes only after GarageBand note and placement semantics are validated.
