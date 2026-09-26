@@ -22,6 +22,7 @@ from band2flp.flp_export import (
     AudioInfo,
     FLPExportError,
     _beats_to_ticks,
+    _select_base_playlist_record_layout,
     _validate_clock_roundtrip,
     audio_info,
     export_flp,
@@ -131,6 +132,15 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_export_selects_base_playlist_record_layout(self) -> None:
+        playlist = SimpleNamespace(_kwds={"new": True})
+
+        _select_base_playlist_record_layout(playlist)
+
+        self.assertFalse(playlist._kwds["new"])
+        with self.assertRaisesRegex(FLPExportError, "cannot select the base playlist"):
+            _select_base_playlist_record_layout(SimpleNamespace())
+
     def test_flp_clock_roundtrip_checks_recovered_tempo_and_meter(self) -> None:
         roundtrip = SimpleNamespace(
             tempo=137.5,
@@ -600,7 +610,8 @@ class ParserTests(unittest.TestCase):
     def test_json_cli_emits_neutral_model(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.band"
-            make_fixture(fixture)
+            unicode_reference = "${CONTENT:loops/cafe\u0301.caf"
+            make_fixture(fixture, audio_reference=unicode_reference)
             result = subprocess.run(
                 [sys.executable, "-m", "band2flp.cli", "inspect", str(fixture), "--json"],
                 cwd=Path(__file__).parents[1], capture_output=True, text=True, check=True,
@@ -609,6 +620,10 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(decoded["tempo_bpm"], 120.0)
         self.assertEqual(decoded["tracks"], [])
         self.assertEqual(decoded["project_data"]["opaque_data_objects"][0]["length"], 63)
+        self.assertIn(
+            unicode_reference,
+            decoded["project_data"]["assetsmetadata_plist"]["values"]["AudioFiles"],
+        )
 
     def test_cli_groups_chunks_without_assigning_group_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

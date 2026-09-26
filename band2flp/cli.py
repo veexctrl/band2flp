@@ -13,6 +13,11 @@ from .media import MediaExtractionError, extract_referenced_audio
 from .flp_export import FLPExportError, export_flp
 
 
+def _print_json(value: object) -> None:
+    """Emit standards-compliant JSON without relying on console Unicode support."""
+    print(json.dumps(value, indent=2, ensure_ascii=True))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="band2flp")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -42,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "extract-audio":
             report = extract_referenced_audio(args.project, args.output_dir)
-            print(json.dumps(report, indent=2, ensure_ascii=False))
+            _print_json(report)
             return 0
         project = parse_band(args.project)
         if args.command == "export-flp":
@@ -71,14 +76,14 @@ def main(argv: list[str] | None = None) -> int:
                 "file_count": len(extraction.get("extracted", [])),
                 "unresolved_reference_count": extraction.get("unresolved_audio_reference_count", 0),
             }
-            print(json.dumps(report, indent=2, ensure_ascii=False))
+            _print_json(report)
             return 0
     except (BandFormatError, MediaExtractionError, FLPExportError, OSError) as exc:
         print(f"band2flp: {exc}", file=sys.stderr)
         return 2
 
     if args.json:
-        print(json.dumps(project.to_dict(), indent=2, ensure_ascii=False))
+        _print_json(project.to_dict())
     else:
         print(f"Format: {project.source_format}")
         print(f"Package members: {len(project.package_members)}")

@@ -30,6 +30,14 @@ class AudioInfo:
     sample_rate: int
 
 
+def _select_base_playlist_record_layout(playlist: Any) -> None:
+    """Use PyFLP's 32-byte base clip layout instead of inventing its newer tail."""
+    params = getattr(playlist, "_kwds", None)
+    if not isinstance(params, dict) or "new" not in params:
+        raise FLPExportError("installed PyFLP cannot select the base playlist record layout")
+    params["new"] = False
+
+
 def _validate_clock_roundtrip(roundtrip: Any, project: Project) -> dict[str, Any]:
     """Verify project-level tempo and meter after FLP save/reload."""
     tempo = roundtrip.tempo
@@ -219,7 +227,7 @@ def export_flp(
     try:
         from pyflp._events import UnicodeEvent
         from pyflp.arrangement import ArrangementID, TrackID
-        from pyflp.channel import ChannelID
+        from pyflp.channel import ChannelID, ChannelType
         from pyflp.plugin import PluginID
     except ImportError as exc:
         raise FLPExportError("PyFLP does not expose the expected channel and playlist API") from exc
@@ -234,11 +242,20 @@ def export_flp(
     playlist = next((event for event in arrangement.events if event.id == ArrangementID.Playlist), None)
     if playlist is None or len(playlist):
         raise FLPExportError("template arrangement playlist must be empty")
+    _select_base_playlist_record_layout(playlist)
 
     channels = list(fl_project.channels)
     if len(channels) != 1 or type(channels[0]).__name__ != "Sampler":
         raise FLPExportError("template must contain exactly one blank sampler channel")
     base_channel = channels[0]
+    type_event = next((event for event in base_channel.events if event.id == ChannelID.Type), None)
+    if type_event is None or PluginID.InternalName not in base_channel.events.ids:
+        raise FLPExportError("template sampler lacks the channel type or internal-name events needed for audio clips")
+    # FL Studio stores playlist audio clips as Instrument channels with an
+    # empty native-plugin name; PyFLP then recognizes a loaded sample path as
+    # an audio clip/Sampler model. A regular type-0 Sampler is not equivalent.
+    type_event.value = ChannelType.Instrument
+    base_channel.internal_name = ""
     base_events = [copy.deepcopy(event) for event in base_channel.events]
     unique_sources = list(dict.fromkeys(region.source for region in regions))
     source_iid: dict[str, int] = {}
@@ -320,7 +337,7 @@ def export_flp(
                 "_u2": bytes((64, 100, 128, 128)),
                 "start_offset": 0.0,
                 "end_offset": 0.0,
-                "_u3": bytes(28),
+                "_u3": None,
             })
             exported_items.append({
                 "track_index": track.index,
@@ -346,12 +363,27 @@ def export_flp(
         pyflp.save(fl_project, str(flp_tmp))
         roundtrip = pyflp.parse(str(flp_tmp))
         clock_report = _validate_clock_roundtrip(roundtrip, project)
+        channels_by_iid = {channel.iid: channel for channel in roundtrip.channels}
+        for iid in source_iid.values():
+            channel = channels_by_iid.get(iid)
+            if channel is None:
+                raise FLPExportError("PyFLP round-trip lost an audio clip channel")
+            type_event = next((event for event in channel.events if event.id == ChannelID.Type), None)
+            if (
+                type_event is None
+                or type_event.value != ChannelType.Instrument
+                or channel.sample_path is None
+                or channel.internal_name != ""
+            ):
+                raise FLPExportError("PyFLP round-trip changed an FL Studio audio clip channel")
         roundtrip_playlist = next(
             event for event in roundtrip.arrangements[0].events
             if event.id == ArrangementID.Playlist
         )
         if len(roundtrip_playlist) != len(exported_items):
             raise FLPExportError("PyFLP round-trip changed the playlist item count")
+        if getattr(roundtrip_playlist, "_struct_size", None) != 32:
+            raise FLPExportError("PyFLP round-trip did not preserve base-size playlist records")
         for expected, actual in zip(exported_items, roundtrip_playlist):
             if actual["position"] != expected["start_ticks"] or actual["length"] != expected["length_ticks"]:
                 raise FLPExportError("PyFLP round-trip changed a playlist position or length")
@@ -364,6 +396,7 @@ def export_flp(
             "ppq": roundtrip.ppq,
             "audio_channels": roundtrip.channel_count,
             "playlist_items": len(exported_items),
+            "playlist_record_size": roundtrip_playlist._struct_size,
             "duration_policy": length_policy,
             "compatibility_shim_used": shim_used,
             "project_warnings": list(project.warnings),
