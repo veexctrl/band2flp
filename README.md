@@ -26,6 +26,7 @@ Compare a raw component or matching members from two ZIP packages with:
 
 ```powershell
 python research/scripts/binary_diff.py old.band new.band --member-suffix /projectData
+python -m research.scripts.projectdata_diff old.band new.band
 ```
 
-The output flags absolute-offset alignment limits and labels integer/float readings as candidates.
+The byte diff flags absolute-offset alignment limits and labels integer/float readings as candidates. The ProjectData diff pairs chunks by type, candidate group value, and ordinal within that pair; it reports header and payload changes, and warns that ordinal matches can shift when a same-type chunk is inserted or deleted.

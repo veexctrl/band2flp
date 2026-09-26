@@ -6,4 +6,6 @@ Use IDA MCP to inspect raw bytes and related binary components when useful. Repr
 
 `research/scripts/binary_diff.py` compares raw files or a uniquely selected member from two ZIP packages. It reports common prefix/suffix lengths, changed byte runs, and candidate integer/float interpretations at each changed-run start. The report explicitly uses absolute offsets; insertion or deletion can shift later structures, so the output is a triage aid rather than a structure-aware conclusion.
 
+`python -m research.scripts.projectdata_diff before.band after.band` compares decompressed logic-song chunks after validating each package through the parser. It pairs chunks by tag, candidate group value, and ordinal within that pair, then reports changed header/payload ranges and added/removed pairs. This alignment is a hypothesis for organizing comparisons, not a semantic record identity: inserting a same-type chunk can shift later ordinals. Review diffs against controlled fixtures and the raw chunk order before identifying fields.
+
 Do not infer region or note timing from summary duration, cache images, or resource lists. Preserve unknown payload bytes and report unsupported structures.

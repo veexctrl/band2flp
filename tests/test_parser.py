@@ -11,17 +11,18 @@ import zipfile
 from pathlib import Path
 
 from research.scripts.binary_diff import compare, load_component
+from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from band2flp.parser import BandFormatError, _match_audio_file_references, _parse_chunk_stream, _parse_event_sequences, parse_band
 
 
-def make_fixture(path: Path, include_events: bool = False) -> None:
+def make_fixture(path: Path, include_events: bool = False, test_payload: bytes = b"abc") -> None:
     summary_tempo = 160 if include_events else 120
     summary_numerator = 4 if include_events else 3
     chunk_data = bytes.fromhex("2347c0ab") + bytes(20)
     chunk_header = bytearray(36)
     chunk_header[:4] = b"tseT"
-    struct.pack_into("<Q", chunk_header, 28, 3)
-    logic_payload = chunk_data + bytes(chunk_header) + b"abc"
+    struct.pack_into("<Q", chunk_header, 28, len(test_payload))
+    logic_payload = chunk_data + bytes(chunk_header) + test_payload
     if include_events:
         logic_payload += make_chunk("EvSq", 0, make_tempo_event(160) + make_meter_event(4, 2))
         logic_payload += make_chunk("EvSq", 0x00040000, make_tempo_event(120))
@@ -99,6 +100,63 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(change["offset_start"], 6)
         self.assertEqual(change["numeric_candidates_at_start"]["u16_little"], [1, 2])
         self.assertIn("insertions can shift", report["alignment_warning"])
+
+    def test_projectdata_diff_aligns_chunks_and_reports_payload_ranges(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            before_path = Path(directory) / "before.band"
+            after_path = Path(directory) / "after.band"
+            make_fixture(before_path, include_events=True, test_payload=b"abc")
+            make_fixture(after_path, include_events=True, test_payload=b"axc")
+            before_project = parse_band(before_path)
+            after_project = parse_band(after_path)
+            before = load_logic_payload(before_path)
+            after = load_logic_payload(after_path)
+        report = compare_payloads(
+            before_project.project_data, before, after_project.project_data, after,
+        )
+        self.assertIn("ordinal correspondence is not a semantic identity", report["alignment_confidence"])
+        self.assertEqual(report["before_chunk_count"], 3)
+        self.assertEqual(report["unchanged_matched_count"], 2)
+        self.assertEqual(len(report["modified"]), 1)
+        modified = report["modified"][0]
+        self.assertEqual(modified["type"], "Test")
+        self.assertEqual(modified["changed_ranges"][0]["offset_start"], 1)
+        self.assertEqual(modified["changed_ranges"][0]["before_hex"], "62")
+        self.assertEqual(modified["changed_ranges"][0]["after_hex"], "78")
+        self.assertEqual(report["added"], [])
+        self.assertEqual(report["removed"], [])
+
+    def test_projectdata_diff_reports_new_and_removed_chunk_ordinals(self) -> None:
+        header = bytes.fromhex("2347c0ab") + bytes(20)
+        before = header + make_chunk("Test", 0, b"abc")
+        after = before + make_chunk("Test", 0, b"xyz")
+        before_data = {"logic_song_chunk_stream": _parse_chunk_stream(before)}
+        after_data = {"logic_song_chunk_stream": _parse_chunk_stream(after)}
+        report = compare_payloads(before_data, before, after_data, after)
+        self.assertEqual(report["added"], [{
+            "type": "Test", "group_id_candidate": 0, "ordinal": 1, "chunk_index": 1,
+        }])
+        self.assertEqual(report["removed"], [])
+        reversed_report = compare_payloads(after_data, after, before_data, before)
+        self.assertEqual(reversed_report["added"], [])
+        self.assertEqual(reversed_report["removed"], [{
+            "type": "Test", "group_id_candidate": 0, "ordinal": 1, "chunk_index": 1,
+        }])
+
+    def test_projectdata_diff_reports_opaque_header_changes(self) -> None:
+        root = bytes.fromhex("2347c0ab") + bytes(20)
+        before_chunk = make_chunk("Test", 0, b"same")
+        after_chunk = bytearray(before_chunk)
+        after_chunk[4] = 0x7F
+        before = root + before_chunk
+        after = root + bytes(after_chunk)
+        report = compare_payloads(
+            {"logic_song_chunk_stream": _parse_chunk_stream(before)}, before,
+            {"logic_song_chunk_stream": _parse_chunk_stream(after)}, after,
+        )
+        self.assertEqual(len(report["modified"]), 1)
+        self.assertEqual(report["modified"][0]["changed_header_ranges"][0]["offset_start"], 4)
+        self.assertEqual(report["modified"][0]["changed_ranges"], [])
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
