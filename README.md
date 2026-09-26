@@ -38,6 +38,8 @@ python -m unittest discover -s tests -v
 
 See [architecture](docs/architecture.md), [format observations](docs/band-format.md), [FL Studio mapping research](docs/flp-mapping.md), and [reverse-engineering findings](docs/reverse-engineering/findings.md).
 
+See the [project roadmap](docs/roadmap.md) for research priorities and completion criteria.
+
 Compare a raw component or matching members from two ZIP packages with:
 
 ```powershell
