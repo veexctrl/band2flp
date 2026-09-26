@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import plistlib
+import struct
 import zipfile
 from datetime import date, datetime
 from pathlib import Path
@@ -123,6 +124,117 @@ def _keyed_archive_summary(archive: Any) -> dict[str, Any]:
     }
 
 
+def _archive_plist_with_blob_references(archive: dict[str, Any]) -> Any:
+    """Preserve plist fields while keeping large NSData bytes in one JSON location."""
+    objects = archive.get("$objects")
+    if not isinstance(objects, list):
+        return _json_safe(archive)
+    safe_objects = []
+    for index, item in enumerate(objects):
+        if isinstance(item, dict) and isinstance(item.get("NS.data"), bytes):
+            safe_item = {key: _json_safe(value) for key, value in item.items() if key != "NS.data"}
+            blob = item["NS.data"]
+            safe_item["NS.data"] = {
+                "opaque_data_object_index": index,
+                "length": len(blob),
+                "sha256": hashlib.sha256(blob).hexdigest(),
+            }
+            safe_objects.append(safe_item)
+        else:
+            safe_objects.append(_json_safe(item))
+    result = {key: _json_safe(value) for key, value in archive.items() if key != "$objects"}
+    result["$objects"] = safe_objects
+    return result
+
+
+def _parse_chunk_stream(data: bytes) -> dict[str, Any]:
+    """Split a validated Logic-family chunk stream while preserving raw headers."""
+    if len(data) < 24 or data[:4] != bytes.fromhex("2347c0ab"):
+        raise BandFormatError("logic-song data lacks the observed 24-byte chunk-stream header")
+    chunks: list[dict[str, Any]] = []
+    offset = 24
+    while offset < len(data):
+        remaining = len(data) - offset
+        if remaining < 36:
+            raise BandFormatError(f"truncated chunk header at logic-song offset {offset}")
+        header = data[offset:offset + 36]
+        payload_size = struct.unpack_from("<Q", header, 28)[0]
+        if payload_size > remaining - 36:
+            raise BandFormatError(f"chunk payload exceeds logic-song bounds at offset {offset}")
+        raw_tag = header[:4]
+        type_bytes = raw_tag[::-1]
+        chunk_type = type_bytes.decode("ascii") if all(0x20 <= byte <= 0x7e for byte in type_bytes) else None
+        payload_start = offset + 36
+        chunks.append({
+            "index": len(chunks),
+            "offset": offset,
+            "type": chunk_type,
+            "raw_type_hex": raw_tag.hex(),
+            "group_id_candidate": struct.unpack_from("<I", header, 8)[0],
+            "opaque_header_fields_hex": header[4:28].hex(),
+            "payload_size": payload_size,
+            "payload_offset": payload_start,
+            "header_hex": header.hex(),
+        })
+        offset = payload_start + payload_size
+    if offset != len(data):
+        raise BandFormatError("chunk stream does not end at the logic-song data boundary")
+    counts: dict[str, int] = {}
+    for chunk in chunks:
+        label = chunk["type"] if chunk["type"] is not None else f"raw:{chunk['raw_type_hex']}"
+        counts[label] = counts.get(label, 0) + 1
+    return {
+        "header_hex": data[:24].hex(),
+        "header_size": 24,
+        "chunk_header_size": 36,
+        "payload_size_field": "unsigned 64-bit little-endian at chunk-header offset 28",
+        "chunk_count": len(chunks),
+        "end_offset": offset,
+        "type_counts": counts,
+        "chunks": chunks,
+    }
+
+
+def _match_audio_file_references(
+    data: bytes, chunk_stream: dict[str, Any], assets: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Correlate literal audio basenames with UTF-16LE strings in AuFl chunks."""
+    references = assets.get("AudioFiles")
+    if not isinstance(references, list):
+        return []
+    chunks = chunk_stream["chunks"]
+    file_chunks = [chunk for chunk in chunks if chunk["type"] == "AuFl"]
+    matched: list[dict[str, Any]] = []
+    for ref_index, reference in enumerate(references):
+        if not isinstance(reference, str):
+            continue
+        basename = reference.rsplit("/", 1)[-1]
+        needle = basename.encode("utf-16le")
+        for chunk in file_chunks:
+            start = chunk["payload_offset"]
+            end = start + chunk["payload_size"]
+            if needle not in data[start:end]:
+                continue
+            group_id = chunk["group_id_candidate"]
+            related = [
+                other["index"] for other in chunks
+                if other["index"] != chunk["index"]
+                and other["type"] == "AuRg"
+                and other["group_id_candidate"] == group_id
+            ]
+            matched.append({
+                "asset_reference_index": ref_index,
+                "asset_reference": reference,
+                "chunk_index": chunk["index"],
+                "chunk_offset": chunk["offset"],
+                "group_id_candidate": group_id,
+                "related_AuRg_chunk_indices": related,
+                "basename_encoding": "UTF-16LE",
+                "confidence": "HIGH CONFIDENCE for literal basename match; group relationship is not yet semantically confirmed",
+            })
+    return matched
+
+
 def parse_band(path: str | Path) -> Project:
     """Read package inventory and high-confidence summary metadata.
 
@@ -147,6 +259,7 @@ def parse_band(path: str | Path) -> Project:
 
         project = Project()
         project.package_members = []
+        logic_payload: bytes | None = None
         info_by_name = {item.filename: item for item in infos}
         for item in infos:
             if item.flag_bits & 1:
@@ -178,9 +291,24 @@ def parse_band(path: str | Path) -> Project:
                 song_object = objects[song_uid] if song_uid is not None and 0 <= song_uid < len(objects) else None
                 project.project_data = {
                     **_keyed_archive_summary(root),
+                    "keyed_archive_plist": {
+                        "source_member": pd_name,
+                        "archive": _archive_plist_with_blob_references(root),
+                        "blob_reference_note": "NSData bytes are stored once in opaque_data_objects and referenced by object_index here.",
+                    },
                     "logic_song_object_index": song_uid,
                     "logic_song_has_opaque_data": isinstance(song_object, dict) and isinstance(song_object.get("NS.data"), bytes),
                 }
+                if isinstance(song_object, dict) and isinstance(song_object.get("NS.data"), bytes):
+                    logic_payload = song_object["NS.data"]
+                    try:
+                        project.project_data["logic_song_chunk_stream"] = _parse_chunk_stream(song_object["NS.data"])
+                    except BandFormatError as exc:
+                        project.warnings.append(f"Logic-song chunk stream was not decoded: {exc}")
+                    else:
+                        project.warnings.append(
+                            "Chunk boundaries are validated for this logic-song payload; chunk meanings remain unverified."
+                        )
                 project.warnings.append(
                     "Logic-song payload is retained as opaque bytes; region, note, and track records are not decoded."
                 )
@@ -209,6 +337,7 @@ def parse_band(path: str | Path) -> Project:
                     "duration_key": "com_apple_garageband_metadata_songDuration",
                     "duration_unit": "unknown",
                     "arrange_track_count_key": "com_apple_garageband_metadata_numberOfArrangeTracks",
+                    "values": _json_safe(metadata),
                 }
                 if project.duration_value is not None:
                     project.warnings.append("songDuration's numeric unit and duration semantics are not validated yet.")
@@ -223,6 +352,11 @@ def parse_band(path: str | Path) -> Project:
                     "source_member": assets_name,
                     "values": _json_safe(assets),
                 }
+                chunk_stream = project.project_data.get("logic_song_chunk_stream")
+                if logic_payload is not None and isinstance(chunk_stream, dict):
+                    project.project_data["audio_file_reference_matches"] = _match_audio_file_references(
+                        logic_payload, chunk_stream, assets
+                    )
                 asset_track_count = _integer(assets.get("NumberOfTracks"))
                 if asset_track_count is not None and project.declared_track_count is not None and asset_track_count != project.declared_track_count:
                     project.warnings.append(

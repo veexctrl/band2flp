@@ -38,6 +38,18 @@ def main(argv: list[str] | None = None) -> int:
         if project.project_data.get("opaque_data_objects"):
             sizes = [item["length"] for item in project.project_data["opaque_data_objects"]]
             print(f"Opaque data objects: {len(sizes)} ({sum(sizes)} bytes)")
+        chunks = project.project_data.get("logic_song_chunk_stream")
+        if chunks:
+            print(f"Validated logic-song chunks: {chunks['chunk_count']}")
+            top_types = sorted(chunks["type_counts"].items(), key=lambda item: (-item[1], item[0]))[:12]
+            print("Chunk tags (top): " + ", ".join(f"{name}={count}" for name, count in top_types))
+        matches = project.project_data.get("audio_file_reference_matches", [])
+        if matches:
+            grouped = {index for match in matches for index in match["related_AuRg_chunk_indices"]}
+            asset_values = project.project_data.get("assetsmetadata_plist", {}).get("values", {})
+            references = asset_values.get("AudioFiles", []) if isinstance(asset_values, dict) else []
+            print(f"Audio resource names matched in AuFl chunks: {len(matches)} of {len(references)}")
+            print(f"Related AuRg chunks by shared header field: {len(grouped)}")
         for warning in project.warnings:
             print(f"Warning: {warning}")
     return 0

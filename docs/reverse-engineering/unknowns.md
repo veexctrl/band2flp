@@ -1,6 +1,8 @@
 # Unknowns and required evidence
 
-- Binary record format inside the `DfLogicModelLogicSong` `NS.data` payload.
+- Semantic field layouts and relationships for the observed chunk types inside the `DfLogicModelLogicSong` `NS.data` payload.
+- Whether Logic Pro chunk decoders transfer unchanged to iOS GarageBand versions.
+- Exact start/duration/source-offset/trim/loop fields in `AuRg` and placement information in associated `EvSq` chunks.
 - Track identifiers, ordering, names, types, mixer settings, and mute/solo state.
 - Region record boundaries, timing units, starts, durations, trims, loops, and mute state.
 - MIDI note encoding and timing resolution.
