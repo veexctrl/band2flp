@@ -9,10 +9,11 @@ import plistlib
 import struct
 import zipfile
 from datetime import date, datetime
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from .model import MediaReference, Project
+from .model import MediaReference, Project, Region, Track
 
 MAX_TOTAL_UNCOMPRESSED = 1_000_000_000
 MAX_MEMBER_SIZE = 512_000_000
@@ -349,6 +350,80 @@ def _parse_event_sequences(data: bytes, chunk_stream: dict[str, Any]) -> dict[st
     }
 
 
+def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, Any]]:
+    """Decode Logic-family audio placement events, retaining uncertain fields."""
+    placements: list[dict[str, Any]] = []
+    for record in event_sequences.get("records", []):
+        if record.get("type_byte") != 0x24:
+            continue
+        raw = bytes.fromhex(record["raw_hex"])
+        if len(raw) < 80 or raw[:4] != b"\x24\x00\x00\x00":
+            continue
+        # These two marker bytes match the published Logic placement record
+        # and are present in all nine candidate placements in this fixture.
+        if (raw[0x17], raw[0x27], raw[0x37], raw[0x47]) != (0x89, 0xBC, 0x8A, 0x89):
+            continue
+        position_raw = struct.unpack_from("<I", raw, 4)[0]
+        position_origin_raw = 34_560
+        ppq = 960
+        placements.append({
+            "source_chunk_index": record["chunk_index"],
+            "source_event_index": record["event_index"],
+            "source_group_id_candidate": record["group_id_candidate"],
+            "event_id_candidate": struct.unpack_from("<I", raw, 0x10)[0],
+            "position_raw": position_raw,
+            "position_origin_raw": position_origin_raw,
+            "position_ticks_from_origin": position_raw - position_origin_raw,
+            "ppq_candidate": ppq,
+            "start_beats": str(Fraction(position_raw - position_origin_raw, ppq)),
+            "track_number_1_based_candidate": raw[0x14],
+            "audio_link_candidate": struct.unpack_from("<I", raw, 0x2C)[0],
+            "media_group_id_candidate": struct.unpack_from("<I", raw, 0x2C)[0] << 16,
+            "event_size": len(raw),
+            "placement_record_size": 80,
+            "trailing_event_data_hex": raw[80:].hex(),
+            "position_confidence": "HIGH CONFIDENCE for the supplied fixture; matches its arrangement preview",
+            "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
+        })
+    return placements
+
+
+def _attach_audio_placements(project: Project, placements: list[dict[str, Any]]) -> None:
+    """Create neutral audio tracks/regions from decoded placement candidates."""
+    references = {
+        reference.group_id_candidate: reference
+        for reference in project.media_references
+        if reference.category == "AudioFiles" and reference.group_id_candidate is not None
+    }
+    tracks: dict[int, Track] = {}
+    for placement in placements:
+        track_number = placement["track_number_1_based_candidate"]
+        if not isinstance(track_number, int) or track_number < 1:
+            continue
+        track_index = track_number - 1
+        track = tracks.setdefault(track_index, Track(
+            index=track_index,
+            kind="audio",
+            unknown={"garageband_track_number_1_based_candidate": track_number},
+        ))
+        reference = references.get(placement["media_group_id_candidate"])
+        stem = reference.reference.rsplit("/", 1)[-1].rsplit(".", 1)[0] if reference else None
+        region_chunk_indices = list(reference.name_matched_region_chunk_indices) if reference else []
+        track.regions.append(Region(
+            name=stem,
+            start_beats=placement["start_beats"],
+            kind="audio",
+            source=reference.reference if reference else None,
+            unknown={
+                "placement": placement,
+                "candidate_region_chunk_indices_for_source": region_chunk_indices,
+                "duration": "unknown",
+                "region_chunk_to_placement_ordinal": "unknown",
+            },
+        ))
+    project.tracks = [tracks[index] for index in sorted(tracks)]
+
+
 def _event_record(chunk: dict[str, Any], event_index: int, payload_start: int, relative_start: int, raw: bytes) -> dict[str, Any]:
     return {
         "chunk_index": chunk["index"],
@@ -439,11 +514,12 @@ def parse_band(path: str | Path) -> Project:
                             project.warnings.append(f"EvSq events were not decoded: {exc}")
                         else:
                             project.project_data["event_sequences"] = events
+                            project.project_data["audio_placements"] = _parse_audio_placements(events)
                         project.warnings.append(
                             "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
                         )
                 project.warnings.append(
-                    "Logic-song payload is retained as opaque bytes; region, note, and track records are not decoded."
+                    "Logic-song payload is retained as opaque bytes; MIDI notes, audio-region durations, and track names/settings are not decoded."
                 )
             else:
                 project.project_data = {"recognized": False, "format": "unrecognized plist root"}
@@ -499,12 +575,12 @@ def parse_band(path: str | Path) -> Project:
                         "The asset plist and output metadata report different track counts; their definitions are unknown."
                     )
                 project.warnings.append(
-                    "Asset plist resource lists are preserved as references; they do not establish arrangement placement."
+                    "Asset plist resource lists are preserved as references; placement is established only where arrangement events link a resource."
                 )
 
         if project.declared_track_count is not None:
             project.warnings.append(
-                "Arrange-track count comes from summary metadata; track identities and regions remain unknown."
+                "Arrange-track count comes from summary metadata; only tracks with recognized audio placement events are represented."
             )
         event_sequences = project.project_data.get("event_sequences")
         if isinstance(event_sequences, dict):
@@ -530,6 +606,11 @@ def parse_band(path: str | Path) -> Project:
             ]
             if any(item["source_group_id_candidate"] != 0 for item in event_sequences["tempo_candidates"]):
                 project.warnings.append("Nonzero-group tempo candidates are preserved separately; their scope is unknown.")
+        _attach_audio_placements(project, project.project_data.get("audio_placements", []))
+        if project.project_data.get("audio_placements"):
+            project.warnings.append(
+                "Audio placement beat conversion uses a Logic-derived 34,560 origin and 960 PPQ; preview-validated only for this fixture."
+            )
         return project
 
 

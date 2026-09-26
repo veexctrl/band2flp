@@ -40,6 +40,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Reported duration: {duration} (unit not established)")
         print(f"Declared arrange tracks: {project.declared_track_count if project.declared_track_count is not None else 'unknown'}")
         print(f"Decoded tracks and regions: {sum(len(track.regions) for track in project.tracks)} regions")
+        placements = project.project_data.get("audio_placements", [])
+        if placements:
+            print(f"Audio placement events decoded: {len(placements)} (position units: beats; region durations unknown)")
+            for track in project.tracks:
+                for region in track.regions:
+                    source_name = region.source.rsplit("/", 1)[-1] if region.source else "unknown source"
+                    print(f"  Track {track.index + 1}: {region.name or source_name} at beat {region.start_beats}; source {source_name}")
         if project.media_references:
             embedded = sum(reference.package_member is not None for reference in project.media_references)
             print(f"Media references: {len(project.media_references)} ({embedded} matched to package members)")

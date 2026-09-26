@@ -13,10 +13,24 @@ from pathlib import Path
 from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
-from band2flp.parser import BandFormatError, _match_audio_file_references, _parse_chunk_stream, _parse_event_sequences, parse_band
+from band2flp.model import MediaReference, Project
+from band2flp.parser import (
+    BandFormatError,
+    _attach_audio_placements,
+    _match_audio_file_references,
+    _parse_audio_placements,
+    _parse_chunk_stream,
+    _parse_event_sequences,
+    parse_band,
+)
 
 
-def make_fixture(path: Path, include_events: bool = False, test_payload: bytes = b"abc") -> None:
+def make_fixture(
+    path: Path,
+    include_events: bool = False,
+    test_payload: bytes = b"abc",
+    include_audio_placement: bool = False,
+) -> None:
     summary_tempo = 160 if include_events else 120
     summary_numerator = 4 if include_events else 3
     chunk_data = bytes.fromhex("2347c0ab") + bytes(20)
@@ -27,6 +41,20 @@ def make_fixture(path: Path, include_events: bool = False, test_payload: bytes =
     if include_events:
         logic_payload += make_chunk("EvSq", 0, make_tempo_event(160) + make_meter_event(4, 2))
         logic_payload += make_chunk("EvSq", 0x00040000, make_tempo_event(120))
+    if include_audio_placement:
+        logic_payload += make_chunk("AuFl", 0x00140000, "example.caf".encode("utf-16le"))
+        logic_payload += make_chunk("AuRg", 0x00140000, b"\x07\x00example\x00")
+        placement = bytearray(80)
+        placement[:4] = b"\x24\x00\x00\x00"
+        struct.pack_into("<I", placement, 4, 49_920)
+        struct.pack_into("<I", placement, 0x10, 0x70)
+        placement[0x14] = 3
+        placement[0x17] = 0x89
+        placement[0x27] = 0xBC
+        struct.pack_into("<I", placement, 0x2C, 0x14)
+        placement[0x37] = 0x8A
+        placement[0x47] = 0x89
+        logic_payload += make_chunk("EvSq", 0x00040000, bytes(placement))
     archive = {
         "$archiver": "NSKeyedArchiver",
         "$version": 100000,
@@ -202,7 +230,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(project.media_references[0].reference, "${CONTENT:loops/example.caf")
         self.assertIsNone(project.media_references[0].package_member)
         self.assertIn("different track counts", " ".join(project.warnings))
-        self.assertIn("track identities and regions remain unknown", " ".join(project.warnings))
+        self.assertIn("only tracks with recognized audio placement events are represented", " ".join(project.warnings))
 
     def test_rejects_non_zip_input(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -233,6 +261,61 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(matches[0]["group_id_candidate"], 0x00100000)
         self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1, 2])
         self.assertEqual(matches[0]["name_matched_AuRg_chunk_indices"], [1])
+
+    def test_audio_placement_recovers_beats_track_and_external_source(self) -> None:
+        event = bytearray(160)
+        event[:4] = b"\x24\x00\x00\x00"
+        struct.pack_into("<I", event, 4, 49_920)  # 34560 + 4 bars at 960 PPQ.
+        struct.pack_into("<I", event, 0x10, 0x70)
+        event[0x14] = 3
+        event[0x17] = 0x89
+        event[0x27] = 0xBC
+        event[0x2C:0x30] = bytes.fromhex("14000000")
+        event[0x37] = 0x8A
+        event[0x47] = 0x89
+        event[80:] = bytes([0xC7]) + bytes(79)
+        decoded = _parse_audio_placements({"records": [{
+            "type_byte": 0x24,
+            "chunk_index": 5,
+            "event_index": 2,
+            "group_id_candidate": 0x40000,
+            "raw_hex": event.hex(),
+        }]})
+        self.assertEqual(len(decoded), 1)
+        self.assertEqual(decoded[0]["start_beats"], "16")
+        self.assertEqual(decoded[0]["track_number_1_based_candidate"], 3)
+        self.assertEqual(decoded[0]["media_group_id_candidate"], 0x140000)
+        self.assertEqual(decoded[0]["trailing_event_data_hex"], (bytes([0xC7]) + bytes(79)).hex())
+
+        project = Project(media_references=[MediaReference(
+            index=0,
+            category="AudioFiles",
+            reference="loops/example.caf",
+            group_id_candidate=0x140000,
+            name_matched_region_chunk_indices=[10],
+        )])
+        _attach_audio_placements(project, decoded)
+        self.assertEqual([(track.index, track.kind) for track in project.tracks], [(2, "audio")])
+        region = project.tracks[0].regions[0]
+        self.assertEqual(region.name, "example")
+        self.assertEqual(region.start_beats, "16")
+        self.assertIsNone(region.duration_beats)
+        self.assertEqual(region.source, "loops/example.caf")
+        self.assertEqual(region.unknown["candidate_region_chunk_indices_for_source"], [10])
+
+    def test_package_parse_builds_audio_track_and_region_from_placement(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture, include_audio_placement=True)
+            project = parse_band(fixture)
+        self.assertEqual(len(project.project_data["audio_placements"]), 1)
+        self.assertEqual(len(project.tracks), 1)
+        track = project.tracks[0]
+        self.assertEqual(track.index, 2)
+        self.assertEqual(track.kind, "audio")
+        self.assertEqual(len(track.regions), 1)
+        self.assertEqual(track.regions[0].start_beats, "16")
+        self.assertEqual(track.regions[0].source, "${CONTENT:loops/example.caf")
 
     def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
         payload = bytes.fromhex("2347c0ab") + bytes(20)

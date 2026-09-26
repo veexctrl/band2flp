@@ -14,6 +14,8 @@
 - A sampler-resource basename appears twice as ASCII in that payload, while listed audio-resource basenames were not found as literal ASCII strings.
 - The logic-song payload parses to its exact end as a 24-byte root header followed by 413 length-delimited 36-byte chunk headers in this fixture.
 - All six asset audio basenames match one `AuFl` payload each as UTF-16LE. In all nine same-value `AuRg` chunks, an exact NUL-delimited string matches one of those basenames after removing `.caf`; this independently supports the six-to-nine source/region-chunk links in this fixture.
+- Nine `0x24` event records in one `EvSq` chunk carry audio placements. Their position, track, and source-link fields agree with the GarageBand arrangement preview and audio references; starts decode to 0, 16, 32, or 128 beats using the cross-format 34,560 origin and 960 PPQ.
+- Twelve 80-byte `0x20` records occur in another `EvSq` chunk, but their GarageBand meaning is UNKNOWN. No `0x90` note events were observed in this fixture, so no MIDI notes are currently decoded.
 - The candidate header value at offset 8 is reused by 32 sequential `TxSt` entries, including numeric values also seen on `AuFl` and `AuRg`. It is not a globally unique identifier across chunk families.
 - Aligned `EvSq` records contain a group-zero 160 BPM candidate and a 4/4 candidate that match both summary plists; a distinct 120 BPM candidate exists in a nonzero group and remains unassigned.
 - Seventeen short `EvSq` chunks are identical 16-byte `0xF1` payloads in the inspected project; six share candidate group values with the audio-file/region groups. Their purpose is UNKNOWN.
@@ -27,6 +29,7 @@
 - Asset resource references do not prove that the media is placed in a song arrangement.
 - The chunk framing is shared with a described Logic Pro container format, but that does not validate its chunk semantics for iOS GarageBand.
 - Audio source-to-`AuRg` chunk links have HIGH CONFIDENCE in this fixture from both group-value agreement and exact filename-stem strings. The group field's general scope and the region placement/timing fields need controlled validation.
+- The nine audio placement positions, track numbers, and source links are HIGH CONFIDENCE for this fixture because they match the arrangement preview and audio-resource mappings. Region durations and generalization across project versions remain unverified.
 - Group-zero 160 BPM and 4/4 records match both summary plists. Raw positions and the meaning of nonzero-group tempo records are unresolved.
 - The `AuCO` records likely represent channel strips based on the cross-format marker, padded-name record, and sequential strip values; their relationship to the seven arrange tracks is unknown.
 - Applying the Logic Pro descriptor classifier to the `AuCO` candidates yields a mixture of channel kinds and more audio/instrument candidates than the arrange-track count. This classifier is not used to label GarageBand tracks.

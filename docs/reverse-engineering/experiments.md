@@ -223,3 +223,35 @@
 **Alternative considered:** A matching region label could be descriptive text rather than a source pointer; the independent same-group match to the uniquely basename-matched `AuFl` strengthens, but does not universally prove, the link.
 
 **Next:** Investigate `AuRg` fields and adjacent event chunks with minimal projects that move, trim, duplicate, and loop a single source region.
+
+## ARR-017 — audio placement events and timeline positions
+
+**Question:** Where are audio-region timeline starts and track assignments stored?
+
+**Fixture:** The supplied project. The nine `AuRg` entries and GarageBand-generated arrangement preview were compared with IDA Python and the independent chunk/event parser. The Logic Pro ProjectData specification was used only to form a cross-format hypothesis.
+
+**Observation:** `EvSq` chunk 298 contains nine `0x24` event records. Each starts with at least 80 bytes and has marker bytes `89 BC 8A 89` at event offsets `0x17`, `0x27`, `0x37`, and `0x47`. At `+0x04`, the little-endian position values are 34,560 (five events), 49,920 (two), 65,280 (one), and 157,440 (one). At `+0x14`, the track bytes are 2 through 7. At `+0x2C`, link values shifted left 16 bits match the audio groups found through `AuFl` names and `AuRg` filename stems. Seven records are 80 bytes and two are 160 bytes; the latter contain 80 trailing bytes beyond the common placement structure. The preview shows corresponding audio regions beginning at bars 1, 5, 9, and 33.
+
+**Result:** The Logic Pro model predicts `position = 34,560 + tick@960`. This converts the GarageBand values to 0, 16, 32, and 128 beats, matching the preview's bar positions. The embedded track byte and media link recover six populated audio tracks and all nine placements. The parser emits these as neutral audio regions with source reference, one-based track number normalized to zero-based `Track.index`, and exact beat-string start; raw fields and unparsed suffix bytes are preserved. Region duration and exact placement-to-`AuRg` object ordinal remain unknown.
+
+**Confidence:** HIGH CONFIDENCE for the positions, track values, and source links in this fixture: all three fields agree with the project preview/resource names. HYPOTHESIS that the same origin, PPQ, markers, and one-based track convention generalize across GarageBand versions, supported by the [Logic Pro ProjectData specification](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#3-the-unifying-model).
+
+**Alternative considered:** The offset-`+0x04` value inside `AuRg` records varies for regions that visibly begin at the same bar, so it is not accepted as a global arrangement start. The `EvSq` placement field is better supported by the preview match. The 80-byte suffix in longer event records may carry additional region state, but no meaning is assigned.
+
+**Next:** Differential fixtures should move one audio region by one beat and one bar, change the meter, and alter trim/loop state separately. Then decode duration, source offset, region-object linkage, and the 80-byte suffix.
+
+## MIDI-001 — unclassified `0x20` event records
+
+**Question:** Do `0x20` event records represent MIDI-region placements in this GarageBand project?
+
+**Fixture:** The supplied project; all 71 parsed `EvSq` records and the 33 `MSeq` chunks were inventoried. The Logic Pro ProjectData specification was consulted as a cross-format reference.
+
+**Observation:** One `EvSq` chunk contains 12 records of 80 bytes, each beginning with `0x20 00 00 00`. All have raw position 34,560 and link field zero; the track-number byte ranges from 1 to 14 with gaps. Their marker bytes differ slightly from the nine audio-placement candidates. No `0x90` MIDI-note event records occur in the fixture. The 12 events are not in one-to-one correspondence with the seven arrange-track summary count or the nine audio placements.
+
+**Result:** The published Logic Pro spec uses `0x20` for MIDI-region placements, but this GarageBand fixture does not provide enough independent evidence to assign that meaning here. They remain preserved as unknown event records and are not emitted as MIDI regions. No MIDI notes have been recovered from this fixture.
+
+**Confidence:** CONFIRMED for the observed counts, sizes, positions, track bytes, zero link values, and absence of `0x90` records; HYPOTHESIS that `0x20` denotes MIDI placement in GarageBand.
+
+**Alternative considered:** These may be empty MIDI-region placements, internal arrangement objects, or another sequence type that shares the Logic event marker. Their repeated bar-one position and zero links do not establish usable MIDI content.
+
+**Next:** Compare a GarageBand project with one software-instrument track and a known MIDI region, then add one note and compare the region's `MSeq` and `EvSq` chunks. Determine whether a `0x20` event changes and whether any `0x90` note records appear.

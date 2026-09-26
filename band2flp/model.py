@@ -8,6 +8,7 @@ from typing import Any
 
 @dataclass
 class Region:
+    name: str | None = None
     start_beats: str | None = None
     duration_beats: str | None = None
     source_offset_beats: str | None = None
