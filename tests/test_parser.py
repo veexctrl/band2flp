@@ -303,6 +303,7 @@ class ParserTests(unittest.TestCase):
         struct.pack_into("<I", event, 4, 49_920)  # 34560 + 4 bars at 960 PPQ.
         struct.pack_into("<I", event, 0x10, 0x70)
         event[0x14] = 3
+        struct.pack_into("<I", event, 0x18, 0x12345678)
         event[0x17] = 0x89
         event[0x27] = 0xBC
         event[0x2C:0x30] = bytes.fromhex("14000000")
@@ -320,6 +321,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(decoded[0]["start_beats"], "16")
         self.assertEqual(decoded[0]["track_number_1_based_candidate"], 3)
         self.assertEqual(decoded[0]["media_group_id_candidate"], 0x140000)
+        self.assertEqual(decoded[0]["u32_at_0x18_candidate"], 0x12345678)
+        self.assertIn("not used as duration", decoded[0]["u32_at_0x18_interpretation"])
         self.assertEqual(decoded[0]["trailing_event_data_hex"], (bytes([0xC7]) + bytes(79)).hex())
 
         project = Project(media_references=[MediaReference(

@@ -402,6 +402,8 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "trailing_event_data_hex": raw[80:].hex(),
             "position_confidence": "HIGH CONFIDENCE for the supplied fixture; matches its arrangement preview",
             "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
+            "u32_at_0x18_candidate": struct.unpack_from("<I", raw, 0x18)[0],
+            "u32_at_0x18_interpretation": "UNKNOWN; preserved as a raw candidate, not used as duration or end position",
         })
     return placements
 

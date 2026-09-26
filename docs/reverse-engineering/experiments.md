@@ -260,17 +260,20 @@
 
 **Question:** Does the 32-bit word at placement-event offset `+0x18` encode an audio-region end or duration?
 
-**Fixture:** The supplied project. IDA Python independently traversed the `projectData` package and decoded the nine `0x24` events in `EvSq` chunk 298; the existing Python parser supplied the cross-check for event boundaries and starts.
+**Fixture:** The supplied audio-free project. IDA Python and the independent parser both traversed `projectData` and decoded the nine recognized `0x24` placement records in `EvSq` chunk 298.
 
-**Observation:** Interpreted as little-endian unsigned 32-bit values, the word at `+0x18` is `130560` once, `122880` once, `99840` once, and `1073741823` six times. All nine events share the same recognized 80-byte prefix; the three non-sentinel values occur on events at different source/track groupings, while several bar-one events have the sentinel.
+**Observation:** All nine records share the recognized 80-byte prefix. Interpreting `+0x18` as a little-endian unsigned 32-bit integer yields zero in all nine records. The same field is zero across the audio placements parsed from the second local project.
 
-**Result:** The observed values do not support a single general rule that `+0x18` is the region duration or end position. The field remains unknown and the raw event is preserved. No value is used to set FLP clip length.
+**Correction:** An earlier version of this entry recorded three nonzero values and six sentinel values. Re-parsing the same chunk in IDA and with the Python parser did not reproduce that histogram; those values are withdrawn as an extraction or offset error.
 
-**Confidence:** CONFIRMED for the observed values and event offsets in this fixture; UNKNOWN for field semantics.
+**Result:** Zero at `+0x18` does not reveal duration or end position. The raw word is exposed as `u32_at_0x18_candidate` with UNKNOWN semantics and is not used to set FLP clip length.
 
-**Alternative considered:** The field may be a source-specific offset/end cache, a state discriminator, or a value meaningful only with other event data. The single fixture cannot distinguish these possibilities.
+**Confidence:** CONFIRMED for nine zero-valued words in chunk 298, independently observed by IDA and the parser, and for zero values across the other current fixture's placements; UNKNOWN for field semantics.
+
+**Alternative considered:** Zero may mean “unspecified,” or the field may be reserved for a different event variant. There is not yet a controlled fixture that changes duration while keeping the event variant fixed.
 
 **Next:** In a controlled project, compare the same region after changing only its timeline length, then after changing only its trim or source. Check both `+0x18` and the associated `AuRg` payload before assigning semantics.
+
 
 ## MIDI-001 — unclassified `0x20` event records
 
@@ -383,3 +386,21 @@
 **Alternative considered:** A cached preview may be stale or may omit tracks. The matching row start pattern and project summary support the comparison, but a controlled track reorder/addition is still needed to resolve absolute indexing.
 
 **Next:** Reorder or add one audio track in a controlled GarageBand project and compare the preview row order, `0x24 +0x14`, and declared track count.
+
+## PROV-001 - GarageBand version and device provenance
+
+**Question:** Which GarageBand version is represented by the supplied project archives, and do their package metadata establish the originating iPhone models?
+
+**Fixtures:** Both locally supplied `.band` archives. Archive contents remain outside the repository.
+
+**Method:** Inspected plist and `projectData` members in memory, emitting only version strings and aggregate counts. Compared the version with Apple's iOS/iPadOS GarageBand release notes published August 24, 2026.
+
+**Observation:** Each archive contains one plist member with the literal version string `2.3.19`. Apple's release notes list 2.3.19 as the newest version as of September 26, 2026. Device product-type strings occur in package metadata, but their presence is mixed across internal records; the inspected data does not establish which device authored or last edited each project.
+
+**Result:** Record GarageBand 2.3.19 as archive-supported provenance for these fixtures. Do not attribute either archive to a particular iPhone model. Hardware identifiers may be useful in future controlled comparisons, but the current evidence does not establish their role in serialization.
+
+**Confidence:** HIGH CONFIDENCE for the version string present in both archives; HIGH CONFIDENCE that the package scan did not establish originating-device attribution.
+
+**Source:** [Apple GarageBand for iOS and iPadOS release notes](https://support.apple.com/en-au/106346).
+
+**Next:** If device-dependent serialization becomes a research question, compare controlled projects with the same GarageBand version and content created on known devices, and identify authoritative creator metadata before drawing conclusions.

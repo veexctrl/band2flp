@@ -6,6 +6,7 @@
 - Whether `AuRg +0x16` is source-frame length for all GarageBand versions versus another cached length. Its values are preserved as candidates, not used as timeline duration.
 - ARR-020 compared `AuRg +0x16` against embedded source frame counts: only a subset of candidates in one project matched. The field is not a universal full-source length; trimming and region-length semantics remain unknown.
 - Exact beat duration/source-offset/trim/loop fields in `AuRg`, exact mapping from each placement event to a specific same-source region object, and meaning of the extra 80-byte suffix on two placement events. Two suffix dwords match same-source region `+0x16` values, but starts and track/source placement links remain the only complete arrangement fields recovered with HIGH CONFIDENCE for this fixture.
+- ARR-019's earlier nonzero/sentinel histogram was not reproducible. IDA and the parser both read zero at `0x24 +0x18` for the nine records in chunk 298; the field remains UNKNOWN and is not used for region length.
 - Meaning of the repeated 16-byte `0xF1` `EvSq` payloads and the scope of their candidate group values.
 - Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
 - Track names, complete track ordering (including the unpopulated track slot), mixer settings, and mute/solo state. Audio placement track numbers 2 through 7 are recovered for this fixture.
@@ -26,3 +27,4 @@
 - Which structures differ across GarageBand versions and desktop/mobile projects.
 
 The next useful inputs are sanitized or private local fixtures created by changing one property at a time: empty project, one track, one note, note pitch/duration/start changes, region position/length changes, tempo/meter changes, and a simple audio region. Do not add private song content to the public source repository.
+- PROV-001 found GarageBand 2.3.19 in both inspected project archives. Device product-type strings are present but do not identify an authoritative creator device; model attribution remains unrecorded pending controlled evidence.
