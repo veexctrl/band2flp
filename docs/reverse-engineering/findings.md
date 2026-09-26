@@ -12,6 +12,7 @@
 - A sampler-resource basename appears twice as ASCII in that payload, while listed audio-resource basenames were not found as literal ASCII strings.
 - The logic-song payload parses to its exact end as a 24-byte root header followed by 413 length-delimited 36-byte chunk headers in this fixture.
 - All six asset audio basenames match one `AuFl` payload each as UTF-16LE; candidate group values link those chunks to all nine `AuRg` chunks, matching the metadata root-region count.
+- Aligned `EvSq` records contain a group-zero 160 BPM candidate and a 4/4 candidate that match both summary plists; a distinct 120 BPM candidate exists in a nonzero group and remains unassigned.
 
 ## High confidence
 
@@ -20,6 +21,7 @@
 - Asset resource references do not prove that the media is placed in a song arrangement.
 - The chunk framing is shared with a described Logic Pro container format, but that does not validate its chunk semantics for iOS GarageBand.
 - `AuFl`/`AuRg` source-to-region grouping is high confidence in this one fixture; the group-field semantics and timing fields need controlled validation.
+- Group-zero 160 BPM and 4/4 records match both summary plists. Raw positions and the meaning of nonzero-group tempo records are unresolved.
 
 ## Hypotheses
 

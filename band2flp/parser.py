@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import math
 import plistlib
 import struct
 import zipfile
@@ -235,6 +236,92 @@ def _match_audio_file_references(
     return matched
 
 
+def _parse_event_sequences(data: bytes, chunk_stream: dict[str, Any]) -> dict[str, Any]:
+    """Split 16-byte event atoms and retain all unknown event records verbatim."""
+    records: list[dict[str, Any]] = []
+    for chunk in chunk_stream["chunks"]:
+        if chunk["type"] != "EvSq":
+            continue
+        start = chunk["payload_offset"]
+        end = start + chunk["payload_size"]
+        payload = data[start:end]
+        if len(payload) % 16:
+            raise BandFormatError(f"EvSq payload is not a whole number of 16-byte atoms at offset {chunk['offset']}")
+        record_start: int | None = None
+        event_index = 0
+        for atom_offset in range(0, len(payload), 16):
+            atom = payload[atom_offset:atom_offset + 16]
+            if atom[7] & 0x80:
+                if record_start is None:
+                    raise BandFormatError(f"EvSq continuation atom has no preceding record at offset {chunk['offset'] + 36 + atom_offset}")
+                continue
+            if record_start is not None:
+                raw = payload[record_start:atom_offset]
+                records.append(_event_record(chunk, event_index, start, record_start, raw))
+                event_index += 1
+            record_start = atom_offset
+        if record_start is not None:
+            raw = payload[record_start:]
+            records.append(_event_record(chunk, event_index, start, record_start, raw))
+
+    event_counts: dict[str, int] = {}
+    tempo_candidates: list[dict[str, Any]] = []
+    meter_candidates: list[dict[str, Any]] = []
+    for record in records:
+        event_type = record["type_byte"]
+        label = f"0x{event_type:02x}"
+        event_counts[label] = event_counts.get(label, 0) + 1
+        raw = bytes.fromhex(record["raw_hex"])
+        if event_type == 0x60 and len(raw) >= 24 and raw[1] == 0 and raw[12:15] == b"\x7f\x00\x00" and raw[23] == 0x88:
+            scaled_bpm = struct.unpack_from("<I", raw, 16)[0]
+            if 0 < scaled_bpm <= 10_000_000:
+                tempo_candidates.append({
+                    "position_raw": struct.unpack_from("<I", raw, 4)[0],
+                    "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
+                    "bpm": scaled_bpm / 10_000,
+                    "bpm_raw": scaled_bpm,
+                    "source_group_id_candidate": record["group_id_candidate"],
+                    "source_chunk_index": record["chunk_index"],
+                    "event_index": record["event_index"],
+                    "raw_hex": record["raw_hex"],
+                })
+        elif event_type == 0x30 and len(raw) >= 24 and raw[1] == 0 and raw[8:11] == bytes(3) and raw[13:15] == bytes(2) and raw[16:18] == b"\x30\x00" and raw[23] == 0x88:
+            denominator_power = raw[11]
+            numerator = raw[12]
+            if numerator > 0 and denominator_power <= 7:
+                meter_candidates.append({
+                    "position_raw": struct.unpack_from("<I", raw, 4)[0],
+                    "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
+                    "numerator": numerator,
+                    "denominator": 1 << denominator_power,
+                    "source_group_id_candidate": record["group_id_candidate"],
+                    "source_chunk_index": record["chunk_index"],
+                    "event_index": record["event_index"],
+                    "raw_hex": record["raw_hex"],
+                })
+    return {
+        "atom_size": 16,
+        "record_count": len(records),
+        "event_type_counts": event_counts,
+        "records": records,
+        "tempo_candidates": tempo_candidates,
+        "time_signature_candidates": meter_candidates,
+    }
+
+
+def _event_record(chunk: dict[str, Any], event_index: int, payload_start: int, relative_start: int, raw: bytes) -> dict[str, Any]:
+    return {
+        "chunk_index": chunk["index"],
+        "chunk_offset": chunk["offset"],
+        "group_id_candidate": chunk["group_id_candidate"],
+        "event_index": event_index,
+        "offset": payload_start + relative_start,
+        "type_byte": raw[0],
+        "length": len(raw),
+        "raw_hex": raw.hex(),
+    }
+
+
 def parse_band(path: str | Path) -> Project:
     """Read package inventory and high-confidence summary metadata.
 
@@ -306,8 +393,14 @@ def parse_band(path: str | Path) -> Project:
                     except BandFormatError as exc:
                         project.warnings.append(f"Logic-song chunk stream was not decoded: {exc}")
                     else:
+                        try:
+                            events = _parse_event_sequences(logic_payload, project.project_data["logic_song_chunk_stream"])
+                        except BandFormatError as exc:
+                            project.warnings.append(f"EvSq events were not decoded: {exc}")
+                        else:
+                            project.project_data["event_sequences"] = events
                         project.warnings.append(
-                            "Chunk boundaries are validated for this logic-song payload; chunk meanings remain unverified."
+                            "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
                         )
                 project.warnings.append(
                     "Logic-song payload is retained as opaque bytes; region, note, and track records are not decoded."
@@ -370,6 +463,30 @@ def parse_band(path: str | Path) -> Project:
             project.warnings.append(
                 "Arrange-track count comes from summary metadata; track identities and regions remain unknown."
             )
+        event_sequences = project.project_data.get("event_sequences")
+        if isinstance(event_sequences, dict):
+            global_tempo = [item for item in event_sequences["tempo_candidates"] if item["source_group_id_candidate"] == 0]
+            global_meter = [item for item in event_sequences["time_signature_candidates"] if item["source_group_id_candidate"] == 0]
+            project.tempo_map = [
+                {
+                    **item,
+                    "position_unit": "unknown",
+                    "matches_summary": project.tempo_bpm is not None and math.isclose(item["bpm"], project.tempo_bpm, rel_tol=0, abs_tol=0.0001),
+                    "confidence": "HIGH CONFIDENCE" if project.tempo_bpm is not None and math.isclose(item["bpm"], project.tempo_bpm, rel_tol=0, abs_tol=0.0001) else "HYPOTHESIS",
+                }
+                for item in global_tempo
+            ]
+            project.time_signatures = [
+                {
+                    **item,
+                    "position_unit": "unknown",
+                    "matches_summary": project.time_signature == (item["numerator"], item["denominator"]),
+                    "confidence": "HIGH CONFIDENCE" if project.time_signature == (item["numerator"], item["denominator"]) else "HYPOTHESIS",
+                }
+                for item in global_meter
+            ]
+            if any(item["source_group_id_candidate"] != 0 for item in event_sequences["tempo_candidates"]):
+                project.warnings.append("Nonzero-group tempo candidates are preserved separately; their scope is unknown.")
         return project
 
 

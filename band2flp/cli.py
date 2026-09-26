@@ -43,6 +43,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Validated logic-song chunks: {chunks['chunk_count']}")
             top_types = sorted(chunks["type_counts"].items(), key=lambda item: (-item[1], item[0]))[:12]
             print("Chunk tags (top): " + ", ".join(f"{name}={count}" for name, count in top_types))
+        event_sequences = project.project_data.get("event_sequences")
+        if event_sequences:
+            print(f"Event records: {event_sequences['record_count']}")
+        if project.tempo_map:
+            values = ", ".join(f"{item['bpm']:g} BPM @ raw {item['position_raw']}" for item in project.tempo_map)
+            print(f"Group-zero tempo candidates: {values}")
+        if project.time_signatures:
+            values = ", ".join(f"{item['numerator']}/{item['denominator']} @ raw {item['position_raw']}" for item in project.time_signatures)
+            print(f"Group-zero meter candidates: {values}")
         matches = project.project_data.get("audio_file_reference_matches", [])
         if matches:
             grouped = {index for match in matches for index in match["related_AuRg_chunk_indices"]}

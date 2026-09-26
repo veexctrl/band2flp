@@ -31,6 +31,8 @@ class Project:
     source_format: str = "GarageBand .band ZIP package"
     tempo_bpm: float | None = None
     time_signature: tuple[int, int] | None = None
+    tempo_map: list[dict[str, Any]] = field(default_factory=list)
+    time_signatures: list[dict[str, Any]] = field(default_factory=list)
     duration_value: float | None = None
     declared_track_count: int | None = None
     tracks: list[Track] = field(default_factory=list)

@@ -35,6 +35,16 @@ In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each hav
 
 Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. This is HIGH CONFIDENCE evidence that `AuFl` stores audio-file references and `AuRg` stores related audio-region data in this fixture. The parser records the literal name match and shared header value, but does not claim that this field's meaning is universal or decode region positions, source offsets, trim, or loop behavior.
 
+## Event records and global timing candidates
+
+All 33 `EvSq` payloads in the inspected fixture have lengths divisible by 16. Splitting atoms where byte 7 has its continuation bit clear yields 71 complete event records. The event summaries retain every record's bytes, chunk index, group value, type byte, and raw offset.
+
+Two `0x60` tempo-like records were observed. Reading a 32-bit little-endian field at event offset 16 and dividing by 10,000 yields 160 BPM for group value `0x00000000` and 120 BPM for group value `0x00040000`. The group-zero value matches both output and asset summary tempo. The parser exposes the group-zero event as a HIGH CONFIDENCE global-tempo candidate and preserves the nonzero-group value separately because its scope is unknown.
+
+A 48-byte `0x30` event in group zero decodes to 4/4 using an 8-bit numerator and a denominator power (2 means denominator 4). It matches both summary metadata sources. Its raw position is zero; the parser keeps that value and does not assign a beat/tick unit. The global tempo event's raw position is 38,400, also retained without a local unit assignment.
+
+The event-family interpretation is corroborated by the published Logic ProjectData descriptions of [event atom boundaries](https://raw.githubusercontent.com/loov/logicx/main/event.go), [tempo fields](https://raw.githubusercontent.com/loov/logicx/main/tempo.go), and [time-signature fields](https://raw.githubusercontent.com/loov/logicx/main/signature.go). Those sources target Logic Pro. This fixture independently reproduces their chunk layout and summary values, but controlled GarageBand tempo/meter changes are still needed to establish position units, event-group scope, and tempo-map completeness.
+
 ## `Output/metadata.plist`
 
 Observed key names include:

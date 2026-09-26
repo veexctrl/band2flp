@@ -11,15 +11,20 @@ import zipfile
 from pathlib import Path
 
 from research.scripts.binary_diff import compare, load_component
-from band2flp.parser import BandFormatError, _match_audio_file_references, _parse_chunk_stream, parse_band
+from band2flp.parser import BandFormatError, _match_audio_file_references, _parse_chunk_stream, _parse_event_sequences, parse_band
 
 
-def make_fixture(path: Path) -> None:
+def make_fixture(path: Path, include_events: bool = False) -> None:
+    summary_tempo = 160 if include_events else 120
+    summary_numerator = 4 if include_events else 3
     chunk_data = bytes.fromhex("2347c0ab") + bytes(20)
     chunk_header = bytearray(36)
     chunk_header[:4] = b"tseT"
     struct.pack_into("<Q", chunk_header, 28, 3)
     logic_payload = chunk_data + bytes(chunk_header) + b"abc"
+    if include_events:
+        logic_payload += make_chunk("EvSq", 0, make_tempo_event(160) + make_meter_event(4, 2))
+        logic_payload += make_chunk("EvSq", 0x00040000, make_tempo_event(120))
     archive = {
         "$archiver": "NSKeyedArchiver",
         "$version": 100000,
@@ -27,16 +32,16 @@ def make_fixture(path: Path) -> None:
         "$objects": ["$null", {"DfLogicModelLogicSong": {"CF$UID": 2}}, {"NS.data": logic_payload}],
     }
     metadata = {
-        "com_apple_garageband_metadata_songTempo": 120,
-        "com_apple_garageband_metadata_songSignatureNominator": 3,
+        "com_apple_garageband_metadata_songTempo": summary_tempo,
+        "com_apple_garageband_metadata_songSignatureNominator": summary_numerator,
         "com_apple_garageband_metadata_songSignatureDeNominator": 4,
         "com_apple_garageband_metadata_songDuration": 12.5,
         "com_apple_garageband_metadata_numberOfArrangeTracks": 2,
     }
     assets = {
         "NumberOfTracks": 3,
-        "BeatsPerMinute": 120.0,
-        "SongSignatureNumerator": 3,
+        "BeatsPerMinute": float(summary_tempo),
+        "SongSignatureNumerator": summary_numerator,
         "SongSignatureDenominator": 4,
         "AudioFiles": ["${CONTENT:loops/example.caf"],
     }
@@ -53,6 +58,28 @@ def make_chunk(tag: str, group_id: int, payload: bytes) -> bytes:
     struct.pack_into("<I", header, 8, group_id)
     struct.pack_into("<Q", header, 28, len(payload))
     return bytes(header) + payload
+
+
+def make_tempo_event(bpm: int, position: int = 38400) -> bytes:
+    event = bytearray(32)
+    event[0] = 0x60
+    struct.pack_into("<I", event, 4, position)
+    event[12:15] = b"\x7f\x00\x00"
+    struct.pack_into("<I", event, 16, bpm * 10_000)
+    event[23] = 0x88
+    return bytes(event)
+
+
+def make_meter_event(numerator: int, denominator_power: int, position: int = 0) -> bytes:
+    event = bytearray(48)
+    event[0] = 0x30
+    struct.pack_into("<I", event, 4, position)
+    event[11] = denominator_power
+    event[12] = numerator
+    event[16] = 0x30
+    event[23] = 0x88
+    event[39] = 0x80
+    return bytes(event)
 
 
 class ParserTests(unittest.TestCase):
@@ -124,6 +151,28 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["group_id_candidate"], 0x00100000)
         self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1])
+
+    def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
+        payload = bytes.fromhex("2347c0ab") + bytes(20)
+        payload += make_chunk("EvSq", 0, make_tempo_event(160) + make_meter_event(4, 2))
+        payload += make_chunk("EvSq", 0x00040000, make_tempo_event(120))
+        chunk_stream = _parse_chunk_stream(payload)
+        events = _parse_event_sequences(payload, chunk_stream)
+        self.assertEqual([item["bpm"] for item in events["tempo_candidates"]], [160.0, 120.0])
+        self.assertEqual(events["time_signature_candidates"][0]["numerator"], 4)
+        self.assertEqual(events["time_signature_candidates"][0]["denominator"], 4)
+        self.assertEqual(events["tempo_candidates"][1]["source_group_id_candidate"], 0x00040000)
+
+    def test_parser_keeps_nonzero_group_tempo_out_of_global_map(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture, include_events=True)
+            project = parse_band(fixture)
+        self.assertEqual([point["bpm"] for point in project.tempo_map], [160.0])
+        self.assertTrue(project.tempo_map[0]["matches_summary"])
+        self.assertEqual(len(project.time_signatures), 1)
+        self.assertTrue(project.time_signatures[0]["matches_summary"])
+        self.assertEqual([point["bpm"] for point in project.project_data["event_sequences"]["tempo_candidates"]], [160.0, 120.0])
 
     def test_json_cli_emits_neutral_model(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

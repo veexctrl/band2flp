@@ -3,6 +3,7 @@
 - Semantic field layouts and relationships for the observed chunk types inside the `DfLogicModelLogicSong` `NS.data` payload.
 - Whether Logic Pro chunk decoders transfer unchanged to iOS GarageBand versions.
 - Exact start/duration/source-offset/trim/loop fields in `AuRg` and placement information in associated `EvSq` chunks.
+- Tempo-event position units, meter pre-roll semantics, scope of nonzero-group tempo records, and whether the decoded event set is a complete tempo map.
 - Track identifiers, ordering, names, types, mixer settings, and mute/solo state.
 - Region record boundaries, timing units, starts, durations, trims, loops, and mute state.
 - MIDI note encoding and timing resolution.
