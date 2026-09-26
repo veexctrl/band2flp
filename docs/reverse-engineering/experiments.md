@@ -256,6 +256,22 @@
 
 **Next:** Use a controlled audio region with a known source duration, then trim it without moving it and move it without trimming. Compare `AuRg +0x16`, event suffixes, and placement positions. Verify whether displayed duration changes in source frames, beats, or both.
 
+## ARR-019 — placement word at `+0x18` is unresolved
+
+**Question:** Does the 32-bit word at placement-event offset `+0x18` encode an audio-region end or duration?
+
+**Fixture:** The supplied project. IDA Python independently traversed the `projectData` package and decoded the nine `0x24` events in `EvSq` chunk 298; the existing Python parser supplied the cross-check for event boundaries and starts.
+
+**Observation:** Interpreted as little-endian unsigned 32-bit values, the word at `+0x18` is `130560` once, `122880` once, `99840` once, and `1073741823` six times. All nine events share the same recognized 80-byte prefix; the three non-sentinel values occur on events at different source/track groupings, while several bar-one events have the sentinel.
+
+**Result:** The observed values do not support a single general rule that `+0x18` is the region duration or end position. The field remains unknown and the raw event is preserved. No value is used to set FLP clip length.
+
+**Confidence:** CONFIRMED for the observed values and event offsets in this fixture; UNKNOWN for field semantics.
+
+**Alternative considered:** The field may be a source-specific offset/end cache, a state discriminator, or a value meaningful only with other event data. The single fixture cannot distinguish these possibilities.
+
+**Next:** In a controlled project, compare the same region after changing only its timeline length, then after changing only its trim or source. Check both `+0x18` and the associated `AuRg` payload before assigning semantics.
+
 ## MIDI-001 — unclassified `0x20` event records
 
 **Question:** Do `0x20` event records represent MIDI-region placements in this GarageBand project?
