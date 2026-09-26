@@ -104,11 +104,11 @@
 
 **Observation:** There are six `AudioFiles` references, six `AuFl` chunks, nine `AuRg` chunks, and a metadata root-region count of nine. Each of the six asset basenames occurs in exactly one `AuFl` payload as UTF-16LE. At chunk-header offset 8, the unsigned 32-bit little-endian value is shared between each `AuFl` and its related `AuRg` chunks. Observed groups are `0x00100000` (1 region), `0x00140000` (2), `0x00180000` (2), `0x001C0000` (2), `0x00200000` (1), and `0x00280000` (1). Each of the six `EvSq` chunks sharing those audio-resource group values is 16 bytes and begins with `0xF1`.
 
-**Result:** The name matches establish that `AuFl` carries audio-file references in this fixture. Same-value `AuRg` counts partition to nine, matching metadata, but a follow-up search found no literal basename in those region payloads, and ID-001 found the numeric values reused by `TxSt`. Therefore the `AuFl`/`AuRg` relation is only a family-local inference; ID-001 supersedes the initial stronger grouping interpretation. Start, duration, source offset, trimming, looping, and exact group-field semantics remain unknown.
+**Result:** The name matches establish that `AuFl` carries audio-file references in this fixture. Initially, the same-value `AuRg` count match alone was treated as strong evidence. ID-001 showed that the numeric value is reused by `TxSt`, so group matching alone is insufficient. CROSS-003 later found the exact filename stem in every same-value `AuRg` payload, strengthening the source-to-region link for this fixture. Start, duration, source offset, trimming, looping, and exact group-field semantics remain unknown.
 
-**Confidence:** HIGH CONFIDENCE that the asset basenames identify audio-file references in `AuFl`; HYPOTHESIS for their relationship to same-value `AuRg` chunks.
+**Confidence:** HIGH CONFIDENCE that the asset basenames identify audio-file references in `AuFl`; see CROSS-003 for the additional `AuRg` filename-stem evidence.
 
-**Alternative considered:** The `AuFl` and `AuRg` values may share a type-scoped namespace, may identify a broader object cluster, or may coincide without directly encoding a file-to-region relation. See ID-001.
+**Alternative considered:** The `AuFl` and `AuRg` values may be type-scoped or identify a broader object cluster, so the field alone does not establish a file-to-region relation. See ID-001 and CROSS-003.
 
 **Next:** Compare a minimal project with one audio region, then move/trim/loop it independently and diff the `AuRg` and grouped `EvSq` chunks. No timing interpretation is assigned to the `0xF1` records.
 
@@ -200,10 +200,26 @@
 
 **Observation:** There are 32 `TxSt` chunks, one each at candidate values `0x00000000` through `0x007C0000` in `0x00040000` increments. Their payloads contain text-style context labels, including score-display labels. The six `AuFl` chunks use six values in that same range (`0x00100000` through `0x00280000`, omitting `0x00240000`); their `AuRg` chunks reuse those values. An exact UTF-16LE search for each audio basename found it in its `AuFl` payload but in none of the same-value `AuRg` payloads.
 
-**Result:** The candidate group value cannot be treated as a globally unique track ID across chunk types. The repeated value still partitions each `AuFl` with one or two `AuRg` chunks in this fixture, totaling the metadata's nine root regions, but that source-to-region association remains an inference based on family-local grouping and count agreement. The region payloads provide no direct basename confirmation.
+**Result:** The candidate group value cannot be treated as a globally unique track ID across chunk types. It partitions each `AuFl` with one or two `AuRg` chunks in this fixture, totaling the metadata's nine root regions. At this stage, source-to-region association was still uncertain; CROSS-003 subsequently found matching filename stems in the region payloads.
 
-**Confidence:** CONFIRMED for the `TxSt` value sequence, numeric overlap, and literal basename search result in this fixture; UNKNOWN for the header field's scope and the exact `AuFl`/`AuRg` relation.
+**Confidence:** CONFIRMED for the `TxSt` value sequence, numeric overlap, and absence of full basenames in `AuRg` in this fixture; UNKNOWN for the header field's scope.
 
 **Alternative considered:** The field may be a group identifier whose namespace or meaning depends on chunk type; text-style entries and media objects may reuse numeric values. Alternatively, same-value media grouping may be a real local relationship while unrelated chunk families use the field differently.
 
 **Next:** Use controlled projects with one audio file and one or two regions, then change only region count or source assignment. Check whether the same group value follows the media relationship while `TxSt` indices remain fixed.
+
+## CROSS-003 — audio filename stems inside region chunks
+
+**Question:** Can audio references be associated with individual `AuRg` chunks independently of the reused header value?
+
+**Fixture:** The supplied project. IDA Python read the validated chunk payloads; Python parser implementation and a synthetic regression fixture reproduce the matching rule.
+
+**Observation:** Each of nine `AuRg` payloads contains an exact ASCII/UTF-8 NUL-delimited string equal to one `AudioFiles` basename with its `.caf` extension removed. Every match is inside an `AuRg` whose offset-8 candidate value also matches the `AuFl` chunk containing that asset's full UTF-16LE basename. The six source names correspond to nine region chunks (three source names occur twice, three occur once). The full basename including `.caf` is not present in the `AuRg` payload.
+
+**Result:** The combination of an exact filename-stem string match and same-value `AuFl` association supports mapping all nine `AuRg` records to the six media references in this fixture. The parser now emits same-group `AuRg` indices separately from those that also match the filename stem. This does not establish track placement or decode timing, trimming, looping, or source offsets.
+
+**Confidence:** HIGH CONFIDENCE for the nine source-to-region-chunk links in this fixture. The serialization rule and field scope require validation on other projects and controlled edits.
+
+**Alternative considered:** A matching region label could be descriptive text rather than a source pointer; the independent same-group match to the uniquely basename-matched `AuFl` strengthens, but does not universally prove, the link.
+
+**Next:** Investigate `AuRg` fields and adjacent event chunks with minimal projects that move, trim, duplicate, and loop a single source region.

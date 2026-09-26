@@ -78,10 +78,12 @@ def main(argv: list[str] | None = None) -> int:
         matches = project.project_data.get("audio_file_reference_matches", [])
         if matches:
             grouped = {index for match in matches for index in match["related_AuRg_chunk_indices"]}
+            name_matched = {index for match in matches for index in match["name_matched_AuRg_chunk_indices"]}
             asset_values = project.project_data.get("assetsmetadata_plist", {}).get("values", {})
             references = asset_values.get("AudioFiles", []) if isinstance(asset_values, dict) else []
             print(f"Audio resource names matched in AuFl chunks: {len(matches)} of {len(references)}")
             print(f"Related AuRg chunks by shared header field: {len(grouped)}")
+            print(f"Same-group AuRg chunks also matching audio filename stem: {len(name_matched)}")
         for warning in project.warnings:
             print(f"Warning: {warning}")
     return 0

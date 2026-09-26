@@ -223,6 +223,16 @@ def _match_audio_file_references(
                 and other["type"] == "AuRg"
                 and other["group_id_candidate"] == group_id
             ]
+            region_name = basename.rsplit(".", 1)[0]
+            name_needle = region_name.encode("utf-8")
+            name_matched = [
+                other["index"] for other in chunks
+                if other["index"] in related
+                and any(
+                    part == name_needle
+                    for part in data[other["payload_offset"]:other["payload_offset"] + other["payload_size"]].split(b"\x00")
+                )
+            ]
             matched.append({
                 "asset_reference_index": ref_index,
                 "asset_reference": reference,
@@ -230,8 +240,10 @@ def _match_audio_file_references(
                 "chunk_offset": chunk["offset"],
                 "group_id_candidate": group_id,
                 "related_AuRg_chunk_indices": related,
+                "name_matched_AuRg_chunk_indices": name_matched,
                 "basename_encoding": "UTF-16LE",
-                "confidence": "HIGH CONFIDENCE for literal basename match; group relationship is not yet semantically confirmed",
+                "region_name_match_encoding": "UTF-8 exact NUL-delimited string match",
+                "confidence": "HIGH CONFIDENCE for literal AuFl basename match; same-group AuRg relationship is additionally checked against the filename stem when available",
             })
     return matched
 
@@ -258,6 +270,7 @@ def _media_references(
                 source_chunk_index=match["chunk_index"] if match else None,
                 group_id_candidate=match["group_id_candidate"] if match else None,
                 related_region_chunk_indices=list(match["related_AuRg_chunk_indices"]) if match else [],
+                name_matched_region_chunk_indices=list(match["name_matched_AuRg_chunk_indices"]) if match else [],
                 unknown={"ambiguous_package_member_matches": member_matches} if len(member_matches) > 1 else {},
             ))
     return references

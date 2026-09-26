@@ -224,12 +224,15 @@ class ParserTests(unittest.TestCase):
         name = "loops/example.caf"
         payload = bytes.fromhex("2347c0ab") + bytes(20)
         payload += make_chunk("AuFl", 0x00100000, name.rsplit("/", 1)[-1].encode("utf-16le"))
-        payload += make_chunk("AuRg", 0x00100000, b"")
+        payload += make_chunk("AuRg", 0x00100000, b"\x07\x00example\x00")
+        payload += make_chunk("AuRg", 0x00100000, b"other\x00")
+        payload += make_chunk("AuRg", 0x00140000, b"example\x00")
         stream = _parse_chunk_stream(payload)
         matches = _match_audio_file_references(payload, stream, {"AudioFiles": [name]})
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["group_id_candidate"], 0x00100000)
-        self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1])
+        self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1, 2])
+        self.assertEqual(matches[0]["name_matched_AuRg_chunk_indices"], [1])
 
     def test_event_records_recover_tempo_and_meter_candidates(self) -> None:
         payload = bytes.fromhex("2347c0ab") + bytes(20)

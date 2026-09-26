@@ -37,7 +37,7 @@ In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each hav
 | `0x00200000` | 1 |
 | `0x00280000` | 1 |
 
-Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. However, the same candidate header values are used by a 32-entry `TxSt` sequence at `0x00000000` through `0x007C0000` in `0x00040000` increments. Thus offset 8 is not a globally unique ID across chunk families. Exact audio basenames were absent from same-value `AuRg` payloads. The `AuFl`/`AuRg` relationship is a family-local inference supported by shared values and the region count, not a confirmed reference encoding. The parser records name matches and candidate values in diagnostic data and neutral `MediaReference` entries. References remain separate from package members and placed regions; no region placement, source offset, trim, or loop behavior is decoded.
+Together these counts account for all nine `AuRg` chunks, matching the output metadata's root-region count. Although the same candidate header values are used by a 32-entry `TxSt` sequence at `0x00000000` through `0x007C0000` in `0x00040000` increments (so offset 8 is not a globally unique ID), each of the nine same-value `AuRg` payloads also contains an exact NUL-delimited filename stem matching its `AudioFiles` basename after removing `.caf`. This independently supports the six-to-nine source/region-chunk links in this fixture (CROSS-003). The parser reports all same-value `AuRg` chunks and the subset with a filename-stem match in `MediaReference`. These are media-to-region-chunk links, not placed timeline regions: no track placement, start/duration, source offset, trim, or loop behavior is decoded.
 
 ## Event records and global timing candidates
 
