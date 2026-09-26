@@ -111,3 +111,19 @@
 **Alternative considered:** The 120 BPM event could be a local source tempo or another sequence-specific value. Its distinct group and disagreement with both project-level summaries argue against promoting it to the global tempo map.
 
 **Next:** Create differential projects at known tempo/meter values and tempo-change positions; verify event positions, scaling, grouping, and completeness.
+
+## EVT-002 — repeated short event-sequence chunks
+
+**Question:** Do short `EvSq` chunks in audio-resource groups contain event data or a common marker?
+
+**Fixture:** The same supplied project, inspected through IDA MCP and checked against the Python chunk inventory.
+
+**Observation:** Seventeen `EvSq` chunks have 16-byte payloads beginning with `0xF1`. All seventeen payloads are byte-identical (`f1 00 00 00 ff ff ff 3f 00 00 00 00 00 00 00 00`). Six of them have the same candidate group values as the six `AuFl` chunks and their linked `AuRg` chunks. The remaining eleven occur in other groups.
+
+**Result:** These chunks are retained as raw events. Identical contents across multiple groups do not identify the marker's meaning or establish a one-to-one track/region relationship.
+
+**Confidence:** CONFIRMED for the count, bytes, and group-value overlap in this fixture; UNKNOWN for semantics.
+
+**Alternative considered:** The shared group may denote a containing track or object cluster rather than a media region. The repetition across audio and non-audio groups is consistent with a generic sequence marker.
+
+**Next:** Compare empty, MIDI-only, and audio-only projects and observe whether these chunks appear, change, or disappear.
