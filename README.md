@@ -4,6 +4,10 @@ Research tools for recovering GarageBand project structure into a neutral model 
 
 Licensed under the [MIT License](LICENSE).
 
+## Why this project exists
+
+GarageBand, Ableton Live, and FL Studio each have their own project formats and workflows. `band2flp` aims to make cross-DAW collaboration easier, so collaborators can work from a shared song without everyone needing to learn and own a license for every DAW in the chain. It does this by recovering song data into a neutral model, then exporting supported data for another DAW. Current work focuses on GarageBand projects and experimental FL Studio export; Ableton export and complete project conversion are not implemented yet.
+
 <p align="center"><img src="docs/progress.svg" alt="Estimated GarageBand reverse-engineering progress, with work areas and milestones"></p>
 
 The graphic is a rough estimate of format knowledge recovered, not a measure of converter completeness. See docs/progress.json for its evidence-based workstream estimates.
@@ -16,7 +20,7 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
-- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks that each sample path survives its PyFLP round-trip unchanged. The latest candidate still triggers FL Studio's invalid-playlist warning. The user also reports that clips are not visible on the named rows and that FL Studio reports a missing audio file. Arrangement visibility and media playback are not verified.
+- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks that each sample path survives its PyFLP round-trip unchanged. The last GUI-tested candidate still triggers FL Studio's invalid-playlist warning. A newer local playlist-layout probe is awaiting GUI validation. The user also reports that clips are not visible on the named rows and that FL Studio reports a missing audio file. Arrangement visibility and media playback are not verified.
 
 ## What is still being researched
 
