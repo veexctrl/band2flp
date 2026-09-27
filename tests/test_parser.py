@@ -8,6 +8,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import uuid
 import wave
 import zipfile
 from pathlib import Path
@@ -17,6 +18,11 @@ from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_r
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.flp_playlist_inventory import playlist_event_data
+from research.scripts.track_uuid_probe import (
+    find_uuid_payload_matches,
+    selected_track_uuid,
+    trak_uuid_field_profile,
+)
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -138,6 +144,51 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_selected_track_uuid_probe_resolves_keyed_archive_reference(self) -> None:
+        selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        objects = [
+            "$null",
+            {"CBData": plistlib.UID(2)},
+            {"NS.keys": [plistlib.UID(3)], "NS.objects": [plistlib.UID(4)]},
+            "previousCurrentTrackUUID",
+            {"NS.string": str(selected)},
+        ]
+        root = {
+            "$objects": objects,
+            "$top": {"DfDocument arrange model": plistlib.UID(1)},
+        }
+
+        self.assertEqual(selected_track_uuid(root), selected)
+
+    def test_track_uuid_probe_matches_payload_bytes_without_returning_uuid(self) -> None:
+        selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        payload = bytes(24) + selected.bytes + bytes(18)
+        chunks = {"chunks": [{"type": "Trak", "payload_offset": 0, "payload_size": len(payload)}]}
+
+        matches = find_uuid_payload_matches(payload, chunks, selected)
+
+        self.assertEqual(matches, [{
+            "chunk_index": 0,
+            "chunk_type": "Trak",
+            "chunk_payload_size": 58,
+            "payload_offset": 24,
+            "encoding": "uuid_bytes",
+        }])
+        self.assertNotIn(str(selected), repr(matches))
+
+    def test_track_uuid_probe_profiles_trak_uuid_fields_without_values(self) -> None:
+        identifier = uuid.UUID("00112233-4455-1677-8899-aabbccddeeff")
+        payload = bytes(24) + identifier.bytes + bytes(18)
+        chunks = {"chunks": [{"type": "Trak", "payload_offset": 0, "payload_size": len(payload)}]}
+
+        profile = trak_uuid_field_profile(payload, chunks)
+
+        self.assertEqual(profile["58_byte_trak_count"], 1)
+        self.assertEqual(profile["unique_payload_0x18_values"], 1)
+        self.assertEqual(profile["payload_0x18_uuid_variant_counts"], {"specified in RFC 4122": 1})
+        self.assertEqual(profile["payload_0x18_uuid_version_counts"], {"1": 1})
+        self.assertNotIn(str(identifier), repr(profile))
+
     def test_flp_playlist_event_reader_extracts_bounded_payload(self) -> None:
         events = bytes((233, 4)) + b"clip" + bytes((42, 7))
         header = b"FLhd" + struct.pack("<Ih2H", 6, 0, 0, 96)

@@ -78,6 +78,12 @@ Compare generated playlist audio-row structures with FLP references (requires op
 
 This probe also reports aggregate counts only, omitting project names, paths, clip timing, media paths, and field values.
 
+Check whether the saved previous-track UUID appears in logic-song chunks:
+
+    python -m research.scripts.track_uuid_probe path/to/project.band
+
+The probe reports aggregate chunk and UUID-field shapes only; it never prints the UUID or project paths.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v
