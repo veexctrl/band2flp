@@ -19,8 +19,9 @@ from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
+from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
-from research.scripts.flp_playlist_inventory import playlist_event_data
+from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses
 from research.scripts.track_uuid_probe import (
     find_uuid_payload_matches,
     selected_track_uuid,
@@ -150,6 +151,35 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_playlist_stride_probe_profiles_80_byte_candidates(self) -> None:
+        def record(channel_id: int) -> bytes:
+            return struct.pack("<IHHIHH", 120, 99, channel_id, 480, 497, 0) + bytes(64)
+
+        profiles = stride_hypotheses([record(3) + record(5)], {3, 5})
+
+        self.assertEqual(profiles["80"]["record_count"], 2)
+        self.assertEqual(profiles["80"]["audio_channel_link_count"], 2)
+        self.assertLess(profiles["32"]["audio_channel_link_count"], 2)
+        self.assertEqual(profiles["60"]["record_count"], 0)
+
+    def test_keyed_archive_inventory_reports_schema_without_values(self) -> None:
+        private_value = "PRIVATE_TRACK_NAME_7ab3"
+        archive = {
+            "$objects": [
+                "$null",
+                {"$classname": "ExampleTrack", "$classes": ["ExampleTrack", "NSObject"]},
+                {"$class": plistlib.UID(1), "displayName": private_value},
+            ],
+            "$top": {"root": plistlib.UID(2)},
+        }
+
+        report = profile_keyed_archive(archive)
+
+        self.assertEqual(report["class_counts"], {"ExampleTrack": 1})
+        self.assertEqual(report["fields_by_class"]["ExampleTrack"], {"displayName": 1})
+        self.assertNotIn(private_value, json.dumps(report))
+        self.assertNotIn("object_indices", json.dumps(report))
+
     def test_trak_uuid_logic_probe_finds_external_chunk_reference_without_value(self) -> None:
         identifier = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
         trak = bytearray(58)

@@ -74,19 +74,16 @@ def _audio_clip_channel_ids(project: Any, channel_id: Any) -> set[int]:
     return result
 
 
-def _decode_playlist_records(data: bytes) -> list[dict[str, Any]]:
+def _decode_stride(payloads: list[bytes], size: int) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for payload in playlist_event_data(data):
-        record_size = 60 if len(payload) % 60 == 0 else 32 if len(payload) % 32 == 0 else None
-        if record_size is None:
+    for payload in payloads:
+        if not payload or len(payload) % size:
             continue
-        for offset in range(0, len(payload), record_size):
-            record = payload[offset:offset + record_size]
-            if len(record) != record_size:
-                continue
+        for offset in range(0, len(payload), size):
+            record = payload[offset:offset + size]
             position, pattern_base, item_index, length, track_rvidx, group = struct.unpack_from("<IHHIHH", record)
             records.append({
-                "size": record_size,
+                "size": size,
                 "position": position,
                 "pattern_base": pattern_base,
                 "item_index": item_index,
@@ -102,6 +99,35 @@ def _decode_playlist_records(data: bytes) -> list[dict[str, Any]]:
     return records
 
 
+def stride_hypotheses(payloads: list[bytes], audio_channel_ids: set[int]) -> dict[str, dict[str, int]]:
+    """Count plausible rows and audio-channel links at observed candidate strides."""
+    results: dict[str, dict[str, int]] = {}
+    for size in (32, 60, 80):
+        compatible_payloads = [payload for payload in payloads if payload and len(payload) % size == 0]
+        records = _decode_stride(compatible_payloads, size)
+        linked = [
+            record for record in records
+            if record["item_index"] <= record["pattern_base"]
+            and record["item_index"] in audio_channel_ids
+        ]
+        results[str(size)] = {
+            "compatible_payload_count": len(compatible_payloads),
+            "record_count": len(records),
+            "audio_channel_link_count": len(linked),
+        }
+    return results
+
+
+def _decode_playlist_records(data: bytes) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for payload in playlist_event_data(data):
+        record_size = 60 if len(payload) % 60 == 0 else 32 if len(payload) % 32 == 0 else None
+        if record_size is None:
+            continue
+        records.extend(_decode_stride([payload], record_size))
+    return records
+
+
 def _static_profile(record: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(record[field] for field in _STATIC_FIELDS)
 
@@ -113,22 +139,23 @@ def compare_playlist_shapes(candidate_path: str | Path, reference_root: str | Pa
     pyflp, _ = _pyflp_module()
     from pyflp.channel import ChannelID
 
-    def read_audio_records(path: Path) -> list[dict[str, Any]]:
+    def read_audio_records(path: Path) -> tuple[list[dict[str, Any]], dict[str, dict[str, int]]]:
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 project = pyflp.parse(str(path))
             audio_ids = _audio_clip_channel_ids(project, ChannelID)
             data = path.read_bytes()
-            return [
+            records = [
                 record for record in _decode_playlist_records(data)
                 if record["item_index"] <= record["pattern_base"]
                 and record["item_index"] in audio_ids
             ]
+            return records, stride_hypotheses(playlist_event_data(data), audio_ids)
         except Exception as exc:
             raise FLPExportError(f"cannot inspect FLP structure: {type(exc).__name__}") from exc
 
-    candidate = read_audio_records(Path(candidate_path))
+    candidate, candidate_strides = read_audio_records(Path(candidate_path))
     if not candidate:
         raise FLPExportError("candidate FLP contains no decodable sample-backed playlist rows")
     root = Path(reference_root)
@@ -136,13 +163,21 @@ def compare_playlist_shapes(candidate_path: str | Path, reference_root: str | Pa
         raise FLPExportError("reference root is not a directory")
 
     references: list[dict[str, Any]] = []
+    reference_strides = {
+        str(size): {"compatible_payload_count": 0, "record_count": 0, "audio_channel_link_count": 0}
+        for size in (32, 60, 80)
+    }
     projects_examined = parse_failures = 0
     for path in sorted(root.rglob("*.flp")):
         if projects_examined >= limit:
             break
         projects_examined += 1
         try:
-            references.extend(read_audio_records(path))
+            records, strides = read_audio_records(path)
+            references.extend(records)
+            for size, counts in strides.items():
+                for key, value in counts.items():
+                    reference_strides[size][key] += value
         except FLPExportError:
             parse_failures += 1
 
@@ -163,6 +198,8 @@ def compare_playlist_shapes(candidate_path: str | Path, reference_root: str | Pa
         "candidate_static_profile_reference_counts": candidate_profile_counts,
         "candidate_field_matches_any_reference_row": field_matches,
         "candidate_track_rows_seen_in_references": len({record["track_rvidx"] for record in candidate} & reference_rows),
+        "candidate_record_stride_hypotheses": candidate_strides,
+        "reference_record_stride_hypotheses": reference_strides,
         "reference_projects_examined": projects_examined,
         "reference_parse_failures": parse_failures,
         "reference_audio_row_count": len(references),

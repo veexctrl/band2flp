@@ -98,6 +98,12 @@ Profile the saved arrange-model track-inspector UI state without values:
 
 This reports only the inspector-state field names and value types; project values and identifiers are omitted.
 
+Inventory keyed-archive object classes and field shapes without values:
+
+    python -m research.scripts.keyed_archive_inventory path/to/project.band
+
+This reads only `projectData` and reports class/field counts; archive values, dictionary key text, paths, and media are omitted.
+
 Check audio placement index bounds against the declared arrange-track count:
 
     python -m research.scripts.audio_track_index_probe path/to/project.band
