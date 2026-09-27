@@ -7,6 +7,7 @@
 - `projectData` is an XML plist containing an `NSKeyedArchiver` graph.
 - The graph connects a document logic model to a song object with an `NS.data` payload.
 - The inspected `DfDocument arrange model` graph contains editor/UI settings and no track or region collection; this does not rule out arrangement data in other objects or the logic-song chunks.
+- PD-003 repeated that result in both supplied projectData archives: the arrange-model root has an identical 28-field name/type profile, and its linked `CBData` contains 14 or 27 UI-state dictionaries rather than track or region lists. IDA MCP and Python also agree on the serialized root-key bytes in the audio-bearing projectData component. Track-related UI state remains an unlinked candidate, not arrange identity.
 - `Output/metadata.plist` has named summary fields for tempo, meter, duration, and arrange-track count.
 - `Output/assetsmetadata.plist` is a binary plist with separate global fields and resource-reference lists. Its track-count field differs from the arrange-track-count field in the inspected fixture.
 - IDA MCP's raw view of the supplied archive agreed with the ZIP local header and member name reported by Python.
