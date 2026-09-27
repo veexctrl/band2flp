@@ -623,23 +623,23 @@
 
 ## MIDI-008 - reject zero-only MSeq position matches
 
-**Question:** Does the Logic-documented `MSeq +0x11c` start candidate match GarageBand's linked MIDI placement positions?
+**Question:** Does a payload-relative `MSeq +0x11c` candidate match GarageBand's linked MIDI placement positions?
 
 **Fixtures:** Both locally supplied projects. Project titles, media, and exact timing values are omitted from this log.
 
-**Method:** Added `midi_region_timing_probe.py` to follow each recognized `0x20` placement to its uniquely linked `MSeq` chunk, then compare the little-endian 32-bit value at payload offset `+0x11c` with the placement position adjusted by the current `34,560`-tick origin candidate. Also counted zero-to-zero and nonzero equalities separately. Reopened the audio-bearing fixture's logic-song payload in IDA and read representative nonzero field candidates at parser-reported offsets.
+**Method:** Added `midi_region_timing_probe.py` to follow each recognized `0x20` placement to its uniquely linked `MSeq` chunk, then compare the little-endian 32-bit value at payload offset `+0x11c` with the placement position adjusted by the current `34,560`-tick origin candidate. Also counted zero-to-zero and nonzero equalities separately. Reopened the audio-bearing fixture's logic-song payload in IDA and read representative nonzero field candidates at parser-reported offsets. At the time, the payload-relative offset was described as matching the Logic record-relative `+0x11c`; MIDI-015 corrects this header-relative offset distinction and tests the actual translated candidate.
 
-**Observation:** Project 1 has 12 unique placement-to-`MSeq` links; all 12 proposed comparisons are zero-to-zero, and there are no nonzero placement tick candidates. Project 2 has 19 unique links; 15 comparisons are zero-to-zero, while the two nonzero placement tick candidates both differ from `MSeq +0x11c`. Both nonzero values occur somewhere in the wider aligned-word search window, but not at the proposed field offset. IDA bytes matched Python at the two inspected nonzero field offsets. No media was extracted.
+**Observation:** Project 1 has 12 unique placement-to-`MSeq` links; all 12 proposed comparisons are zero-to-zero, and there are no nonzero placement tick candidates. Project 2 has 19 unique links; 15 comparisons are zero-to-zero, while the two nonzero placement tick candidates both differ from payload-relative `+0x11c`. Both nonzero values occur somewhere in the wider aligned-word search window, but not at the proposed field offset. IDA bytes matched Python at the two inspected nonzero field offsets. No media was extracted.
 
-**Result:** The apparent 12/12 and 15/19 exact matches are explained by the zero origin candidates and are not evidence that GarageBand stores placement starts at `MSeq +0x11c`. The cross-format Logic Pro field remains a lead only; the GarageBand field interpretation is UNKNOWN. The origin candidate and any wider-window coincidences also require controlled validation.
+**Result:** The apparent 12/12 and 15/19 exact matches are explained by the zero origin candidates and are not evidence that GarageBand stores placement starts at payload-relative `MSeq +0x11c`. This scan tested a different location from the Logic record-relative field; see MIDI-015. The GarageBand field interpretation is UNKNOWN. The origin candidate and any wider-window coincidences also require controlled validation.
 
-**Confidence:** HIGH CONFIDENCE in the aggregate comparisons and Python/IDA byte agreement for the two inspected nonzero offsets; UNKNOWN for GarageBand `MSeq +0x11c` semantics.
+**Confidence:** HIGH CONFIDENCE in the aggregate comparisons and Python/IDA byte agreement for the two inspected nonzero payload-relative offsets; UNKNOWN for GarageBand payload-relative `+0x11c` semantics.
 
 **Alternative considered:** The Logic-family record could retain a related start field in a different location or encoding, but the present observations do not identify it. Zero-valued fields and small/repeated integers can coincide without representing time.
 
 **Source lead:** [Logic Pro ProjectData MIDI-region findings](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions). This does not establish the iOS GarageBand layout.
 
-**Next:** Use a controlled GarageBand fixture whose MIDI region begins after bar 1, move only that region, and compare linked `MSeq` payloads. Until then, do not use `+0x11c` as a GarageBand position field.
+**Next:** Use a controlled GarageBand fixture whose MIDI region begins after bar 1, move only that region, and compare linked `MSeq` payloads. Until then, do not use payload-relative `+0x11c` as a GarageBand position field.
 
 ## MIDI-009 — placement `+0x14` is not a direct arrange-track number
 
@@ -876,3 +876,23 @@
 **Alternative considered:** MSeq size may reflect instrument/program state, serializer options, or another project difference unrelated to musical note content. The placement and event candidates themselves also retain cross-format semantic uncertainty.
 
 **Next:** Create a project with one MIDI region, then add and remove one note without changing track, instrument, region placement, or duration. Compare the linked MSeq header size, full payload, and associated event families. Repeat by changing one note property at a time.
+
+## MIDI-015 — translate Logic region-field offsets across the chunk header
+
+**Question:** Do Logic Pro's record-relative MIDI-region length (`+0x78`) and internal-start (`+0x11c`) candidates transfer to GarageBand `MSeq` payloads when the 36-byte chunk header is accounted for?
+
+**Cross-format lead:** The [Logic Pro ProjectData MIDI-region notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#85-midi-note-regions) describe fields relative to a record. GarageBand's observed chunk header is 36 bytes, so these locations would be payload-relative `+0x54` and `+0xf8` if the same record layout applied. This offset translation is a hypothesis, not evidence that GarageBand `MSeq` chunks contain Logic MIDI-region records.
+
+**Fixtures:** Both supplied GarageBand logic-song payloads. No audio payloads were decoded or included.
+
+**Method:** Added `profile_record_relative_mseq_candidates` to `research/scripts/midi_region_timing_probe.py`. For every uniquely linked placement, compared payload `+0xf8` with the existing placement-tick candidate and profiled payload `+0x54` without assigning duration meaning. IDA MCP read the four-byte candidate fields at both offsets for all 19 and 12 linked `MSeq` chunks; Python compared every read.
+
+**Observation:** All 31 reads at payload `+0x54` are zero. At payload `+0xf8`, the audio-bearing fixture has 15 zero fields among 19 linked chunks; the other fixture has 12 zero fields among 12. The first fixture has two nonzero placement-tick candidates, and neither matches its `+0xf8` field. Its 14 equalities are all zero-to-zero; the second fixture's 12 equalities are also all zero-to-zero. IDA and Python agree on all 62 field reads.
+
+**Result:** The translated Logic candidates do not provide positive evidence for GarageBand region length or start fields at these locations. In particular, the audio-bearing fixture's note-bearing candidate group still has zero at payload `+0x54`; do not use it as a MIDI-region length. The corresponding GarageBand fields may be elsewhere, differently encoded, or absent from `MSeq`.
+
+**Confidence:** CONFIRMED for the measured zero/nonzero/equality counts and exact IDA/Python agreement at the tested bytes; UNKNOWN for whether the Logic record layout transfers to GarageBand and for all `MSeq` timing semantics.
+
+**Alternative considered:** The `MSeq` chunk may be a distinct GarageBand structure despite sharing a tag and broadly similar size with Logic MIDISeq records. A different offset, enclosing record, or external region object may carry length and start.
+
+**Next:** A controlled one-note project with an independently moved and resized region is still required. Compare the full changed records rather than probing additional Logic-derived offsets in isolation.

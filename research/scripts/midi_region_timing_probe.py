@@ -1,8 +1,10 @@
-"""Probe linked GarageBand MSeq payloads for a Logic-derived position field.
+"""Probe placement-tick candidates in linked GarageBand MSeq payloads.
 
-The output contains aggregate counts by default. ``--ida-offsets`` also prints
-the selected payload offsets so they can be checked in IDA; do not commit those
-fixture-specific offsets or raw values as format facts.
+The probe checks an exploratory payload-relative field and the translated
+record-relative Logic candidates after the observed 36-byte GarageBand chunk
+header. The output contains aggregate counts by default. ``--ida-offsets`` also
+prints selected fixture offsets and values for IDA checks; do not commit those
+fixture-specific values as format facts.
 """
 
 from __future__ import annotations
@@ -40,6 +42,59 @@ def _payload_from_archive(path: Path) -> bytes:
     if not isinstance(payload, bytes):
         raise ValueError("logic-song NSData was not found")
     return payload
+
+
+def profile_record_relative_mseq_candidates(
+    payload: bytes,
+    chunks: list[dict[str, Any]],
+    placements: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Test Logic record-relative region fields after removing the 36-byte chunk header."""
+    chunks_by_index = {chunk.get("index"): chunk for chunk in chunks}
+    eligible = 0
+    start_equal = 0
+    start_zero_equal = 0
+    start_nonzero_equal = 0
+    nonzero_starts = 0
+    length_values: list[int] = []
+    for placement in placements:
+        linked = placement.get("candidate_mseq_chunk_indices")
+        if not isinstance(linked, list) or len(linked) != 1:
+            continue
+        chunk = chunks_by_index.get(linked[0])
+        if chunk is None or chunk.get("type") != "MSeq":
+            raise ValueError("placement references a missing MSeq chunk")
+        base, size = chunk.get("payload_offset"), chunk.get("payload_size")
+        ticks = placement.get("position_ticks_from_origin_candidate")
+        if not isinstance(base, int) or not isinstance(size, int) or size < 0xFC:
+            continue
+        if not isinstance(ticks, int) or base < 0 or base + size > len(payload):
+            raise ValueError("linked MSeq payload bounds or placement position are invalid")
+
+        # Logic's documented +0x11c and +0x78 are record-relative. GarageBand
+        # chunks have a 36-byte header, so test payload-relative +0xf8 and +0x54.
+        candidate_start = struct.unpack_from("<I", payload, base + 0xF8)[0]
+        candidate_length = struct.unpack_from("<I", payload, base + 0x54)[0]
+        eligible += 1
+        length_values.append(candidate_length)
+        if ticks != 0:
+            nonzero_starts += 1
+        if candidate_start == ticks:
+            start_equal += 1
+            if ticks == 0:
+                start_zero_equal += 1
+            else:
+                start_nonzero_equal += 1
+
+    return {
+        "linked_mseqs_eligible_for_record_relative_fields": eligible,
+        "record_plus_0x11c_candidate_equals_placement_ticks": start_equal,
+        "record_plus_0x11c_zero_to_zero_equalities": start_zero_equal,
+        "record_plus_0x11c_nonzero_position_equalities": start_nonzero_equal,
+        "record_relative_candidates_with_nonzero_placement_ticks": nonzero_starts,
+        "record_plus_0x78_candidate_zero_count": length_values.count(0),
+        "record_plus_0x78_candidate_distinct_value_count": len(set(length_values)),
+    }
 
 
 def probe(path: Path) -> dict[str, Any]:
@@ -85,6 +140,7 @@ def probe(path: Path) -> dict[str, Any]:
         if len(offsets) < 8 and (ticks != 0 or field != 0):
             offsets.append({"payload_offset": start + 0x11C, "field_value": field,
                             "placement_ticks_candidate": ticks})
+    record_relative = profile_record_relative_mseq_candidates(payload, stream["chunks"], placements)
     return {
         "placements": len(placements),
         "unique_mseq_links": sum(len(p["candidate_mseq_chunk_indices"]) == 1 for p in placements),
@@ -95,6 +151,7 @@ def probe(path: Path) -> dict[str, Any]:
         "nonzero_equalities": nonzero_equal,
         "nonzero_placement_tick_candidates": nonzero_ticks,
         "placement_ticks_appear_in_aligned_words_from_plus_0x100_to_plus_0x140": contains_nearby,
+        **record_relative,
         "ida_samples": offsets,
     }
 

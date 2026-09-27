@@ -20,6 +20,7 @@ from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.midi_event_family_probe import profile_midi_event_families
+from research.scripts.midi_region_timing_probe import profile_record_relative_mseq_candidates
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
 from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses, _profile_metrics
@@ -805,6 +806,33 @@ class ParserTests(unittest.TestCase):
         serialized = json.dumps(report)
         self.assertNotIn("65536", serialized)
         self.assertNotIn("group_id_candidate", serialized)
+
+    def test_midi_timing_probe_removes_chunk_header_from_logic_offsets(self) -> None:
+        payload = bytearray(600)
+        struct.pack_into("<I", payload, 100 + 0xF8, 0)
+        struct.pack_into("<I", payload, 100 + 0x54, 0)
+        struct.pack_into("<I", payload, 300 + 0xF8, 7)
+        struct.pack_into("<I", payload, 300 + 0x54, 3840)
+        chunks = [
+            {"index": 1, "type": "MSeq", "payload_offset": 100, "payload_size": 0x120},
+            {"index": 2, "type": "MSeq", "payload_offset": 300, "payload_size": 0x120},
+        ]
+        placements = [
+            {"candidate_mseq_chunk_indices": [1], "position_ticks_from_origin_candidate": 0},
+            {"candidate_mseq_chunk_indices": [2], "position_ticks_from_origin_candidate": 960},
+        ]
+
+        report = profile_record_relative_mseq_candidates(payload, chunks, placements)
+
+        self.assertEqual(report, {
+            "linked_mseqs_eligible_for_record_relative_fields": 2,
+            "record_plus_0x11c_candidate_equals_placement_ticks": 1,
+            "record_plus_0x11c_zero_to_zero_equalities": 1,
+            "record_plus_0x11c_nonzero_position_equalities": 0,
+            "record_relative_candidates_with_nonzero_placement_ticks": 1,
+            "record_plus_0x78_candidate_zero_count": 1,
+            "record_plus_0x78_candidate_distinct_value_count": 2,
+        })
 
     def test_mseq_probe_reports_shapes_without_payload_bytes_or_values(self) -> None:
         first = b"ABCDEFGH" + bytes(292)
