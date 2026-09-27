@@ -100,6 +100,12 @@ Compare generated playlist audio-row structures with FLP references (requires op
 
 This probe also reports aggregate counts only, omitting project names, paths, clip timing, media paths, and field values.
 
+Create a local candidate that copies the stable opaque events immediately before playlist metadata from matching FLP references:
+
+    python -m research.scripts.flp_playlist_state_probe candidate.flp path/to/flp-projects probe.flp
+
+This is a compatibility experiment, not a fix. It requires a candidate with sample-backed 80-byte playlist rows and matching references. The output inherits candidate media paths and copies opaque reference events; keep it local.
+
 Create a local experiment that copies opaque 80-byte playlist-row tails from FLP references:
 
     python -m research.scripts.flp_playlist_tail_probe candidate.flp path/to/flp-projects probe.flp --tail-byte-offset 0

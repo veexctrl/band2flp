@@ -21,6 +21,7 @@ from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.midi_event_family_probe import profile_midi_event_families
 from research.scripts.midi_event_variation_probe import profile_records as profile_midi_event_variation
+from research.scripts.flp_playlist_state_probe import parse_events as parse_flp_event_spans
 from research.scripts.midi_region_timing_probe import profile_record_relative_mseq_candidates
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
@@ -889,6 +890,18 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(family["groups_with_multiple_records"], 1)
         self.assertEqual(family["varying_byte_offset_group_counts"], {"1": 1})
         self.assertNotIn(rows[0].hex(), json.dumps(result))
+
+    def test_flp_playlist_state_probe_parses_bounded_event_spans(self) -> None:
+        event_data = bytes([5, 9, 70, 1, 2, 128, 1, 2, 3, 4, 233, 3]) + b"abc"
+        raw = bytearray(b"FLhd" + bytes(10) + b"FLdt" + struct.pack("<I", len(event_data)) + event_data)
+
+        events = parse_flp_event_spans(bytes(raw))
+
+        self.assertEqual([event["id"] for event in events], [5, 70, 128, 233])
+        self.assertEqual([event["end"] - event["payload_start"] for event in events], [1, 2, 4, 3])
+        self.assertNotIn(b"abc", json.dumps(events).encode())
+        with self.assertRaises(FLPExportError):
+            parse_flp_event_spans(bytes(raw[:-1]))
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
