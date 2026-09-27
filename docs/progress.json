@@ -31,7 +31,7 @@
       "name": "MIDI placement and note semantics",
       "weight": 18,
       "recovered": 26,
-      "basis": "All 68 MSeq payloads share an IDA-verified 8-byte prefix; opaque event groups link to MIDI placements and their size variation is fixture-correlated. Event and length semantics remain unknown."
+      "basis": "All 68 MSeq payloads share an IDA-verified 8-byte prefix, found only at MSeq starts in both full streams. Opaque event groups link to MIDI placements; four grouped 0x90 records have IDA-verified byte-offset variation that guides controlled tests. Event and length semantics remain unknown."
     },
     {
       "name": "Tempo and meter timeline",

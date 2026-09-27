@@ -20,6 +20,7 @@ from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.midi_event_family_probe import profile_midi_event_families
+from research.scripts.midi_event_variation_probe import profile_records as profile_midi_event_variation
 from research.scripts.midi_region_timing_probe import profile_record_relative_mseq_candidates
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
@@ -871,6 +872,23 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(result["common_prefix_occurrences_at_mseq_payload_starts"], 2)
         self.assertEqual(result["common_prefix_occurrences_outside_mseq_payload_starts"], 1)
         self.assertNotIn("SHARED08", json.dumps(result))
+
+    def test_midi_event_variation_profiles_offsets_without_event_values(self) -> None:
+        rows = [b"A" + bytes([value]) + bytes(14) for value in (1, 2, 2)]
+        records = [
+            {"type_byte": 0x90, "group_id_candidate": 7, "raw_hex": row.hex()}
+            for row in rows
+        ]
+        records.append({"type_byte": 0x90, "group_id_candidate": 8, "raw_hex": rows[0].hex()})
+
+        result = profile_midi_event_variation(records)
+
+        family = result["families"]["0x90/16"]
+        self.assertEqual(family["record_count"], 4)
+        self.assertEqual(family["distinct_group_count"], 2)
+        self.assertEqual(family["groups_with_multiple_records"], 1)
+        self.assertEqual(family["varying_byte_offset_group_counts"], {"1": 1})
+        self.assertNotIn(rows[0].hex(), json.dumps(result))
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

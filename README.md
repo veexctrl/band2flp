@@ -78,6 +78,10 @@ Compare opaque MIDI event families with linked MIDI placements and MSeq payload 
 
     python -m research.scripts.midi_event_family_probe path/to/project.band
 
+Profile which byte offsets vary within repeated MIDI-like event groups, without printing their values:
+
+    python -m research.scripts.midi_event_variation_probe path/to/project.band
+
 Test exploratory MIDI placement-tick candidates against linked MSeq payload fields:
 
     python -m research.scripts.midi_region_timing_probe path/to/project.band

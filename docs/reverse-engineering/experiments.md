@@ -877,6 +877,24 @@
 
 **Next:** Create a project with one MIDI region, then add and remove one note without changing track, instrument, region placement, or duration. Compare the linked MSeq header size, full payload, and associated event families. Repeat by changing one note property at a time.
 
+## EVT-006 — profile byte variation within grouped MIDI-like records
+
+**Question:** Which byte offsets vary among repeated event records of the same type and size within one candidate group, and can this narrow future controlled MIDI experiments?
+
+**Fixture:** The local audio-bearing logic-song payload. Audio data, project title, group values, and event bytes remain private.
+
+**Method:** Added `research/scripts/midi_event_variation_probe.py` to group event records by type, size, and candidate group, then count offsets that vary among multiple records in each group. The output includes record/group counts and offsets only; it does not print values or identifiers. Ran the same parser-selected four 80-byte `0x90` records through IDA MCP at their exact logic-song offsets and compared all 80 bytes per record with Python.
+
+**Observation:** The four `0x90` records form one repeated type/size/group bucket. Fourteen byte offsets vary within this bucket: offsets 3–5, 11, 26–29, 48–50, and 64–66. This includes offsets corresponding to Logic-derived velocity (`+0x0b`), pitch (`+0x0c`), and the lower half of the candidate duration word (`+0x1c`–`+0x1d`); other offsets vary as well. IDA and Python agree byte-for-byte on all four complete records. The unmodified metadata-only fixture has no `0x90` records.
+
+**Result:** The profiler narrows offsets worth observing in controlled one-note variants, but within-record variation does not establish that a byte is pitch, velocity, timing, or duration. Some candidate fields are constant in this four-record set, and the event family could contain additional fields or subtypes. No parser field semantics or normalized MIDI notes were changed.
+
+**Confidence:** CONFIRMED for the record counts, varying offsets, and IDA/Python byte agreement in this fixture; UNKNOWN for all GarageBand meanings of these offsets.
+
+**Alternative considered:** The four records could differ in other event attributes, and any observed variation may be correlated with note data without being caused by pitch, velocity, or duration. Shared-group association does not prove the four records are otherwise equivalent.
+
+**Next:** In a controlled one-note project, change pitch, velocity, onset, and duration separately. Compare these offsets and their surrounding bytes while holding instrument, region, and all other settings fixed.
+
 ## MIDI-015 — translate Logic region-field offsets across the chunk header
 
 **Question:** Do Logic Pro's record-relative MIDI-region length (`+0x78`) and internal-start (`+0x11c`) candidates transfer to GarageBand `MSeq` payloads when the 36-byte chunk header is accounted for?
