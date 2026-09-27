@@ -22,6 +22,7 @@ from research.scripts.event_inventory import inventory_records
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
 from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses
+from research.scripts.flp_playlist_tail_probe import replace_one_tail_byte, replace_opaque_tails
 from research.scripts.track_uuid_probe import (
     find_uuid_payload_matches,
     selected_track_uuid,
@@ -151,6 +152,65 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_playlist_tail_probe_changes_only_opaque_80_byte_tails(self) -> None:
+        def varint(value: int) -> bytes:
+            result = bytearray()
+            while value >= 0x80:
+                result.append((value & 0x7F) | 0x80)
+                value >>= 7
+            result.append(value)
+            return bytes(result)
+
+        original_tail = bytes([1]) + bytes(47)
+        reference_tail = bytes([2]) + bytes(47)
+        row = struct.pack("<IHHIHH", 0, 20480, 1, 960, 499, 0) + bytes(16) + original_tail
+        payload = row
+        event = bytes([233]) + varint(len(payload)) + payload
+        header = bytearray(22)
+        header[:4] = b"FLhd"
+        header[14:18] = b"FLdt"
+        struct.pack_into("<I", header, 18, len(event))
+
+        rewritten, metrics = replace_opaque_tails(bytes(header) + event, [reference_tail])
+
+        self.assertEqual(rewritten[22 + 2:22 + 2 + 32], row[:32])
+        self.assertEqual(rewritten[22 + 2 + 32:22 + 2 + 80], reference_tail)
+        self.assertEqual(metrics, {
+            "playlist_rows": 1,
+            "rows_with_changed_tails": 1,
+            "changed_tail_bytes": 1,
+        })
+
+    def test_flp_playlist_tail_probe_rejects_wrong_tail_count(self) -> None:
+        with self.assertRaises(FLPExportError):
+            replace_opaque_tails(b"", [])
+
+    def test_flp_playlist_tail_probe_can_isolate_one_byte(self) -> None:
+        def varint(value: int) -> bytes:
+            result = bytearray()
+            while value >= 0x80:
+                result.append((value & 0x7F) | 0x80)
+                value >>= 7
+            result.append(value)
+            return bytes(result)
+
+        row = struct.pack("<IHHIHH", 0, 20480, 1, 960, 499, 0) + bytes(64)
+        event = bytes([233]) + varint(len(row)) + row
+        header = bytearray(22)
+        header[:4] = b"FLhd"
+        header[14:18] = b"FLdt"
+        struct.pack_into("<I", header, 18, len(event))
+        original = bytes(header) + event
+        source_tail = bytearray(48)
+        source_tail[0] = 7
+
+        rewritten, metrics = replace_one_tail_byte(original, [bytes(source_tail)], 0)
+
+        differing = [i for i, (left, right) in enumerate(zip(original, rewritten)) if left != right]
+        self.assertEqual(len(differing), 1)
+        self.assertEqual(rewritten[differing[0]], 7)
+        self.assertEqual(metrics["changed_tail_bytes"], 1)
+
     def test_flp_playlist_stride_probe_profiles_80_byte_candidates(self) -> None:
         def record(channel_id: int) -> bytes:
             return struct.pack("<IHHIHH", 120, 99, channel_id, 480, 497, 0) + bytes(64)

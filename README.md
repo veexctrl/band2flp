@@ -86,6 +86,12 @@ Compare generated playlist audio-row structures with FLP references (requires op
 
 This probe also reports aggregate counts only, omitting project names, paths, clip timing, media paths, and field values.
 
+Create a local experiment that copies opaque 80-byte playlist-row tails from FLP references:
+
+    python -m research.scripts.flp_playlist_tail_probe candidate.flp path/to/flp-projects probe.flp --tail-byte-offset 0
+
+This does not open referenced audio, but the output retains the candidate's sample paths and may contain private project structure. Keep the candidate local and use it only for FL Studio compatibility research.
+
 Check whether the saved previous-track UUID appears in logic-song chunks:
 
     python -m research.scripts.track_uuid_probe path/to/project.band
