@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 20,
-      "basis": "Candidate placements and note-shaped events link to MSeq chunks. Their payloads share an 8-byte prefix but are not Standard MIDI files; note-field meanings remain hypotheses."
+      "recovered": 23,
+      "basis": "Opaque 0x91–0x9e event groups link uniquely to MIDI placements and MSeq chunks in one fixture; event contents and note semantics remain unknown."
     },
     {
       "name": "Tempo and meter timeline",

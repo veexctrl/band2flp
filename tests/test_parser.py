@@ -19,6 +19,7 @@ from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
+from research.scripts.midi_event_family_probe import profile_midi_event_families
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
 from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses, _profile_metrics
@@ -764,6 +765,39 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn("12340000", rendered)
         with self.assertRaises(BandFormatError):
             inventory_records([{**records[0], "length": 63}])
+
+    def test_midi_event_family_probe_reports_unique_candidate_links_only(self) -> None:
+        records = [
+            {"type_byte": 0x91, "length": 64, "group_id_candidate": 0x10000},
+            {"type_byte": 0x91, "length": 80, "group_id_candidate": 0x20000},
+            {"type_byte": 0x92, "length": 64, "group_id_candidate": 0x30000},
+        ]
+        chunks = [
+            {"type": "MSeq", "index": 4, "group_id_candidate": 0x10000},
+            {"type": "MSeq", "index": 5, "group_id_candidate": 0x20000},
+            {"type": "MSeq", "index": 6, "group_id_candidate": 0x30000},
+            {"type": "MSeq", "index": 7, "group_id_candidate": 0x30000},
+        ]
+        placements = [
+            {"candidate_mseq_chunk_indices": [4], "source_chunk_index": 8, "source_event_index": 1},
+            {"candidate_mseq_chunk_indices": [5], "source_chunk_index": 8, "source_event_index": 2},
+            {"candidate_mseq_chunk_indices": [6, 7], "source_chunk_index": 9, "source_event_index": 1},
+        ]
+
+        report = profile_midi_event_families(records, chunks, placements)
+
+        self.assertEqual(report["event_families"]["0x91"], {
+            "record_count": 2,
+            "record_length_counts": {"64": 1, "80": 1},
+            "distinct_group_count": 2,
+            "groups_with_one_MSeq_and_one_placement": 2,
+        })
+        self.assertEqual(
+            report["event_families"]["0x92"]["groups_with_one_MSeq_and_one_placement"], 0
+        )
+        serialized = json.dumps(report)
+        self.assertNotIn("65536", serialized)
+        self.assertNotIn("group_id_candidate", serialized)
 
     def test_mseq_probe_reports_shapes_without_payload_bytes_or_values(self) -> None:
         first = b"ABCDEFGH" + bytes(292)

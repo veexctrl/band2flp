@@ -840,3 +840,21 @@
 **Alternative considered:** A custom MIDI event serialization may live inside MSeq, while MIDI notes may instead be stored in associated event-sequence records. The absence of an SMF header does not distinguish these possibilities.
 
 **Next:** Create a controlled one-note GarageBand project, then vary pitch, velocity, onset, and duration individually. Compare changes in MSeq payloads and their same-group event records before assigning any byte-field meanings.
+
+## EVT-005 — identify opaque event families grouped with MIDI placements
+
+**Question:** Do the opaque `0x91`–`0x9e` event families have a structural relationship to the recognized MIDI placement candidates?
+
+**Fixture:** The supplied audio-bearing GarageBand project, using only its extracted logic-song payload. No audio payload was decoded or included in this experiment.
+
+**Method:** Added `research/scripts/midi_event_family_probe.py` to aggregate record lengths and distinct candidate groups for event types `0x91`–`0x9e`, then compare those groups with the existing unique group-to-`MSeq` and MIDI-placement candidates. The report suppresses raw event bytes and all candidate group values. For one record of each type, IDA MCP read the full parser-selected record range from the same extracted binary and Python compared the byte sequences.
+
+**Observation:** The payload has 14 event types in the range, with 2–5 distinct candidate groups per type and record lengths of 64 or 80 bytes (types `0x96`–`0x9e` are 64 bytes in this fixture). Every one of the 54 distinct type/group combinations has exactly one same-group `MSeq` and exactly one recognized MIDI-placement candidate. Every group's value also occurs among the 19 MIDI-placement groups. Several event types share identical group-presence sets: `0x91`/`0x92`, `0x93`–`0x95`, `0x96`–`0x9a`, and `0x9b`–`0x9d`; `0x9e` has its own subset. IDA's full bytes matched Python for all 14 representatives.
+
+**Result:** These opaque event families are structurally associated with a subset of MIDI-placement/MSeq clusters in this fixture. This is a useful lead for MIDI-focused differential work, but group membership alone does not show whether the records are notes, controllers, instrument state, or other region-scoped data. No event fields are decoded or used by the converter.
+
+**Confidence:** CONFIRMED for the per-type group counts and unique candidate links in this payload, and for exact IDA/Python byte agreement on the 14 representative records; HYPOTHESIS that these are MIDI-region-associated event families; UNKNOWN for their contents and semantics.
+
+**Alternative considered:** A group may scope a larger serialized MIDI object cluster, with these records carrying region metadata or instrument state rather than musical events. Shared group-presence sets may reflect repeated serializer templates rather than matching semantic roles.
+
+**Next:** In a controlled one-note project, change pitch, velocity, onset, and duration individually. Compare which of these event families change and whether changes follow the note, its `MSeq`, or its placement. Repeat with a second track before assigning meanings.
