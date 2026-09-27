@@ -203,6 +203,12 @@ def _atomic_publish(temp_path: Path, destination: Path) -> None:
     temp_path.unlink()
 
 
+def _validate_sample_path_roundtrip(actual_path: str | Path | None, expected_path: Path) -> None:
+    """Reject a saved FLP whose audio channel points at a different source."""
+    if actual_path is None or str(actual_path) != str(expected_path):
+        raise FLPExportError("PyFLP round-trip changed an audio clip sample path")
+
+
 def export_flp(
     project: Project,
     *,
@@ -420,7 +426,7 @@ def export_flp(
         roundtrip = pyflp.parse(str(flp_tmp))
         clock_report = _validate_clock_roundtrip(roundtrip, project)
         channels_by_iid = {channel.iid: channel for channel in roundtrip.channels}
-        for iid in source_iid.values():
+        for source, iid in source_iid.items():
             channel = channels_by_iid.get(iid)
             if channel is None:
                 raise FLPExportError("PyFLP round-trip lost an audio clip channel")
@@ -432,6 +438,7 @@ def export_flp(
                 or channel.internal_name != ""
             ):
                 raise FLPExportError("PyFLP round-trip changed an FL Studio audio clip channel")
+            _validate_sample_path_roundtrip(channel.sample_path, source_paths[source])
         roundtrip_playlist = next(
             event for event in roundtrip.arrangements[0].events
             if event.id == ArrangementID.Playlist

@@ -29,6 +29,7 @@ from band2flp.flp_export import (
     _beats_to_ticks,
     _select_base_playlist_record_layout,
     _validate_clock_roundtrip,
+    _validate_sample_path_roundtrip,
     audio_info,
     export_flp,
 )
@@ -195,6 +196,12 @@ class ParserTests(unittest.TestCase):
             _validate_clock_roundtrip(roundtrip, Project(tempo_bpm=121.0, time_signature=(4, 4)))
         with self.assertRaisesRegex(FLPExportError, "changed or lost the project time signature"):
             _validate_clock_roundtrip(roundtrip, Project(tempo_bpm=120.0, time_signature=(3, 4)))
+
+    def test_flp_roundtrip_rejects_changed_audio_sample_path(self) -> None:
+        expected = Path("media") / "audio-001.wav"
+        _validate_sample_path_roundtrip(str(expected), expected)
+        with self.assertRaisesRegex(FLPExportError, "changed an audio clip sample path"):
+            _validate_sample_path_roundtrip("media/audio-006.caf", expected)
 
     def test_flp_beat_conversion_preserves_exact_fractional_ticks(self) -> None:
         self.assertEqual(_beats_to_ticks("1/3", 96, "start"), 32)
