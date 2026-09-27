@@ -102,6 +102,12 @@ Compare 58-byte `Trak` chunk groups with placement-event and audio-resource grou
 
 Opaque group IDs are replaced with local bucket numbers; only chunk/event counts are reported.
 
+Check whether `Trak +0x18` UUIDs recur in archive strings or companion plist components:
+
+    python -m research.scripts.trak_uuid_archive_probe path/to/project.band
+
+The probe reports match counts only and does not emit UUIDs or component names.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v

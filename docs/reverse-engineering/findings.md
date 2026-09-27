@@ -12,6 +12,7 @@
 - PD-004 found that one project's `CbTrackInspectorInternalState` contains only a controller-class string and two effect-panel visibility booleans; the other project has no such entry. This branch does not provide a track collection in the observed state.
 - ARR-026 found that parser-derived zero-based audio track indices remain within the metadata-declared arrange-track counts in both projects (6 audio-bearing indices within 7 declared tracks; 5 within 12). This checks bounds only; it does not confirm complete track recovery or visible ordering.
 - TRK-010 showed that chunk group equality alone cannot map 58-byte `Trak` chunks to individual audio placements: the shared group contains 9/14 `Trak` records alongside 9/11 audio-placement events in the two fixtures. IDA and Python agree on representative `+0x08` group fields.
+- TRK-011 found one projectData archive-string match among each fixture's 26/35 `Trak +0x18` UUIDs: the saved selected-track UUID. No UUIDs matched strings or byte values in the two companion plist components; this does not rule out other encodings or package components.
 - `Output/metadata.plist` has named summary fields for tempo, meter, duration, and arrange-track count.
 - `Output/assetsmetadata.plist` is a binary plist with separate global fields and resource-reference lists. Its track-count field differs from the arrange-track-count field in the inspected fixture.
 - IDA MCP's raw view of the supplied archive agreed with the ZIP local header and member name reported by Python.

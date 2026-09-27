@@ -130,6 +130,24 @@
 
 **Next:** In a controlled project, move one audio region between tracks without changing its source and compare the placement byte, chunk group, and `Trak +0x18` identifiers.
 
+## TRK-011 - search track UUIDs across keyed-archive strings and companion plists
+
+**Question:** Do the UUID-shaped fields in all observed 58-byte `Trak` payloads recur in archive-level strings or companion plist components, potentially exposing a fuller track mapping?
+
+**Fixtures:** Both supplied `.band` packages. UUID values, project paths, media, and plist component names are omitted.
+
+**Method:** Added `research/scripts/trak_uuid_archive_probe.py`. It extracts UUID-shaped values at `Trak +0x18`, searches plain strings and `NS.string` values in the projectData keyed archive, and searches scalar strings and byte values in other plist components for binary, mixed-endian, ASCII, and UTF-16 forms. The logic-song `NS.data` bytes are not searched as an archive-level reference because those bytes contain the fields being investigated. Output is aggregate only.
+
+**Observation:** The two archives contain 26 and 35 unique `Trak +0x18` UUID-shaped values. Exactly one UUID per archive matches a keyed-archive string; in both cases the saved `previousCurrentTrackUUID` matches a `Trak` field. No other track UUID matches any string or byte value in either archive's two companion plist components.
+
+**Result:** The keyed-archive strings and inspected companion plists expose the saved selected-track UUID, but provide no additional text/binary UUID joins for the other observed `Trak` records. These components therefore do not supply a full UUID-to-arrange-track mapping for these fixtures. Other non-plist package components and non-UUID reference encodings have not been excluded.
+
+**Confidence:** CONFIRMED for the reported counts and unique selected-track cross-link in these two packages; UNKNOWN whether track records are referenced elsewhere or by another representation.
+
+**Alternative considered:** The IDs may be local to the logic-song graph, generated for objects not exposed in metadata, or referenced through numeric ordinals or a different identifier field.
+
+**Next:** Find a controlled renamed/reordered project pair, then compare which `Trak +0x18` UUID stays stable and whether any non-plist component or changed UI field exposes the edited track identity.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?

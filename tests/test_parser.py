@@ -25,6 +25,7 @@ from research.scripts.track_uuid_probe import (
     selected_track_uuid,
     trak_uuid_field_profile,
 )
+from research.scripts.trak_uuid_archive_probe import profile_archive_references
 from research.scripts.trak_group_probe import summarize_trak_groups
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
@@ -147,6 +148,35 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_trak_uuid_archive_probe_counts_references_without_values(self) -> None:
+        identifier = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        other = uuid.UUID("ffeeddcc-bbaa-9988-7766-554433221100")
+        objects = [
+            "$null",
+            {"CBData": plistlib.UID(2)},
+            {"NS.keys": [plistlib.UID(3)], "NS.objects": [plistlib.UID(4)]},
+            "previousCurrentTrackUUID",
+            {"NS.string": "{" + str(identifier) + "}"},
+        ]
+        root = {
+            "$objects": objects,
+            "$top": {"DfDocument arrange model": plistlib.UID(1)},
+        }
+        report = profile_archive_references(
+            root,
+            {identifier, other},
+            [{"identifier": str(identifier)}, {"opaque": other.bytes}],
+        )
+
+        self.assertEqual(report["track_uuid_count"], 2)
+        self.assertEqual(report["projectdata_string_matched_uuid_count"], 1)
+        self.assertTrue(report["previous_current_track_uuid_matches_trak_field"])
+        self.assertEqual(report["companion_plist_count"], 2)
+        self.assertEqual(report["companion_plist_string_matched_uuid_count"], 1)
+        self.assertEqual(report["companion_plist_bytes_matched_uuid_count"], 1)
+        self.assertNotIn(str(identifier), json.dumps(report))
+        self.assertNotIn(str(other), json.dumps(report))
+
     def test_trak_group_probe_profiles_only_opaque_group_buckets(self) -> None:
         chunks = [
             {"type": "Trak", "payload_size": 58, "group_id_candidate": 10},

@@ -42,8 +42,8 @@
     {
       "name": "Tracks, mixer, sections, and automation",
       "weight": 14,
-      "recovered": 14,
-      "basis": "Track-related UUID fields link to saved identity and audio indices fit declared bounds in two fixtures; one inspector-state object is characterized as UI state, while names, ordering, mixer state, sections, and automation remain largely unparsed."
+      "recovered": 15,
+      "basis": "The selected-track UUID links to a Trak field, and audio indices fit declared bounds in two fixtures; one inspector object is characterized as UI state, while other track UUID references, names, ordering, mixer state, sections, and automation remain unresolved."
     }
   ],
   "milestones": [
