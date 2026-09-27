@@ -31,7 +31,7 @@
       "name": "MIDI placement and note semantics",
       "weight": 18,
       "recovered": 20,
-      "basis": "Candidate placements and note-shaped events are linked to MSeq chunks; note and placement field meanings remain hypotheses."
+      "basis": "Candidate placements and note-shaped events link to MSeq chunks. Their payloads share an 8-byte prefix but are not Standard MIDI files; note-field meanings remain hypotheses."
     },
     {
       "name": "Tempo and meter timeline",

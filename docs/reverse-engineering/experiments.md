@@ -802,3 +802,23 @@
 **Alternative considered:** These records may be instrument/plugin state, controller data, event-sequence delimiters, or other serialized content; each family could also contain more than one subtype. No controlled fixture currently distinguishes those explanations.
 
 **Next:** Use a minimal controlled project and change one supported musical property at a time. Begin with one note and one instrument, then change pitch, velocity, onset, and duration separately; compare the event-family aggregate and corresponding MSeq group before decoding any currently unclassified event fields.
+
+## MIDI-013 - profile MSeq payload framing and test a Standard MIDI hypothesis
+
+**Question:** Are MSeq payloads Standard MIDI files, and do exploratory tail-relative words provide immediately stable field candidates?
+
+**Fixtures:** Both supplied projects, inspected through their logic-song `projectData` payloads only. No audio members were opened or extracted.
+
+**Method:** Added `research/scripts/mseq_probe.py` to report payload-size counts, common-prefix length, Standard MIDI `MThd` signature count, and aggregate profiles for two exploratory little-endian tail-relative word positions. The probe omits raw bytes, strings, paths, identifiers, and field values. The tail positions are research leads from a third-party Logic Pro parser and are not assumed to transfer to GarageBand.
+
+**Source lead:** [loov/logicx MIDI decoder](https://github.com/loov/logicx/blob/main/midi.go); its interpretations describe Logic Pro and are not evidence of GarageBand semantics.
+
+**Observation:** The two projects contain 33 and 35 MSeq payloads, respectively. Each project's payloads share exactly an 8-byte leading prefix before diverging; their sizes vary from 303 to 325 bytes and 297 to 325 bytes. None begins with `MThd`. The two exploratory trailing positions yielded multiple distinct values in both projects, without a controlled edit or independent link that would establish meaning.
+
+**Result:** The payloads are not directly framed as Standard MIDI files. The inspected tail words remain UNKNOWN and must not be used as MIDI timing, duration, or naming fields. A privacy-safe aggregate probe and regression tests preserve these observations.
+
+**Confidence:** CONFIRMED for counts, lengths, shared-prefix length, and lack of the `MThd` prefix in these two fixtures; UNKNOWN for the meaning of any internal MSeq field.
+
+**Alternative considered:** A custom MIDI event serialization may live inside MSeq, while MIDI notes may instead be stored in associated event-sequence records. The absence of an SMF header does not distinguish these possibilities.
+
+**Next:** Create a controlled one-note GarageBand project, then vary pitch, velocity, onset, and duration individually. Compare changes in MSeq payloads and their same-group event records before assigning any byte-field meanings.

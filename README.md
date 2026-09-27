@@ -66,6 +66,10 @@ Inventory unclassified event record shapes without printing their contents:
 
     python -m research.scripts.event_inventory path/to/project.band
 
+Profile MSeq payload sizes and shared prefixes without printing payload data:
+
+    python -m research.scripts.mseq_probe path/to/project.band
+
 Compare generated sample-channel event layouts with FLP references (requires optional PyFLP):
 
     python -m research.scripts.flp_channel_inventory candidate.flp path/to/flp-projects --limit 100

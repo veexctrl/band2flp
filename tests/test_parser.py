@@ -19,6 +19,7 @@ from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
+from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
 from research.scripts.flp_playlist_inventory import playlist_event_data
 from research.scripts.track_uuid_probe import (
     find_uuid_payload_matches,
@@ -647,6 +648,21 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn("12340000", rendered)
         with self.assertRaises(BandFormatError):
             inventory_records([{**records[0], "length": 63}])
+
+    def test_mseq_probe_reports_shapes_without_payload_bytes_or_values(self) -> None:
+        first = b"ABCDEFGH" + bytes(292)
+        second = b"ABCDEFGH" + bytes([1]) + bytes(291)
+        result = summarize_payloads([first, second])
+        self.assertEqual(result["mseq_count"], 2)
+        self.assertEqual(result["longest_common_prefix_length"], 8)
+        self.assertEqual(result["standard_midi_header_count"], 0)
+        self.assertEqual(result["unassigned_tail_word_profiles"]["219"]["readable_count"], 2)
+        serialized = json.dumps(result)
+        self.assertNotIn("ABCDEFGH", serialized)
+
+    def test_mseq_probe_rejects_out_of_bounds_payload(self) -> None:
+        with self.assertRaises(BandFormatError):
+            probe_mseq_logic_payload(b"short", {"chunks": [{"type": "MSeq", "payload_offset": 4, "payload_size": 2}]})
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
