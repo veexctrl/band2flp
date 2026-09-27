@@ -58,6 +58,6 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 
 ## Immediate next work
 
-1. Run the local FL Studio 25 check on the corrected audio FLP candidate; if it still reports invalid playlist clips, cancel without accepting deletion and capture the warning for the next exporter investigation.
+1. Ask the user to verify `.local-research/clock-roundtrip-check-v8-sample-path-order-probe.flp` in FL Studio 25. Its sample-path order now matches all 209 sample-backed channels seen across 60 local FL Studio 25.1.5 projects. The warning cause remains a hypothesis until the project opens cleanly.
 2. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. These provide the controlled evidence needed to promote current candidates into the neutral model.
 3. Continue with audio-region timing and track mapping first, while documenting fixture-dependent and cross-format-only evidence as hypotheses.

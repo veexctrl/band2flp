@@ -38,6 +38,26 @@ def _select_base_playlist_record_layout(playlist: Any) -> None:
     params["new"] = False
 
 
+def _move_sample_path_after_pingpong(channel: Any, sample_event: Any, channel_id: Any) -> None:
+    """Place SamplePath after PingPongLoop, as observed in sample-backed clips."""
+    events = channel.events
+    pingpong = next((event for event in events if event.id == channel_id.PingPongLoop), None)
+    if pingpong is None:
+        raise FLPExportError("audio clip channel lacks the PingPongLoop event needed for sample-path ordering")
+
+    # EventTree.append cannot append to its sorted view, so first insert before
+    # the final channel event, then move its index just after PingPongLoop.
+    events.insert(len(events) - 1, sample_event)
+    root = events.root
+    sample_indexed = next(indexed for indexed in events.lst if indexed.e is sample_event)
+    pingpong_indexed = next(indexed for indexed in events.lst if indexed.e is pingpong)
+    for tree in (root, events):
+        tree.lst.remove(sample_indexed)
+    sample_indexed.r = pingpong_indexed.r + 0.5
+    for tree in (root, events):
+        tree.lst.add(sample_indexed)
+
+
 def _validate_clock_roundtrip(roundtrip: Any, project: Project) -> dict[str, Any]:
     """Verify project-level tempo and meter after FLP save/reload."""
     tempo = roundtrip.tempo
@@ -256,6 +276,25 @@ def export_flp(
     # an audio clip/Sampler model. A regular type-0 Sampler is not equivalent.
     type_event.value = ChannelType.Instrument
     base_channel.internal_name = ""
+    sampler_flags = next(
+        (event for event in base_channel.events if event.id == ChannelID.SamplerFlags),
+        None,
+    )
+    if sampler_flags is None:
+        raise FLPExportError("template sampler lacks the sample flags event needed for audio clips")
+    # Blank sampler templates set bit 0 (Resample). In sampled, valid FL Studio
+    # audio-clip channels examined so far this bit is clear; other flag bits
+    # are retained from the template.
+    sampler_flags.value = int(sampler_flags.value) & ~0x01
+    polyphony = next(
+        (event for event in base_channel.events if event.id == ChannelID.Polyphony),
+        None,
+    )
+    if polyphony is None:
+        raise FLPExportError("template sampler lacks the polyphony event needed for audio clips")
+    # FL Studio audio-clip channels sampled from valid projects use slide=500;
+    # the blank sampler template's 820 value has not appeared in that sample.
+    polyphony.value["slide"] = 500
     base_events = [copy.deepcopy(event) for event in base_channel.events]
     unique_sources = list(dict.fromkeys(region.source for region in regions))
     source_iid: dict[str, int] = {}
@@ -269,7 +308,7 @@ def export_flp(
         if iid == 0:
             channel = base_channel
             channel.name = name
-            channel.events.insert(len(channel.events) - 1, sample_event)
+            _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
         else:
             cloned = [copy.deepcopy(event) for event in base_events]
             for event in cloned:
@@ -281,7 +320,7 @@ def export_flp(
                 fl_project.events.insert(len(fl_project.events) - 1, event)
             channel = next(channel for channel in fl_project.channels if channel.iid == iid)
             channel.name = name
-            channel.events.insert(len(channel.events) - 1, sample_event)
+            _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
         source_iid[source] = iid
     fl_project.channel_count = len(source_iid)
 
@@ -335,8 +374,10 @@ def export_flp(
                 "_u1": bytes((120, 0)),
                 "item_flags": 64,
                 "_u2": bytes((64, 100, 128, 128)),
-                "start_offset": 0.0,
-                "end_offset": 0.0,
+                # Match the default clip-offset pair observed in
+                # valid FL Studio audio playlist records.
+                "start_offset": -1.0,
+                "end_offset": -1.0,
                 "_u3": None,
             })
             exported_items.append({
