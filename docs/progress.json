@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 25,
-      "basis": "Opaque 0x91–0x9e event groups link to MIDI placements and MSeq chunks; their presence covaries with MSeq payload sizes across two uncontrolled fixtures. Event and length semantics remain unknown."
+      "recovered": 26,
+      "basis": "All 68 MSeq payloads share an IDA-verified 8-byte prefix; opaque event groups link to MIDI placements and their size variation is fixture-correlated. Event and length semantics remain unknown."
     },
     {
       "name": "Tempo and meter timeline",
