@@ -84,6 +84,12 @@ Check whether the saved previous-track UUID appears in logic-song chunks:
 
 The probe reports aggregate chunk and UUID-field shapes only; it never prints the UUID or project paths.
 
+Profile the saved arrange-model track-inspector UI state without values:
+
+    python -m research.scripts.arrange_ui_probe path/to/project.band
+
+This reports only the inspector-state field names and value types; project values and identifiers are omitted.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v

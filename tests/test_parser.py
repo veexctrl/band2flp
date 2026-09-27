@@ -15,6 +15,7 @@ from pathlib import Path
 
 from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
+from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.flp_playlist_inventory import playlist_event_data
@@ -144,6 +145,29 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_arrange_ui_probe_reports_inspector_shape_without_values(self) -> None:
+        objects = [
+            "$null",
+            {"CBData": plistlib.UID(2)},
+            {"NS.keys": [plistlib.UID(3)], "NS.objects": [plistlib.UID(4)]},
+            "CbTrackInspectorInternalState",
+            {"NS.keys": [plistlib.UID(5)], "NS.objects": [plistlib.UID(6)]},
+            "CbMasterEffectsEchoSectionOpen",
+            True,
+        ]
+        root = {
+            "$objects": objects,
+            "$top": {"DfDocument arrange model": plistlib.UID(1)},
+        }
+
+        report = profile_arrange_ui(root)
+
+        self.assertTrue(report["track_inspector_state_found"])
+        self.assertEqual(report["track_inspector_state_fields"], [
+            {"key": "CbMasterEffectsEchoSectionOpen", "value_type": "bool"},
+        ])
+        self.assertNotIn("True", json.dumps(report))
+
     def test_selected_track_uuid_probe_resolves_keyed_archive_reference(self) -> None:
         selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
         objects = [
