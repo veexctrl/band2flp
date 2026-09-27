@@ -21,7 +21,7 @@ from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
-from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses
+from research.scripts.flp_playlist_inventory import playlist_event_data, stride_hypotheses, _profile_metrics
 from research.scripts.flp_playlist_tail_probe import replace_one_tail_byte, replace_opaque_tails
 from research.scripts.track_uuid_probe import (
     find_uuid_payload_matches,
@@ -221,6 +221,32 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(profiles["80"]["audio_channel_link_count"], 2)
         self.assertLess(profiles["32"]["audio_channel_link_count"], 2)
         self.assertEqual(profiles["60"]["record_count"], 0)
+
+    def test_flp_playlist_profile_metrics_compare_only_supplied_stride_rows(self) -> None:
+        fields = {
+            "pattern_base": 20480,
+            "item_index": 3,
+            "length": 960,
+            "track_rvidx": 498,
+            "group": 0,
+            "u1": bytes((120, 0)),
+            "flags": 64,
+            "u2": bytes((64, 100, 128, 128)),
+            "start_offset": -1.0,
+            "end_offset": -1.0,
+        }
+        candidate = {"size": 80, **fields}
+        wrong_stride_reference = {"size": 32, **fields}
+        matching_reference = {"size": 80, **fields}
+
+        metrics = _profile_metrics([candidate], [matching_reference], 80)
+        wrong_stride_metrics = _profile_metrics([candidate], [wrong_stride_reference], 80)
+
+        self.assertEqual(metrics["candidate_rows_with_reference_static_profile"], 1)
+        self.assertEqual(wrong_stride_metrics["candidate_rows_with_reference_static_profile"], 0)
+        self.assertEqual(wrong_stride_metrics["reference_audio_rows"], 0)
+        self.assertEqual(metrics["candidate_audio_rows"], 1)
+        self.assertNotIn("item_index", json.dumps(metrics))
 
     def test_keyed_archive_inventory_reports_schema_without_values(self) -> None:
         private_value = "PRIVATE_TRACK_NAME_7ab3"

@@ -20,7 +20,7 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
-- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks that each sample path survives its PyFLP round-trip unchanged. The last GUI-tested candidate still triggers FL Studio's invalid-playlist warning. A newer local playlist-layout probe is awaiting GUI validation. The user also reports that clips are not visible on the named rows and that FL Studio reports a missing audio file. Arrangement visibility and media playback are not verified.
+- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks that each sample path survives its PyFLP round-trip unchanged. User testing reports that candidates v4 through v10 and v12 trigger FL Studio 25's invalid-playlist-clips warning. Playlist-tail probes did not resolve it; the cause remains under investigation. The user also reports a missing audio file. Arrangement visibility and media playback are not verified.
 
 ## What is still being researched
 
