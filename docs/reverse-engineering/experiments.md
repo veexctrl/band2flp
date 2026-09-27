@@ -112,6 +112,24 @@
 
 **Next:** Use a project with a known added or reordered audio track and compare the raw placement byte, the preview row, and the declared track count.
 
+## TRK-010 - test `Trak` group values as direct placement-track links
+
+**Question:** Does a shared chunk-header group value provide a one-to-one link between 58-byte `Trak` records and audio or MIDI placement events?
+
+**Fixtures:** Both supplied projects. Group values, UUIDs, names, media, and project paths are omitted.
+
+**Method:** Added `research/scripts/trak_group_probe.py` to bucket 58-byte `Trak` groups anonymously and count same-group type-`0x20`/type-`0x24` events and `AuCO`, `AuFl`, `AuRg`, and `MSeq` chunks. For each fixture, Python selected a 58-byte `Trak` and an `EvSq` chunk from the group shared by the type-`0x24` audio records. IDA MCP read the little-endian 32-bit group field at header offset `+0x08` in both chunks and matched Python's bytes in both fixtures.
+
+**Observation:** Each fixture has four distinct group values among 58-byte `Trak` chunks. In the group containing the audio placement records, the metadata-only fixture has 9 type-`0x24` records, 9 58-byte `Trak` chunks, and 3 `MSeq` chunks; the audio-bearing fixture has 11 type-`0x24` records, 14 58-byte `Trak` chunks, and 3 `MSeq` chunks. In the group containing `AuFl`/`AuRg` source chunks, each fixture has one 58-byte `Trak`, while the number of `AuRg` chunks differs (1 versus 4). No 58-byte `Trak` group overlaps a validated `AuCO` group in either fixture. Other group buckets contain 15/19 58-byte `Trak` chunks alongside 12/14 type-`0x20` events, respectively.
+
+**Result:** Chunk-group equality is not a one-to-one mapping from these records to individual placements or channel strips. In particular, the shared group containing all observed audio placement events contains many 58-byte `Trak` chunks. The result does not rule out group-scoped relationships or another identifier inside the event/payload; it rules out treating group equality alone as the track-object join.
+
+**Confidence:** CONFIRMED for the anonymous group counts and IDA/Python agreement on the representative group fields in both fixtures; UNKNOWN for the semantic meaning and scope of these group values.
+
+**Alternative considered:** The group may scope an event stream, collection, or serialized subgraph rather than identify a single object. Counts differ because these projects are unrelated, not controlled variants.
+
+**Next:** In a controlled project, move one audio region between tracks without changing its source and compare the placement byte, chunk group, and `Trak +0x18` identifiers.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?

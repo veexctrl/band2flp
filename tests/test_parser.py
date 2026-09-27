@@ -25,6 +25,7 @@ from research.scripts.track_uuid_probe import (
     selected_track_uuid,
     trak_uuid_field_profile,
 )
+from research.scripts.trak_group_probe import summarize_trak_groups
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -146,6 +147,33 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_trak_group_probe_profiles_only_opaque_group_buckets(self) -> None:
+        chunks = [
+            {"type": "Trak", "payload_size": 58, "group_id_candidate": 10},
+            {"type": "Trak", "payload_size": 58, "group_id_candidate": 10},
+            {"type": "AuRg", "payload_size": 20, "group_id_candidate": 10},
+            {"type": "AuCO", "payload_size": 24, "group_id_candidate": 20},
+        ]
+        events = [
+            {"type_byte": 0x24, "group_id_candidate": 10},
+            {"type_byte": 0x20, "group_id_candidate": 20},
+        ]
+
+        report = summarize_trak_groups(chunks, events)
+
+        self.assertEqual(report["trak58_group_count"], 1)
+        self.assertEqual(report["profiles"], [{
+            "group_bucket": 1,
+            "trak58_count": 2,
+            "midi_type20_event_count": 0,
+            "audio_type24_event_count": 1,
+            "AuCO_chunk_count": 0,
+            "AuFl_chunk_count": 0,
+            "AuRg_chunk_count": 1,
+            "MSeq_chunk_count": 0,
+        }])
+        self.assertNotIn("10", json.dumps(report))
+
     def test_audio_track_index_probe_reports_bounds_without_project_values(self) -> None:
         project = SimpleNamespace(
             declared_track_count=4,

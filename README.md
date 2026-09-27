@@ -96,6 +96,12 @@ Check audio placement index bounds against the declared arrange-track count:
 
 The report includes only aggregate track-index ranges and counts; labels, media paths, and region timing are omitted.
 
+Compare 58-byte `Trak` chunk groups with placement-event and audio-resource groups:
+
+    python -m research.scripts.trak_group_probe path/to/project.band
+
+Opaque group IDs are replaced with local bucket numbers; only chunk/event counts are reported.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v
