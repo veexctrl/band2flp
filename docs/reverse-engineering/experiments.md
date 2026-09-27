@@ -94,6 +94,24 @@
 
 **Next:** Keep using the TRK-009 UUID cross-link as a candidate and seek a controlled rename/reorder fixture to associate its `Trak` record with visible arrangement order.
 
+## ARR-026 - audio placement track-index bounds across two projects
+
+**Question:** Do the recovered audio-placement indices, after the parser's candidate one-based-to-zero-based conversion, fall within each project's declared arrange-track count?
+
+**Fixtures:** Both supplied projects, read through `projectData` and summary metadata only. No audio was extracted or read.
+
+**Method:** Added `research/scripts/audio_track_index_probe.py` to report the declared count, number of audio-bearing track indices, index minimum/maximum, and audio-region count without names, starts, identifiers, or sources. The current parser subtracts one from the placement track-number byte when constructing neutral `Track.index` values.
+
+**Observation:** Fixture A declares 7 arrange tracks and has 9 audio regions on 6 audio-bearing indices spanning 1 through 6. Fixture B declares 12 arrange tracks and has 10 audio regions on 5 audio-bearing indices spanning 1 through 10. Every observed index is nonnegative and below its project's declared count; neither fixture has an audio-bearing index 0. The audio-bearing index counts are lower than the declarations.
+
+**Result:** The current index conversion is internally in-bounds in both fixtures. This is a consistency check, not independent proof that the placement byte maps to visible track order, nor that the parser has recovered all declared tracks; MIDI-only, empty, or otherwise unrepresented tracks remain possible.
+
+**Confidence:** CONFIRMED for the aggregate counts and bounds in these two archives; HIGH CONFIDENCE only for the current one-based track-number interpretation already supported by the preview comparison in ARR-021.
+
+**Alternative considered:** The summary count and placement track-number field could cover different sets of track-like objects, and no controlled track reorder/add fixture is available to verify visible row identity.
+
+**Next:** Use a project with a known added or reordered audio track and compare the raw placement byte, the preview row, and the declared track count.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?

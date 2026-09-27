@@ -90,6 +90,12 @@ Profile the saved arrange-model track-inspector UI state without values:
 
 This reports only the inspector-state field names and value types; project values and identifiers are omitted.
 
+Check audio placement index bounds against the declared arrange-track count:
+
+    python -m research.scripts.audio_track_index_probe path/to/project.band
+
+The report includes only aggregate track-index ranges and counts; labels, media paths, and region timing are omitted.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v

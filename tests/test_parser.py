@@ -16,6 +16,7 @@ from pathlib import Path
 from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.arrange_ui_probe import profile_arrange_ui
+from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.flp_playlist_inventory import playlist_event_data
@@ -145,6 +146,24 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_audio_track_index_probe_reports_bounds_without_project_values(self) -> None:
+        project = SimpleNamespace(
+            declared_track_count=4,
+            tracks=[
+                Track(index=1, regions=[Region(kind="audio")]),
+                Track(index=3, regions=[Region(kind="audio"), Region(kind="audio")]),
+                Track(index=2, regions=[Region(kind="midi")]),
+            ],
+        )
+
+        report = profile_audio_track_indices(project)
+
+        self.assertEqual(report["audio_track_count"], 2)
+        self.assertEqual(report["audio_region_count"], 3)
+        self.assertEqual(report["audio_track_index_min"], 1)
+        self.assertEqual(report["audio_track_index_max"], 3)
+        self.assertTrue(report["all_audio_indices_below_declared_count"])
+
     def test_arrange_ui_probe_reports_inspector_shape_without_values(self) -> None:
         objects = [
             "$null",
