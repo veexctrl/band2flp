@@ -166,7 +166,7 @@
 
 **Fixture:** The same supplied project, read through the validated chunk inventory in IDA MCP.
 
-**Observation:** The 59 `Trak` chunks split into 33 with zero-byte payloads and 26 with 58-byte payloads. The latter family shares an eight-byte payload prefix; their following bytes vary. These records are distributed across multiple candidate group values. The empty-payload family has varying opaque chunk-header bytes.
+**Observation:** The 59 `Trak` chunks split into 33 with zero-byte payloads and 26 with 58-byte payloads. The original note described one shared eight-byte prefix for the latter family. A later per-record recheck did not reproduce that claim; see TRK-006. These records are distributed across multiple candidate group values. The empty-payload family has varying opaque chunk-header bytes.
 
 **Result:** Chunk type and payload size alone are insufficient to treat every `Trak` chunk as a track object. The parser preserves each header, payload size, and offset without assigning track identities or order.
 
@@ -534,6 +534,60 @@
 **Alternative considered:** A `Trak` chunk may be a group-scoped marker or a placeholder emitted alongside each `MSeq`, rather than the serialized arrange-track object. Its empty payload and overlap with MIDI-region group values leave both interpretations open.
 
 **Next:** In a controlled track-move fixture, check whether this same-group `Trak` chunk changes with the MIDI region or remains associated with the same arrangement track. Locate any non-empty `Trak` records that share a stable track identifier before decoding fields.
+
+## TRK-005 — distinguish the `Trak` header field at `+0x0E` from `AuCO` strip indices
+
+**Question:** Does the 16-bit value at chunk-header offset `+0x0E` identify a `Trak` record or correspond to the sequential `AuCO` strip-index candidate?
+
+**Fixtures:** The two locally inspected logic-song payloads, one with and one without recorded audio. Project names, track labels, media, and field values beyond this structural comparison remain private.
+
+**Method:** Count little-endian 16-bit values at `+0x0E` across every `Trak` chunk, separated by payload size. In the same payloads, independently validate `AuCO` candidates by the observed marker and record layout, then compare their `+0x0E` values. Python read the fields from the raw files; IDA MCP `get_int` read the same field from representative empty and 58-byte `Trak` chunks in both files.
+
+**Observation:** The audio-bearing payload has 70 `Trak` chunks (35 empty and 35 with 58-byte payloads); all 70 have `+0x0E = 0xFFFF`. The metadata-only payload has 59 `Trak` chunks (33 empty and 26 with 58-byte payloads); all 59 have the same value. IDA and Python agree on four representative headers. In these files the validated `AuCO` candidate values at the same header offset are instead unique, contiguous sequences of 27 and 23 values beginning at zero.
+
+**Result:** The `Trak` header field at `+0x0E` is not the sequential `AuCO` strip-index candidate and cannot distinguish individual `Trak` records in these fixtures. The parser already preserves the complete opaque header bytes, so no semantic field is added. A sentinel or reserved-field interpretation is plausible but remains unproven.
+
+**Confidence:** CONFIRMED for the repeated value and payload-size counts in these two files, including the IDA/Python spot checks; UNKNOWN for the field's meaning and generality.
+
+**Alternative considered:** `0xFFFF` may be an unset reference, a constant flag, or a version-specific field value. Identical contents across a non-controlled pair cannot distinguish those possibilities.
+
+**Next:** Compare controlled GarageBand saves after adding, deleting, renaming, and reordering a single track; check whether this field or either `Trak` payload family changes, while matching records through stable identifiers rather than chunk ordinal.
+
+## TRK-006 — recheck the `Trak` payload-prefix hypothesis
+
+**Question:** Do the non-empty 58-byte `Trak` payloads share one eight-byte prefix, as the initial TRK-001 note states?
+
+**Fixtures:** Both available extracted logic-song payloads (one metadata-only and one audio-bearing). Original projects and all project-specific content remain local.
+
+**Method:** Added `research/scripts/trak_probe.py` to count `Trak` payload sizes, the header `+0x0E` value, and prefix-shape statistics without emitting payload bytes or project names. Ran the same byte-level Python comparison over every 58-byte payload. For one record representing each distinct first-eight-byte variant, IDA MCP read both leading 32-bit words; these 32 integer reads were compared with Python.
+
+**Observation:** The metadata-only payload has 26 58-byte records with three distinct first-eight-byte prefixes; the most frequent occurs 17 times. The audio-bearing payload has 35 such records with 13 prefix variants; the most frequent occurs 14 times. Within each file, the records share only their first two bytes. All 32 representative IDA/Python word comparisons agree.
+
+**Result:** Withdraw the initial claim that all 58-byte `Trak` payloads share one eight-byte prefix. Payload size alone does not establish one record subtype, and the changing prefix bytes remain uninterpreted. The new probe reports counts only; raw payloads and labels are not included in its output.
+
+**Confidence:** CONFIRMED for prefix counts in these two extracted payloads and the IDA/Python spot-checks; UNKNOWN whether these are multiple record variants, flags, or identifiers.
+
+**Alternative considered:** The prefix variants may reflect separate `Trak` subtypes or small per-record fields rather than distinct layouts. Two unrelated projects cannot distinguish those interpretations.
+
+**Next:** Repeat the probe on controlled track add/rename/reorder saves and correlate each changed payload with stable object identifiers before assigning a field meaning.
+
+## TRK-007 — compare `MSeq` and empty-`Trak` group multiplicities
+
+**Question:** Is the same-group empty `Trak` occurrence from MIDI-010 limited to the recognized MIDI placements, or does it repeat across the complete `MSeq` chunk inventory?
+
+**Fixtures:** Both available extracted logic-song payloads, one metadata-only and one audio-bearing. Project names and project-specific group values are not published.
+
+**Method:** Count candidate group values for every `MSeq` chunk and every zero-payload `Trak` chunk, then compare the group-value multisets rather than only unique sets. IDA MCP read the little-endian 32-bit candidate group field at header offset `+0x08` for all involved chunks in both files; each value was compared with Python.
+
+**Observation:** The audio-bearing payload has 35 `MSeq` chunks and 35 empty `Trak` chunks across 29 distinct group values. The metadata-only payload has 33 of each across 27 distinct group values. In both files, the full group-value multisets match: each group's chunk multiplicity agrees between the two types, and there are no groups exclusive to either type. IDA and Python agree on all 136 header-field reads.
+
+**Result:** The co-group pattern reported for recognized MIDI placements in MIDI-010 extends across the complete `MSeq` and empty-`Trak` inventories in these two payloads. This confirms a repeated chunk-family association, not that `Trak` means arrange track or that each pair represents a MIDI region. The new `trak_probe.py` reports this only as a candidate group-multiplicity match.
+
+**Confidence:** CONFIRMED for the exact per-group multiplicities in these two payloads and the IDA/Python comparisons; UNKNOWN for why the serializer emits the paired group structure.
+
+**Alternative considered:** The group value may scope a larger serialized object cluster, with empty `Trak` records acting as companions or placeholders rather than track definitions. Group-value reuse across chunk families prevents treating it as a globally unique object identifier.
+
+**Next:** In a controlled project, add and remove one MIDI region while holding track count fixed, then move that region between tracks. Compare the `MSeq` and empty-`Trak` group multiplicities with visible regions and tracks before adding any track mapping.
 
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 

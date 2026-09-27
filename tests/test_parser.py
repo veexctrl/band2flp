@@ -16,6 +16,7 @@ from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
+from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.flp_export import (
@@ -360,6 +361,40 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(result["strip_index_candidates"], [3])
         self.assertNotIn("Track X", json.dumps(result))
         self.assertIn("HYPOTHESIS", result["interpretation"])
+
+    def test_trak_probe_reports_aggregate_shapes_without_payload_text(self) -> None:
+        payloads = [
+            b"\x01\x00\x14\x00\x00\x00\x00\x00" + b"Private Track Name".ljust(50, b"\x00"),
+            b"\x01\x00\x14\x00\x00\x00\x00\x00" + b"Other Private Name".ljust(50, b"\x00"),
+            b"\x01\x00\x15\x00\x00\x00\x00\x00" + bytes(50),
+        ]
+        raw = bytes.fromhex("2347c0ab") + bytes(20)
+        for payload in (b"", *payloads):
+            chunk = bytearray(make_chunk("Trak", 0, payload))
+            struct.pack_into("<H", chunk, 14, 0xFFFF)
+            raw += bytes(chunk)
+        raw += make_chunk("MSeq", 0, b"midi-data")
+
+        result = probe_trak_logic_payload(raw, _parse_chunk_stream(raw))
+
+        self.assertEqual(result["trak_count"], 4)
+        self.assertEqual(result["payload_size_counts"], {"0": 1, "58": 3})
+        self.assertEqual(result["header_u16_at_0x0e_counts"], {"0xFFFF": 4})
+        self.assertEqual(result["payload_prefix_summaries"]["58"], {
+            "record_count": 3,
+            "distinct_first_8_byte_prefixes": 2,
+            "most_common_first_8_byte_prefix_count": 2,
+            "longest_common_prefix_length": 2,
+        })
+        self.assertNotIn("Private Track Name", json.dumps(result))
+        self.assertIn("UNKNOWN", result["interpretation"])
+        self.assertTrue(result["mseq_empty_trak_group_candidates"]["group_value_multiplicities_match"])
+        self.assertEqual(result["mseq_empty_trak_group_candidates"]["distinct_mseq_group_values"], 1)
+
+        unmatched = raw + make_chunk("MSeq", 0x10000, b"more-midi-data")
+        unmatched_result = probe_trak_logic_payload(unmatched, _parse_chunk_stream(unmatched))
+        self.assertFalse(unmatched_result["mseq_empty_trak_group_candidates"]["group_value_multiplicities_match"])
+        self.assertEqual(unmatched_result["mseq_empty_trak_group_candidates"]["mseq_groups_without_empty_trak"], 1)
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
