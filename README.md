@@ -72,7 +72,7 @@ Run the regression suite from the repository root:
 
 ## Acknowledgments and format references
 
-Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: _zaaaaan_) for sharing fun GarageBand projects that helped us reverse-engineer the project format and develop band2flp.
+Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`) for sharing fun GarageBand projects that helped us reverse-engineer the project format and develop band2flp.
 
 Cross-format research references include [loov/logicx](https://github.com/loov/logicx) and [Jon Kubis's LogicProFormatWriter format notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md). They document Logic Pro, so we use them as research leads and validate candidate meanings against GarageBand evidence. The band2flp implementation was written independently; no code was copied from these projects.
 

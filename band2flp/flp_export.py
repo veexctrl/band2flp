@@ -46,6 +46,14 @@ def _fl_playlist_track_index(gb_track_index: int, max_tracks: int) -> int:
     return fl_index
 
 
+def _fl_track_event_storage_index(fl_playlist_row: int, max_tracks: int) -> int:
+    """Map a visible playlist row to PyFLP's track-event collection index."""
+    storage_index = fl_playlist_row + 1
+    if fl_playlist_row < 0 or storage_index >= max_tracks:
+        raise FLPExportError("a recovered audio track index is outside the template playlist range")
+    return storage_index
+
+
 def _move_sample_path_after_pingpong(channel: Any, sample_event: Any, channel_id: Any) -> None:
     """Place SamplePath after PingPongLoop, as observed in sample-backed clips."""
     events = channel.events
@@ -342,8 +350,9 @@ def export_flp(
     max_tracks = fl_project.arrangements.max_tracks
     for index in sorted({track.index for track in project.tracks if any(r.kind == "audio" for r in track.regions)}):
         fl_index = _fl_playlist_track_index(index, max_tracks)
-        fl_tracks[fl_index].events.insert(
-            len(fl_tracks[fl_index].events) - 1,
+        storage_index = _fl_track_event_storage_index(fl_index, max_tracks)
+        fl_tracks[storage_index].events.insert(
+            len(fl_tracks[storage_index].events) - 1,
             UnicodeEvent(TrackID.Name, f"GarageBand Track {index + 1:02d}".encode("utf-16-le") + b"\0\0"),
         )
 
