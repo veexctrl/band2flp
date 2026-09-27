@@ -1,0 +1,189 @@
+"""Compare generated playlist audio-row shapes with FLP references safely."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import json
+from pathlib import Path
+import struct
+import warnings
+from typing import Any
+
+from band2flp.flp_export import FLPExportError, _pyflp_module
+
+
+PLAYLIST_EVENT_ID = 233
+_STATIC_FIELDS = ("pattern_base", "group", "u1", "flags", "u2", "start_offset", "end_offset")
+
+
+def _read_varint(data: bytes, offset: int, end: int) -> tuple[int, int]:
+    """Read a bounded little-endian base-128 event length."""
+    value = shift = 0
+    while offset < end and shift <= 63:
+        byte = data[offset]
+        offset += 1
+        value |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return value, offset
+        shift += 7
+    raise ValueError("invalid or truncated FLP variable-length event size")
+
+
+def playlist_event_data(data: bytes) -> list[bytes]:
+    """Extract raw playlist event payloads from a bounded FLP event stream."""
+    if len(data) < 22 or data[:4] != b"FLhd" or data[14:18] != b"FLdt":
+        raise ValueError("invalid FLP header")
+    event_bytes = struct.unpack_from("<I", data, 18)[0]
+    end = 22 + event_bytes
+    if end != len(data):
+        raise ValueError("FLP event-data length does not match the file")
+
+    payloads: list[bytes] = []
+    offset = 22
+    while offset < end:
+        event_id = data[offset]
+        offset += 1
+        if event_id < 64:
+            size = 1
+        elif event_id < 128:
+            size = 2
+        elif event_id < 192:
+            size = 4
+        else:
+            size, offset = _read_varint(data, offset, end)
+        if size > end - offset:
+            raise ValueError("FLP event extends beyond the file boundary")
+        if event_id == PLAYLIST_EVENT_ID:
+            payloads.append(data[offset:offset + size])
+        offset += size
+    return payloads
+
+
+def _audio_clip_channel_ids(project: Any, channel_id: Any) -> set[int]:
+    result = set()
+    for channel in project.channels:
+        type_event = next((event for event in channel.events if event.id == channel_id.Type), None)
+        if (
+            type_event is not None
+            and int(type_event.value) == 4
+            and channel.internal_name == ""
+            and channel_id.SamplePath in channel.events.ids
+        ):
+            result.add(int(channel.iid))
+    return result
+
+
+def _decode_playlist_records(data: bytes) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for payload in playlist_event_data(data):
+        record_size = 60 if len(payload) % 60 == 0 else 32 if len(payload) % 32 == 0 else None
+        if record_size is None:
+            continue
+        for offset in range(0, len(payload), record_size):
+            record = payload[offset:offset + record_size]
+            if len(record) != record_size:
+                continue
+            position, pattern_base, item_index, length, track_rvidx, group = struct.unpack_from("<IHHIHH", record)
+            records.append({
+                "size": record_size,
+                "position": position,
+                "pattern_base": pattern_base,
+                "item_index": item_index,
+                "length": length,
+                "track_rvidx": track_rvidx,
+                "group": group,
+                "u1": record[16:18],
+                "flags": struct.unpack_from("<H", record, 18)[0],
+                "u2": record[20:24],
+                "start_offset": struct.unpack_from("<f", record, 24)[0],
+                "end_offset": struct.unpack_from("<f", record, 28)[0],
+            })
+    return records
+
+
+def _static_profile(record: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(record[field] for field in _STATIC_FIELDS)
+
+
+def compare_playlist_shapes(candidate_path: str | Path, reference_root: str | Path, limit: int = 100) -> dict[str, Any]:
+    """Compare audio-row constants while omitting timing and project-specific data."""
+    if limit < 1:
+        raise ValueError("reference limit must be positive")
+    pyflp, _ = _pyflp_module()
+    from pyflp.channel import ChannelID
+
+    def read_audio_records(path: Path) -> list[dict[str, Any]]:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                project = pyflp.parse(str(path))
+            audio_ids = _audio_clip_channel_ids(project, ChannelID)
+            data = path.read_bytes()
+            return [
+                record for record in _decode_playlist_records(data)
+                if record["item_index"] <= record["pattern_base"]
+                and record["item_index"] in audio_ids
+            ]
+        except Exception as exc:
+            raise FLPExportError(f"cannot inspect FLP structure: {type(exc).__name__}") from exc
+
+    candidate = read_audio_records(Path(candidate_path))
+    if not candidate:
+        raise FLPExportError("candidate FLP contains no decodable sample-backed playlist rows")
+    root = Path(reference_root)
+    if not root.is_dir():
+        raise FLPExportError("reference root is not a directory")
+
+    references: list[dict[str, Any]] = []
+    projects_examined = parse_failures = 0
+    for path in sorted(root.rglob("*.flp")):
+        if projects_examined >= limit:
+            break
+        projects_examined += 1
+        try:
+            references.extend(read_audio_records(path))
+        except FLPExportError:
+            parse_failures += 1
+
+    profiles = Counter(_static_profile(record) for record in references if record["size"] == 32)
+    candidate_profile_counts = [profiles[_static_profile(record)] for record in candidate]
+    field_matches = {
+        field: sum(
+            record["size"] == 32 and any(reference[field] == record[field] for reference in references if reference["size"] == 32)
+            for record in candidate
+        )
+        for field in _STATIC_FIELDS
+    }
+    reference_rows = {record["track_rvidx"] for record in references}
+    return {
+        "candidate_audio_row_count": len(candidate),
+        "candidate_record_sizes": dict(Counter(record["size"] for record in candidate)),
+        "candidate_rows_with_common_static_profile": sum(count > 0 for count in candidate_profile_counts),
+        "candidate_static_profile_reference_counts": candidate_profile_counts,
+        "candidate_field_matches_any_reference_row": field_matches,
+        "candidate_track_rows_seen_in_references": len({record["track_rvidx"] for record in candidate} & reference_rows),
+        "reference_projects_examined": projects_examined,
+        "reference_parse_failures": parse_failures,
+        "reference_audio_row_count": len(references),
+        "reference_record_sizes": dict(Counter(record["size"] for record in references)),
+        "privacy_note": "Aggregate counts only; project names, paths, timing, media paths, and field values are omitted.",
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("candidate", type=Path, help="Generated FLP to compare")
+    parser.add_argument("reference_root", type=Path, help="Folder containing FLP references")
+    parser.add_argument("--limit", type=int, default=100, help="Maximum references to parse (default: 100)")
+    args = parser.parse_args(argv)
+    try:
+        result = compare_playlist_shapes(args.candidate, args.reference_root, args.limit)
+    except (FLPExportError, OSError, ValueError) as exc:
+        parser.error(str(exc))
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

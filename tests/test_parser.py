@@ -16,6 +16,7 @@ from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
+from research.scripts.flp_playlist_inventory import playlist_event_data
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -136,6 +137,21 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_playlist_event_reader_extracts_bounded_payload(self) -> None:
+        events = bytes((233, 4)) + b"clip" + bytes((42, 7))
+        header = b"FLhd" + struct.pack("<Ih2H", 6, 0, 0, 96)
+        data = header + b"FLdt" + struct.pack("<I", len(events)) + events
+
+        self.assertEqual(playlist_event_data(data), [b"clip"])
+
+    def test_flp_playlist_event_reader_rejects_truncated_lengths(self) -> None:
+        events = bytes((233, 5)) + b"clip"
+        header = b"FLhd" + struct.pack("<Ih2H", 6, 0, 0, 96)
+        data = header + b"FLdt" + struct.pack("<I", len(events)) + events
+
+        with self.assertRaisesRegex(ValueError, "extends beyond the file boundary"):
+            playlist_event_data(data)
+
     def test_flp_playlist_rows_reserve_row_zero_and_validate_range(self) -> None:
         self.assertEqual(_fl_playlist_track_index(0, 500), 1)
         self.assertEqual(_fl_playlist_track_index(5, 500), 6)
