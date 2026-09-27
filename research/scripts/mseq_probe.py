@@ -77,6 +77,19 @@ def probe_logic_payload(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
     needle = payloads[0][:prefix_length] if payloads and prefix_length else b""
     other_payloads_starting_with_prefix = 0
     other_payloads_containing_prefix = 0
+    occurrence_offsets: list[int] = []
+    if needle:
+        offset = 0
+        while True:
+            offset = raw.find(needle, offset)
+            if offset < 0:
+                break
+            occurrence_offsets.append(offset)
+            offset += 1
+    mseq_payload_starts = {
+        chunk["payload_offset"] for chunk in chunks
+        if chunk.get("type") == "MSeq" and isinstance(chunk.get("payload_offset"), int)
+    }
     if needle:
         for chunk in chunks:
             if chunk.get("type") == "MSeq":
@@ -95,6 +108,13 @@ def probe_logic_payload(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
             other_payloads_containing_prefix += blob.count(needle)
     report["other_chunk_payloads_starting_with_common_prefix"] = other_payloads_starting_with_prefix
     report["other_chunk_payloads_containing_common_prefix"] = other_payloads_containing_prefix
+    report["logic_song_common_prefix_occurrence_count"] = len(occurrence_offsets)
+    report["common_prefix_occurrences_at_mseq_payload_starts"] = sum(
+        offset in mseq_payload_starts for offset in occurrence_offsets
+    )
+    report["common_prefix_occurrences_outside_mseq_payload_starts"] = sum(
+        offset not in mseq_payload_starts for offset in occurrence_offsets
+    )
     return report
 
 

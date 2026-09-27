@@ -867,6 +867,9 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(result["longest_common_prefix_length"], 8)
         self.assertEqual(result["other_chunk_payloads_starting_with_common_prefix"], 0)
         self.assertEqual(result["other_chunk_payloads_containing_common_prefix"], 1)
+        self.assertEqual(result["logic_song_common_prefix_occurrence_count"], 3)
+        self.assertEqual(result["common_prefix_occurrences_at_mseq_payload_starts"], 2)
+        self.assertEqual(result["common_prefix_occurrences_outside_mseq_payload_starts"], 1)
         self.assertNotIn("SHARED08", json.dumps(result))
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
