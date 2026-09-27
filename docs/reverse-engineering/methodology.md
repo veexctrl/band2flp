@@ -10,4 +10,6 @@ Use IDA MCP to inspect raw bytes and related binary components when useful. Repr
 
 `python -m research.scripts.auco_probe project.band` checks the candidate `AuCO` header marker and fixed-offset record structure described in TRK-002. It validates the padded printable-name shape without including names in its report. Its counts are structural observations; the script does not assign GarageBand track semantics.
 
+`python -m research.scripts.trak_probe project.band` reports `Trak` payload-size, header-field, and prefix-shape counts, plus candidate group-multiplicity comparisons with `MSeq` and empty-payload `Trak` records. It does not emit group IDs or payload bytes and does not assign track or region semantics.
+
 Do not infer region or note timing from summary duration, cache images, or resource lists. Preserve unknown payload bytes and report unsupported structures.

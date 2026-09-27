@@ -589,6 +589,24 @@
 
 **Next:** In a controlled project, add and remove one MIDI region while holding track count fixed, then move that region between tracks. Compare the `MSeq` and empty-`Trak` group multiplicities with visible regions and tracks before adding any track mapping.
 
+## TRK-008 — test direct group joins from MIDI placements to `AuCO`
+
+**Question:** Do the recognized MIDI placement groups that link to `MSeq` and empty `Trak` chunks also match validated `AuCO` candidate group values?
+
+**Fixtures:** Both available extracted logic-song payloads, one metadata-only and one audio-bearing. Project-specific group values and labels are omitted.
+
+**Method:** For every recognized `0x20` MIDI placement, read its cluster candidate at event offset `+0x20` and shift it left 16 bits, following the parser's existing candidate link to `MSeq`. Compare those candidate values with the chunk-header `+0x08` group values of validated `AuCO` candidates. IDA MCP read the event cluster and every relevant `AuCO` group field; the integer values were compared against Python before checking overlap.
+
+**Observation:** The audio-bearing payload has 19 recognized MIDI placements and 27 validated `AuCO` candidates; the metadata-only payload has 12 placements and 23 candidates. None of the 31 MIDI placement group candidates equals an `AuCO` candidate group. All 81 IDA integer reads agree with Python.
+
+**Result:** A direct shared-group join between the recognized MIDI placement/MSeq/empty-`Trak` cluster and the validated `AuCO` candidates is absent in both payloads. Do not use this group field to attach MIDI regions to `AuCO` records. This does not rule out another relationship through the MIDI placement's still-unknown `+0x14` byte or another identifier.
+
+**Confidence:** CONFIRMED for the no-overlap result in these two payloads and the field-value cross-checks; UNKNOWN for the `+0x14` relationship and actual arrange-track identity.
+
+**Alternative considered:** Group values may be reused within object families or scopes rather than serving as global IDs. A track relationship could also pass through a separate index or object table.
+
+**Next:** Use matched projects with one MIDI region moved between known tracks. Test `+0x14` against visible track identities and any `AuCO` changes, without assuming either a group join or an ordinal mapping.
+
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 
 **Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?
