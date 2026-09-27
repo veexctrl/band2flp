@@ -7,7 +7,7 @@ This roadmap prioritizes faithful song structure over instrument recreation. It 
 - **Package parsing and inspection — working:** `.band` ZIP inventory, keyed-archive/project metadata, bounded logic-song chunk parsing, event records, raw unknown data, and JSON inspection are implemented.
 - **Audio arrangement — partial:** source references, audio placement candidates, and starts are exposed in the neutral model. Start decoding agrees with one arrangement preview. Region lengths, trims, loops, source offsets, and complete track identity remain unresolved.
 - **MIDI — early research:** MIDI placement candidates link to `MSeq` chunks, and note-shaped records are retained. GarageBand-specific note fields, position units, and track mapping lack controlled validation.
-- **FL Studio output — experimental:** audio-only FLP export and PyFLP round-trip checks work locally. FL Studio 25 GUI load and playback have not been confirmed.
+- **FL Studio output (experimental):** audio-only FLP export and PyFLP round-trip checks work locally. The user reports FL Studio 25 still warns about invalid playlist clips, clips are not visible on the named rows, and one media file is missing. A likely one-row mismatch between clip and track-name rows has been corrected in code but needs GUI verification.
 - **Track metadata — unresolved:** `AuCO` candidates resemble a broader channel-strip collection. TRK-004 rules out a one-to-one count mapping to arrange tracks in the two inspected projects; no specific candidate-to-track mapping is established.
 
 See [progress.json](progress.json) and [progress.svg](progress.svg) for the current rough estimate and its workstream breakdown.
@@ -58,6 +58,6 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 
 ## Immediate next work
 
-1. Ask the user to verify `.local-research/clock-roundtrip-check-v8-sample-path-order-probe.flp` in FL Studio 25. Its sample-path order now matches all 209 sample-backed channels seen across 60 local FL Studio 25.1.5 projects. The warning cause remains a hypothesis until the project opens cleanly.
-2. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. These provide the controlled evidence needed to promote current candidates into the neutral model.
-3. Continue with audio-region timing and track mapping first, while documenting fixture-dependent and cross-format-only evidence as hypotheses.
+1. Produce and verify a candidate with playlist clips and track names mapped to the same FL rows; isolate the remaining invalid-clip warning against a minimal FL Studio-created audio clip.
+2. Resolve relative/absolute media path handling and verify playback without exposing or publishing private source audio.
+3. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. Continue to label fixture-dependent and cross-format observations as hypotheses.

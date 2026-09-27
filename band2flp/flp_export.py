@@ -38,6 +38,14 @@ def _select_base_playlist_record_layout(playlist: Any) -> None:
     params["new"] = False
 
 
+def _fl_playlist_track_index(gb_track_index: int, max_tracks: int) -> int:
+    """Map the recovered zero-based arrange index to FL's one-based playlist rows."""
+    fl_index = gb_track_index + 1
+    if gb_track_index < 0 or fl_index >= max_tracks:
+        raise FLPExportError("a recovered audio track index is outside the template playlist range")
+    return fl_index
+
+
 def _move_sample_path_after_pingpong(channel: Any, sample_event: Any, channel_id: Any) -> None:
     """Place SamplePath after PingPongLoop, as observed in sample-backed clips."""
     events = channel.events
@@ -330,14 +338,12 @@ def export_flp(
         fl_project.arrangements.time_signature.num = project.time_signature[0]
         fl_project.arrangements.time_signature.beat = project.time_signature[1]
 
-    track_models = {track.index: track for track in project.tracks}
     fl_tracks = list(arrangement.tracks)
     max_tracks = fl_project.arrangements.max_tracks
-    if any(index < 0 or index >= max_tracks for index in track_models):
-        raise FLPExportError("a recovered audio track index is outside the template playlist range")
     for index in sorted({track.index for track in project.tracks if any(r.kind == "audio" for r in track.regions)}):
-        fl_tracks[index].events.insert(
-            len(fl_tracks[index].events) - 1,
+        fl_index = _fl_playlist_track_index(index, max_tracks)
+        fl_tracks[fl_index].events.insert(
+            len(fl_tracks[fl_index].events) - 1,
             UnicodeEvent(TrackID.Name, f"GarageBand Track {index + 1:02d}".encode("utf-16-le") + b"\0\0"),
         )
 
@@ -369,7 +375,7 @@ def export_flp(
                 "pattern_base": 20480,
                 "item_index": iid,
                 "length": length_ticks,
-                "track_rvidx": (max_tracks - 1) - track.index,
+                "track_rvidx": (max_tracks - 1) - _fl_playlist_track_index(track.index, max_tracks),
                 "group": 0,
                 "_u1": bytes((120, 0)),
                 "item_flags": 64,

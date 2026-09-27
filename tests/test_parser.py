@@ -21,6 +21,7 @@ from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_
 from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.flp_export import (
+    _fl_playlist_track_index,
     AudioInfo,
     FLPExportError,
     _beats_to_ticks,
@@ -134,6 +135,14 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_flp_playlist_rows_reserve_row_zero_and_validate_range(self) -> None:
+        self.assertEqual(_fl_playlist_track_index(0, 500), 1)
+        self.assertEqual(_fl_playlist_track_index(5, 500), 6)
+        with self.assertRaisesRegex(FLPExportError, "outside the template playlist range"):
+            _fl_playlist_track_index(-1, 500)
+        with self.assertRaisesRegex(FLPExportError, "outside the template playlist range"):
+            _fl_playlist_track_index(499, 500)
+
     def test_flp_export_selects_base_playlist_record_layout(self) -> None:
         playlist = SimpleNamespace(_kwds={"new": True})
 
