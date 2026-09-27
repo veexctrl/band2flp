@@ -12,7 +12,9 @@ The parser inventories `.band` ZIP packages and reads summary tempo, meter, dura
 
 For inspected fixtures it also decodes audio placement starts, track-number candidates, and source links into neutral audio regions. The start positions agree with one project's arrangement preview. Region duration, source offset, trimming, looping, and full track identity remain unresolved. MIDI placement candidates are linked to `MSeq` chunks; note-shaped events that share a linked chunk are exposed in JSON, but note pitch, velocity, onset, duration, MIDI track mapping, and placement timing have not been confirmed in controlled GarageBand fixtures. An experimental audio-only FLP exporter is available; it requires a blank FL Studio template and optional PyFLP, and documents unknown clip lengths rather than claiming a faithful conversion.
 
-Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`) for sharing a few fun GarageBand projects for reverse-engineering and helping make band2flp possible.
+Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`) for sharing fun GarageBand projects that helped us reverse-engineer the project format and develop band2flp.
+
+Cross-format research references include [loov/logicx](https://github.com/loov/logicx) and [Jon Kubis's LogicProFormatWriter format notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md). They document Logic Pro, so we use them as research leads and validate candidate meanings against GarageBand evidence. The band2flp implementation was written independently; no code was copied from these projects.
 
 ## Use
 

@@ -660,3 +660,21 @@
 **Alternative considered:** `+0x16` could be another frame-based cache, edit quantity, or source-specific value. All sources sharing 44.1 kHz means this comparison does not test mixed-rate behavior.
 
 **Next:** Use a controlled source at a known sample rate, record one region, then change only its trim and compare the candidate, source frame count, region display length, and project preview. Repeat with a second source rate if GarageBand permits it.
+
+## EVT-004 - inventory event record families in both supplied projects
+
+**Question:** Which event type/record-shape families are not covered by current candidate decoders, and what aggregate shapes should later controlled experiments target?
+
+**Fixtures:** Both local GarageBand projects, summarized anonymously. No audio was extracted or decoded by this experiment.
+
+**Method:** Run research/scripts/event_inventory.py over each parsed EvSq record list. Aggregate event type byte, record-size histogram, distinct candidate-group count, and zero-group count. The probe omits group values, raw records, and strings. The parser currently has candidate decoders for event types 0x20, 0x24, 0x30, 0x60, and 0x90. For each of the other 50 distinct type bytes in the audio-bearing payload, IDA MCP independently read the first byte at one representative parser-reported record offset; all 50 matched Python's event type. This spot-check validates representative type-byte offsets, not the remaining bytes or their meanings.
+
+**Observation:** The audio-bearing payload has 347 parsed records across 55 distinct type bytes; 50 are outside the five event types with candidate decoders. Of those unclassified records, 129 use types 0x91-0x9e, with lengths 64 or 80 bytes. The payload also has unclassified families 0xd1-0xde (16/32/48 bytes), 0xe0-0xee (32/48 bytes), 0xb0 (16/32/48 bytes), 0xf1 (16 bytes), and 0x10, 0x11, 0x12, 0x32, and 0x70 (16/32/48 bytes). The metadata-only payload has 71 records across ten types; six (0x10, 0x11, 0x12, 0x32, 0x70, and 0xf1) are also outside the five candidate-decoded event types. Exact per-type counts and size histograms are reproducible with the aggregate probe.
+
+**Result:** Unknown event families are retained by the parser and can be inventoried without publishing raw private-project data. Their differing prevalence across these unrelated projects is not evidence of semantics or project-version behavior. No MIDI-controller, automation, instrument, or track interpretation is assigned from event IDs or sizes alone.
+
+**Confidence:** CONFIRMED for Python's record counts and lengths in these two payloads; HIGH CONFIDENCE for representative type-byte agreement with IDA for all 50 unclassified types in the audio-bearing payload; UNKNOWN for their semantics.
+
+**Alternative considered:** These records may be instrument/plugin state, controller data, event-sequence delimiters, or other serialized content; each family could also contain more than one subtype. No controlled fixture currently distinguishes those explanations.
+
+**Next:** Use a minimal controlled project and change one supported musical property at a time. Begin with one note and one instrument, then change pitch, velocity, onset, and duration separately; compare the event-family aggregate and corresponding MSeq group before decoding any currently unclassified event fields.

@@ -34,6 +34,8 @@
 - Whether output metadata and asset lists are complete, stale, or derived caches.
 - Which structures differ across GarageBand versions and desktop/mobile projects.
 
-The next useful inputs are sanitized or private local fixtures created by changing one property at a time: empty project, one track, one note, note pitch/duration/start changes, region position/length changes, tempo/meter changes, and a simple audio region. Do not add private song content to the public source repository.
+- Semantics of unclassified EvSq event types. EVT-004 inventories aggregate counts and lengths for 50 type bytes outside the five event types with candidate decoders in one fixture, and IDA confirms one representative type byte for each; it does not establish whether these records are MIDI controllers, instrument state, automation, or another structure.
 - PROV-001 found GarageBand 2.3.19 in both inspected project archives. User confirms the initial audio-free and later private audio fixtures came from different iPhone models; exact model attribution is kept in local-only notes, and archive product-type strings do not independently establish the mapping. Device-specific serialization effects remain unknown because project contents differ.
 - FLP-001 through FLP-006 established an experimental PyFLP-based audio exporter with a Python 3.12+ compatibility shim and save/reparse checks. Whether generated projects load correctly and play the referenced audio in FL Studio 25 remains unverified; PyFLP licensing and supported runtime also remain open.
+
+The next useful inputs are sanitized or private local fixtures created by changing one property at a time: empty project, one track, one note, note pitch/duration/start changes, region position/length changes, tempo/meter changes, and a simple audio region. Do not add private song content to the public source repository.

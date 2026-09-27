@@ -15,6 +15,7 @@ from pathlib import Path
 from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.binary_diff import compare, load_component
+from research.scripts.event_inventory import inventory_records
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -395,6 +396,27 @@ class ParserTests(unittest.TestCase):
         unmatched_result = probe_trak_logic_payload(unmatched, _parse_chunk_stream(unmatched))
         self.assertFalse(unmatched_result["mseq_empty_trak_group_candidates"]["group_value_multiplicities_match"])
         self.assertEqual(unmatched_result["mseq_empty_trak_group_candidates"]["mseq_groups_without_empty_trak"], 1)
+
+    def test_event_inventory_reports_only_aggregate_shapes(self) -> None:
+        records = [
+            {"type_byte": 0x91, "length": 64, "group_id_candidate": 0x12340000,
+             "raw_hex": "50524956415445204556454e542056414c5545"},
+            {"type_byte": 0x91, "length": 80, "group_id_candidate": 0,
+             "raw_hex": "534543524554204556454e542056414c5545"},
+            {"type_byte": 0xF1, "length": 16, "group_id_candidate": 0,
+             "raw_hex": "4e4f5420464f52205055424c49434154494f4e"},
+        ]
+        result = inventory_records(records)
+        self.assertEqual(result["event_record_count"], 3)
+        self.assertEqual(result["event_types"]["0x91"]["record_lengths"], {"64": 1, "80": 1})
+        self.assertEqual(result["event_types"]["0x91"]["distinct_group_candidate_count"], 2)
+        self.assertEqual(result["event_types"]["0x91"]["zero_group_record_count"], 1)
+        rendered = json.dumps(result)
+        self.assertNotIn("PRIVATE", rendered)
+        self.assertNotIn("SECRET", rendered)
+        self.assertNotIn("12340000", rendered)
+        with self.assertRaises(BandFormatError):
+            inventory_records([{**records[0], "length": 63}])
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
