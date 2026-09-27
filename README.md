@@ -108,6 +108,12 @@ Check whether `Trak +0x18` UUIDs recur in archive strings or companion plist com
 
 The probe reports match counts only and does not emit UUIDs or component names.
 
+Search `Trak +0x18` UUIDs for additional occurrences inside logic-song chunks:
+
+    python -m research.scripts.trak_uuid_logic_probe path/to/project.band
+
+The scanner covers canonical/mixed-endian bytes and common ASCII/UTF-16 forms, and reports aggregate counts only.
+
 Run the regression suite from the repository root:
 
     python -m unittest discover -s tests -v

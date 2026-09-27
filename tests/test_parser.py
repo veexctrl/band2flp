@@ -26,6 +26,7 @@ from research.scripts.track_uuid_probe import (
     trak_uuid_field_profile,
 )
 from research.scripts.trak_uuid_archive_probe import profile_archive_references
+from research.scripts.trak_uuid_logic_probe import additional_uuid_occurrences
 from research.scripts.trak_group_probe import summarize_trak_groups
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
@@ -148,6 +149,25 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_trak_uuid_logic_probe_finds_external_chunk_reference_without_value(self) -> None:
+        identifier = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        trak = bytearray(58)
+        trak[0x18:0x28] = identifier.bytes
+        payload = bytes(trak) + identifier.bytes
+        chunks = [
+            {"index": 0, "type": "Trak", "payload_offset": 0, "payload_size": 58},
+            {"index": 1, "type": "AuRg", "payload_offset": 58, "payload_size": 16},
+        ]
+
+        report = additional_uuid_occurrences(payload, chunks)
+
+        self.assertEqual(report["track_uuid_field_count"], 1)
+        self.assertEqual(report["distinct_track_uuid_count"], 1)
+        self.assertEqual(report["track_uuid_fields_with_additional_payload_occurrences"], 1)
+        self.assertEqual(report["additional_payload_occurrence_count"], 1)
+        self.assertEqual(report["additional_occurrences_by_chunk_type"], {"AuRg": 1})
+        self.assertNotIn(str(identifier), json.dumps(report))
+
     def test_trak_uuid_archive_probe_counts_references_without_values(self) -> None:
         identifier = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
         other = uuid.UUID("ffeeddcc-bbaa-9988-7766-554433221100")

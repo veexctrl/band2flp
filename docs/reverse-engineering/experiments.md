@@ -148,6 +148,24 @@
 
 **Next:** Find a controlled renamed/reordered project pair, then compare which `Trak +0x18` UUID stays stable and whether any non-plist component or changed UI field exposes the edited track identity.
 
+## TRK-012 - search all chunk payloads for `Trak +0x18` UUID references
+
+**Question:** Do the UUID-shaped values at `Trak +0x18` appear in other logic-song chunks as direct references to related objects or placements?
+
+**Fixtures:** Both supplied logic-song payloads. UUID values, payload bytes, paths, names, and media are omitted.
+
+**Method:** Added `research/scripts/trak_uuid_logic_probe.py` to extract every 16-byte field at `+0x18` from 58-byte `Trak` chunks, then scan every chunk payload for every occurrence of each field in canonical and mixed-endian binary, lower/upper-case ASCII, braced ASCII, and UTF-16LE/BE forms. The source field itself is excluded from the additional-occurrence count. The probe emits aggregate counts and chunk-type totals only.
+
+**Observation:** The metadata-only payload has 26 UUID fields and 26 distinct values; the audio-bearing payload has 35 fields and 35 distinct values. No UUID had any additional occurrence in any chunk payload in either project, in the searched representations.
+
+**Result:** Within these two logic-song payloads, `Trak +0x18` UUIDs are not reused as direct binary or textual links in other chunk payloads. This does not exclude indirect ordinal references, transformed/hash representations, or references outside the logic-song component.
+
+**Confidence:** CONFIRMED for the field counts, uniqueness, and exhaustive scan of the listed representations in these two payloads; UNKNOWN for indirect or undiscovered encodings.
+
+**Alternative considered:** The field may be a record-local UUID consumed by UI/document state rather than a shared reference key; only the saved selected-track UUID has an observed cross-component match (TRK-009/TRK-011).
+
+**Next:** Use controlled track creation/deletion/reordering fixtures to determine whether these UUID values are regenerated with records or whether arrangement relationships use another field.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?
