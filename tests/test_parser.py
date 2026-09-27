@@ -835,11 +835,13 @@ class ParserTests(unittest.TestCase):
         })
 
     def test_mseq_probe_reports_shapes_without_payload_bytes_or_values(self) -> None:
-        first = b"ABCDEFGH" + bytes(292)
-        second = b"ABCDEFGH" + bytes([1]) + bytes(291)
+        first = b"A\x00B\x00C\x00D\x00" + bytes(292)
+        second = b"A\x00B\x00C\x00D\x00" + bytes([1]) + bytes(291)
         result = summarize_payloads([first, second])
         self.assertEqual(result["mseq_count"], 2)
         self.assertEqual(result["longest_common_prefix_length"], 8)
+        self.assertEqual(result["common_prefix_zero_byte_count"], 4)
+        self.assertEqual(result["common_prefix_nonzero_byte_count"], 4)
         self.assertEqual(result["standard_midi_header_count"], 0)
         self.assertEqual(result["unassigned_tail_word_profiles"]["219"]["readable_count"], 2)
         serialized = json.dumps(result)

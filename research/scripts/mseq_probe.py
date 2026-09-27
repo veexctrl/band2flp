@@ -25,6 +25,7 @@ def summarize_payloads(payloads: list[bytes]) -> dict[str, Any]:
                 prefix_length = index
                 break
 
+    common_prefix = payloads[0][:prefix_length] if payloads else b""
     tail_profiles: dict[str, dict[str, int]] = {}
     for tail in (219, 55):
         values = []
@@ -46,6 +47,8 @@ def summarize_payloads(payloads: list[bytes]) -> dict[str, Any]:
             str(size): count for size, count in sorted(Counter(map(len, payloads)).items())
         },
         "longest_common_prefix_length": prefix_length,
+        "common_prefix_zero_byte_count": common_prefix.count(0),
+        "common_prefix_nonzero_byte_count": sum(value != 0 for value in common_prefix),
         "standard_midi_header_count": sum(payload.startswith(b"MThd") for payload in payloads),
         "unassigned_tail_word_profiles": tail_profiles,
         "semantics": "UNKNOWN; tail positions are exploratory and are not decoded",

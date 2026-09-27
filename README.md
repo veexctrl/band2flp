@@ -74,6 +74,16 @@ Profile MSeq payload sizes and shared prefixes without printing payload data:
 
     python -m research.scripts.mseq_probe path/to/project.band
 
+Compare opaque MIDI event families with linked MIDI placements and MSeq payload sizes:
+
+    python -m research.scripts.midi_event_family_probe path/to/project.band
+
+Test exploratory MIDI placement-tick candidates against linked MSeq payload fields:
+
+    python -m research.scripts.midi_region_timing_probe path/to/project.band
+
+These probes report aggregate counts only by default. Candidate group membership and Logic-derived field locations remain hypotheses until validated with controlled GarageBand fixtures.
+
 Compare generated sample-channel event layouts with FLP references (requires optional PyFLP):
 
     python -m research.scripts.flp_channel_inventory candidate.flp path/to/flp-projects --limit 100
