@@ -72,7 +72,30 @@ def probe_logic_payload(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         ):
             raise BandFormatError("MSeq payload bounds are invalid")
         payloads.append(raw[start:start + size])
-    return summarize_payloads(payloads)
+    report = summarize_payloads(payloads)
+    prefix_length = report["longest_common_prefix_length"]
+    needle = payloads[0][:prefix_length] if payloads and prefix_length else b""
+    other_payloads_starting_with_prefix = 0
+    other_payloads_containing_prefix = 0
+    if needle:
+        for chunk in chunks:
+            if chunk.get("type") == "MSeq":
+                continue
+            start = chunk.get("payload_offset")
+            size = chunk.get("payload_size")
+            if (
+                not isinstance(start, int)
+                or not isinstance(size, int)
+                or size < 0
+                or not 0 <= start <= len(raw) - size
+            ):
+                raise BandFormatError("non-MSeq chunk payload bounds are invalid")
+            blob = raw[start:start + size]
+            other_payloads_starting_with_prefix += blob.startswith(needle)
+            other_payloads_containing_prefix += blob.count(needle)
+    report["other_chunk_payloads_starting_with_common_prefix"] = other_payloads_starting_with_prefix
+    report["other_chunk_payloads_containing_common_prefix"] = other_payloads_containing_prefix
+    return report
 
 
 def probe_project(path: str | Path) -> dict[str, Any]:

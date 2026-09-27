@@ -851,6 +851,24 @@ class ParserTests(unittest.TestCase):
         with self.assertRaises(BandFormatError):
             probe_mseq_logic_payload(b"short", {"chunks": [{"type": "MSeq", "payload_offset": 4, "payload_size": 2}]})
 
+    def test_mseq_probe_profiles_common_prefix_outside_mseq_payloads(self) -> None:
+        first = b"SHARED08first"
+        second = b"SHARED08other"
+        other = b"xxSHARED08"
+        raw = first + second + other
+        stream = {"chunks": [
+            {"type": "MSeq", "payload_offset": 0, "payload_size": len(first)},
+            {"type": "MSeq", "payload_offset": len(first), "payload_size": len(second)},
+            {"type": "EvSq", "payload_offset": len(first) + len(second), "payload_size": len(other)},
+        ]}
+
+        result = probe_mseq_logic_payload(raw, stream)
+
+        self.assertEqual(result["longest_common_prefix_length"], 8)
+        self.assertEqual(result["other_chunk_payloads_starting_with_common_prefix"], 0)
+        self.assertEqual(result["other_chunk_payloads_containing_common_prefix"], 1)
+        self.assertNotIn("SHARED08", json.dumps(result))
+
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.band"

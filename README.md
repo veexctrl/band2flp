@@ -70,7 +70,7 @@ Inventory unclassified event record shapes without printing their contents:
 
     python -m research.scripts.event_inventory path/to/project.band
 
-Profile MSeq payload sizes and shared prefixes without printing payload data:
+Profile MSeq payload sizes and shared prefixes, and search other chunk payloads for the prefix without printing bytes:
 
     python -m research.scripts.mseq_probe path/to/project.band
 
