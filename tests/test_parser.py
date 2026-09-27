@@ -176,6 +176,27 @@ class ParserTests(unittest.TestCase):
         }])
         self.assertNotIn(str(selected), repr(matches))
 
+    def test_track_uuid_probe_finds_repeated_occurrences_in_one_chunk(self) -> None:
+        selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        payload = bytes(24) + selected.bytes + bytes(2) + selected.bytes + bytes(16)
+        chunks = {"chunks": [{"type": "Trak", "payload_offset": 0, "payload_size": len(payload)}]}
+
+        matches = find_uuid_payload_matches(payload, chunks, selected)
+
+        self.assertEqual([match["payload_offset"] for match in matches], [24, 42])
+
+    def test_track_uuid_probe_scans_ascii_and_utf16_text_forms(self) -> None:
+        selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        payload = str(selected).encode("ascii") + str(selected).encode("utf-16-le")
+        chunks = {"chunks": [{"type": "Test", "payload_offset": 0, "payload_size": len(payload)}]}
+
+        matches = find_uuid_payload_matches(payload, chunks, selected)
+
+        self.assertEqual(
+            [(match["payload_offset"], match["encoding"]) for match in matches],
+            [(0, "uuid_ascii"), (36, "uuid_utf16le")],
+        )
+
     def test_track_uuid_probe_profiles_trak_uuid_fields_without_values(self) -> None:
         identifier = uuid.UUID("00112233-4455-1677-8899-aabbccddeeff")
         payload = bytes(24) + identifier.bytes + bytes(18)

@@ -71,8 +71,20 @@ def selected_track_uuid(root: Any) -> uuid.UUID | None:
 def find_uuid_payload_matches(
     payload: bytes, chunk_stream: dict[str, Any], value: uuid.UUID
 ) -> list[dict[str, Any]]:
-    """Locate canonical and mixed-endian UUID bytes in bounded chunk payloads."""
-    encodings = (("uuid_bytes", value.bytes), ("uuid_bytes_le", value.bytes_le))
+    """Locate every common binary and text form in bounded chunk payloads."""
+    text_forms = (str(value), str(value).upper(), "{" + str(value) + "}", "{" + str(value).upper() + "}")
+    encodings = [
+        ("uuid_bytes", value.bytes),
+        ("uuid_bytes_le", value.bytes_le),
+    ]
+    for index, text in enumerate(text_forms):
+        label = ("uuid_ascii", "uuid_ascii_upper", "uuid_ascii_braced", "uuid_ascii_braced_upper")[index]
+        encoded = text.encode("ascii")
+        encodings.extend((
+            (label, encoded),
+            (label.replace("ascii", "utf16le"), text.encode("utf-16-le")),
+            (label.replace("ascii", "utf16be"), text.encode("utf-16-be")),
+        ))
     matches: list[dict[str, Any]] = []
     for chunk_index, chunk in enumerate(chunk_stream.get("chunks", [])):
         start = chunk["payload_offset"]
@@ -88,8 +100,11 @@ def find_uuid_payload_matches(
             raise BandFormatError("chunk payload lies outside the logic-song data")
         data = payload[start:start + size]
         for encoding, needle in encodings:
-            offset = data.find(needle)
-            if offset >= 0:
+            offset = -1
+            while True:
+                offset = data.find(needle, offset + 1)
+                if offset < 0:
+                    break
                 matches.append({
                     "chunk_index": chunk_index,
                     "chunk_type": chunk["type"],
@@ -134,6 +149,7 @@ def probe(path: str | Path) -> dict[str, Any]:
     if track_uuid is None:
         return {
             "selected_track_uuid_found": False,
+            "matching_occurrence_count": 0,
             "matching_chunk_count": 0,
             "matching_chunk_types": {},
             "matching_payload_sizes": [],
@@ -168,6 +184,7 @@ def probe(path: str | Path) -> dict[str, Any]:
     return {
         "selected_track_uuid_found": True,
         **trak_uuid_field_profile(payload, chunk_stream),
+        "matching_occurrence_count": len(matches),
         "matching_chunk_count": len(matched_chunks),
         "matching_chunk_types": {
             tag: sum(match["chunk_type"] == tag for match in matched_chunks.values())
