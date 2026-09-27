@@ -773,10 +773,10 @@ class ParserTests(unittest.TestCase):
             {"type_byte": 0x92, "length": 64, "group_id_candidate": 0x30000},
         ]
         chunks = [
-            {"type": "MSeq", "index": 4, "group_id_candidate": 0x10000},
-            {"type": "MSeq", "index": 5, "group_id_candidate": 0x20000},
-            {"type": "MSeq", "index": 6, "group_id_candidate": 0x30000},
-            {"type": "MSeq", "index": 7, "group_id_candidate": 0x30000},
+            {"type": "MSeq", "index": 4, "group_id_candidate": 0x10000, "payload_size": 307},
+            {"type": "MSeq", "index": 5, "group_id_candidate": 0x20000, "payload_size": 311},
+            {"type": "MSeq", "index": 6, "group_id_candidate": 0x30000, "payload_size": 309},
+            {"type": "MSeq", "index": 7, "group_id_candidate": 0x30000, "payload_size": 315},
         ]
         placements = [
             {"candidate_mseq_chunk_indices": [4], "source_chunk_index": 8, "source_event_index": 1},
@@ -784,7 +784,7 @@ class ParserTests(unittest.TestCase):
             {"candidate_mseq_chunk_indices": [6, 7], "source_chunk_index": 9, "source_event_index": 1},
         ]
 
-        report = profile_midi_event_families(records, chunks, placements)
+        report = profile_midi_event_families(records, chunks, placements, {0x10000})
 
         self.assertEqual(report["event_families"]["0x91"], {
             "record_count": 2,
@@ -794,6 +794,13 @@ class ParserTests(unittest.TestCase):
         })
         self.assertEqual(
             report["event_families"]["0x92"]["groups_with_one_MSeq_and_one_placement"], 0
+        )
+        self.assertEqual(
+            report["placed_mseq_clusters"]["payload_size_counts_by_event_presence"],
+            {
+                "both": {"group_count": 1, "payload_size_counts": {"307": 1}},
+                "opaque_family_only": {"group_count": 1, "payload_size_counts": {"311": 1}},
+            },
         )
         serialized = json.dumps(report)
         self.assertNotIn("65536", serialized)

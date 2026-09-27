@@ -858,3 +858,21 @@
 **Alternative considered:** A group may scope a larger serialized MIDI object cluster, with these records carrying region metadata or instrument state rather than musical events. Shared group-presence sets may reflect repeated serializer templates rather than matching semantic roles.
 
 **Next:** In a controlled one-note project, change pitch, velocity, onset, and duration individually. Compare which of these event families change and whether changes follow the note, its `MSeq`, or its placement. Repeat with a second track before assigning meanings.
+
+## MIDI-014 — compare placed MSeq sizes with event-family presence
+
+**Question:** Do MSeq chunk payload sizes differ between MIDI-placement groups with and without note-shaped or opaque `0x91`–`0x9e` events?
+
+**Fixtures:** The same two supplied GarageBand logic-song payloads used in EVT-005. No audio payloads were decoded or included.
+
+**Method:** Extended `research/scripts/midi_event_family_probe.py` to aggregate MSeq chunk payload sizes for uniquely linked MIDI-placement groups, partitioned by presence of `0x90` note candidates and `0x91`–`0x9e` event families. IDA MCP read the 8-byte payload-size fields at header offset `+0x1C` for all 19 linked MSeq chunks in one fixture and all 12 in the other; Python compared the values byte-for-byte.
+
+**Observation:** In the audio-bearing fixture, all 19 MIDI placements have unique MSeq links. Fourteen linked groups with neither event category have 309-byte MSeq payloads. Five groups have `0x91`–`0x9e` events: four opaque-family-only groups have payload sizes 311, 315, 317, and 317 bytes, and the group that also has the four `0x90` note candidates has a 307-byte payload. In the other fixture, all 12 placements have unique links; none has either event category, and all 12 linked MSeq payloads are 309 bytes. IDA and Python agree on all 31 size fields.
+
+**Result:** In these fixtures, a 309-byte MSeq payload co-occurs with placed groups lacking the observed note-shaped and `0x91`–`0x9e` events, while the groups containing those event types have other sizes. This is a reproducible structural correlation, not evidence that payload length encodes note count, region duration, or any particular property. The projects are not controlled variants.
+
+**Confidence:** CONFIRMED for linked payload sizes and event-presence counts in these two payloads, and IDA/Python agreement on the 31 size fields; HYPOTHESIS that the size variation reflects serialized MIDI content; UNKNOWN for the meaning of the bytes or length differences.
+
+**Alternative considered:** MSeq size may reflect instrument/program state, serializer options, or another project difference unrelated to musical note content. The placement and event candidates themselves also retain cross-format semantic uncertainty.
+
+**Next:** Create a project with one MIDI region, then add and remove one note without changing track, instrument, region placement, or duration. Compare the linked MSeq header size, full payload, and associated event families. Repeat by changing one note property at a time.
