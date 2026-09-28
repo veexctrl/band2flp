@@ -58,7 +58,7 @@ Extraction is explicit. It copies only uniquely matched AudioFiles references, g
 
 The command extracts uniquely matched audio into the new media folder, writes the FLP, and saves a JSON report beside it. Both output paths must be new. Without source-full, export rejects audio regions whose duration is unknown. Source-full estimates a placeholder length from the full source file.
 
-Keep the FLP and its referenced media together, or make sure the paths stored in the FLP still resolve on the target computer. The latest GUI check still reported audio-006.caf missing, so check the media directory before expecting playback.
+Keep the FLP and its referenced media together, or make sure the paths stored in the FLP still resolve on the target computer. The song's `audio-006.caf` exists at the path in the FLP, but its CAF header identifies AAC audio. FL Studio's documented sample formats do not list CAF, so this likely needs local transcoding to WAV before playback.
 
 ## Research and tests
 
