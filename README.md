@@ -20,7 +20,7 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
-- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. In a local FL Studio 25 check, this ordering change removed the invalid-clips warning and made clips visible in the arrangement. A fresh end-to-end export and media playback still need validation.
+- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. FL Studio 25 opened both the reordered song probe and a fresh two-source export without invalid-clip errors; clips appeared in the arrangement. The synthetic sources are intentionally silent. The private song still reports one missing CAF, and playback of its real media remains unverified.
 
 ## What is still being researched
 
