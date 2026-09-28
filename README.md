@@ -20,13 +20,13 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
-- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks that each sample path survives its PyFLP round-trip unchanged. User testing reports that candidates v4 through v10 and v12 trigger FL Studio 25's invalid-playlist-clips warning. Playlist-tail probes did not resolve it; the cause remains under investigation. The user also reports a missing audio file. Arrangement visibility and media playback are not verified.
+- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. In a local FL Studio 25 check, this ordering change removed the invalid-clips warning and made clips visible in the arrangement. A fresh end-to-end export and media playback still need validation.
 
 ## What is still being researched
 
 GarageBand audio-region duration, trimming, looping, stretching, source offsets, complete track identity, and mixer state are not recovered. MIDI pitch, velocity, onset, duration, and track assignment still need controlled GarageBand fixtures. Automation, sections, and tempo/meter changes are not reconstructed.
 
-The audio-only FLP exporter is experimental. When a region length is unknown, the default export stops with an error. The optional source-full policy uses the complete audio source length as an explicit placeholder; it does not reproduce GarageBand trims or loops. FL Studio 25 continues to report invalid playlist clips; the exporter’s FL Studio row mapping and media resolution remain under investigation.
+The audio-only FLP exporter is experimental. When a region length is unknown, the default export stops with an error. The optional source-full policy uses the complete audio source length as an explicit placeholder; it does not reproduce GarageBand trims or loops. FL Studio 25 loaded the channel-order probe without invalid playlist clips, but clip lengths can overlap and one private CAF source is still reported missing. Media resolution and playback remain under investigation.
 
 ## Install
 

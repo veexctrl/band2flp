@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-09-27",
+  "as_of": "2026-09-28",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -51,6 +51,6 @@
     {"name": "Audio source and start recovery", "state": "partial"},
     {"name": "MIDI interpretation", "state": "early"},
     {"name": "Region boundaries and track state", "state": "open"},
-    {"name": "FL Studio reconstruction", "state": "experimental"}
+    {"name": "FL Studio audio clip loading", "state": "partial"}
   ]
 }

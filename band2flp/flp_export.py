@@ -209,6 +209,79 @@ def _validate_sample_path_roundtrip(actual_path: str | Path | None, expected_pat
         raise FLPExportError("PyFLP round-trip changed an audio clip sample path")
 
 
+def _flp_event_spans(data: bytes) -> list[tuple[int, int, int, int]]:
+    """Return (ID, event start, payload start, event end) with bounded framing."""
+    if len(data) < 22 or data[:4] != b"FLhd" or data[14:18] != b"FLdt":
+        raise FLPExportError("invalid FLP header after serialization")
+    if struct.unpack_from("<I", data, 18)[0] != len(data) - 22:
+        raise FLPExportError("FLP event-data size differs from its header")
+    spans = []
+    offset = 22
+    while offset < len(data):
+        start = offset
+        event_id = data[offset]
+        offset += 1
+        if event_id < 64:
+            size = 1
+        elif event_id < 128:
+            size = 2
+        elif event_id < 192:
+            size = 4
+        else:
+            size = shift = 0
+            for _ in range(10):
+                if offset >= len(data):
+                    raise FLPExportError("truncated FLP event size")
+                byte = data[offset]
+                offset += 1
+                size |= (byte & 0x7f) << shift
+                if not byte & 0x80:
+                    break
+                shift += 7
+            else:
+                raise FLPExportError("invalid FLP event size")
+        payload_start = offset
+        if size > len(data) - offset:
+            raise FLPExportError("FLP event extends beyond its file")
+        offset += size
+        spans.append((event_id, start, payload_start, offset))
+    return spans
+
+
+def _place_audio_channels_before_playlist(data: bytes, expected_channels: int) -> bytes:
+    """Move PyFLP-appended channel blocks into the template's channel section."""
+    spans = _flp_event_spans(data)
+    playlist = [i for i, span in enumerate(spans) if span[0] == 233]
+    channels = [i for i, span in enumerate(spans) if span[0] == 64]
+    if len(playlist) != 1 or len(channels) != expected_channels or not channels or channels[0] >= playlist[0]:
+        raise FLPExportError("serialized FLP has an unexpected channel or playlist layout")
+    if expected_channels == 1:
+        return data
+    if any(i < playlist[0] for i in channels[1:]) or spans[-1][0] != 47:
+        raise FLPExportError("serialized FLP channel blocks do not match the supported template layout")
+    base_paths = [i for i in range(channels[0], playlist[0]) if spans[i][0] == 196]
+    if len(base_paths) != 1:
+        raise FLPExportError("serialized base audio channel has no unique sample path")
+    for start, end in zip(channels[1:], channels[2:] + [len(spans) - 1]):
+        block = spans[start:end]
+        if not block or block[-1][0] != 196 or sum(span[0] == 196 for span in block) != 1:
+            raise FLPExportError("serialized cloned channel block has an unexpected ending")
+    insertion = spans[base_paths[0]][3]
+    moved_start = spans[channels[1]][1]
+    moved_end = spans[-1][1]
+    if not insertion <= spans[playlist[0]][1] < moved_start < moved_end:
+        raise FLPExportError("serialized channel move offsets are out of order")
+    moved = data[moved_start:moved_end]
+    result = data[:insertion] + moved + data[insertion:moved_start] + data[moved_end:]
+    checked = _flp_event_spans(result)
+    new_playlist = [i for i, span in enumerate(checked) if span[0] == 233]
+    if len(result) != len(data) or len(new_playlist) != 1 or sum(
+        span[0] == 64 for span in checked[:new_playlist[0]]
+    ) != expected_channels:
+        raise FLPExportError("serialized channel move failed validation")
+    return result
+
+
 def export_flp(
     project: Project,
     *,
@@ -423,6 +496,7 @@ def export_flp(
         with tempfile.NamedTemporaryFile(prefix=".band2flp-", suffix=".json", dir=output.parent, delete=False) as temp:
             report_tmp = Path(temp.name)
         pyflp.save(fl_project, str(flp_tmp))
+        flp_tmp.write_bytes(_place_audio_channels_before_playlist(flp_tmp.read_bytes(), len(source_iid)))
         roundtrip = pyflp.parse(str(flp_tmp))
         clock_report = _validate_clock_roundtrip(roundtrip, project)
         channels_by_iid = {channel.iid: channel for channel in roundtrip.channels}

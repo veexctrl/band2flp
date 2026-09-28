@@ -22,6 +22,7 @@ from research.scripts.event_inventory import inventory_records
 from research.scripts.midi_event_family_probe import profile_midi_event_families
 from research.scripts.midi_event_variation_probe import profile_records as profile_midi_event_variation
 from research.scripts.flp_playlist_state_probe import parse_events as parse_flp_event_spans
+from research.scripts.flp_playlist_bisect_probe import keep_playlist_rows
 from research.scripts.midi_region_timing_probe import profile_record_relative_mseq_candidates
 from research.scripts.keyed_archive_inventory import profile_archive as profile_keyed_archive
 from research.scripts.mseq_probe import probe_logic_payload as probe_mseq_logic_payload, summarize_payloads
@@ -42,6 +43,7 @@ from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.flp_export import (
     _fl_playlist_track_index,
     _fl_track_event_storage_index,
+    _place_audio_channels_before_playlist,
     AudioInfo,
     FLPExportError,
     _beats_to_ticks,
@@ -902,6 +904,33 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn(b"abc", json.dumps(events).encode())
         with self.assertRaises(FLPExportError):
             parse_flp_event_spans(bytes(raw[:-1]))
+
+    def test_flp_playlist_bisect_preserves_selected_rows_and_other_events(self) -> None:
+        rows = [bytes([index]) * 80 for index in (1, 2, 3)]
+        payload = b"".join(rows)
+        event_data = bytes((5, 9, 233, 0xf0, 0x01)) + payload + bytes((7, 4))
+        source = b"FLhd" + bytes(10) + b"FLdt" + struct.pack("<I", len(event_data)) + event_data
+
+        result = keep_playlist_rows(source, (0, 2))
+        events = parse_flp_event_spans(result)
+        self.assertEqual([event["id"] for event in events], [5, 233, 7])
+        self.assertEqual(result[events[1]["payload_start"]:events[1]["end"]], rows[0] + rows[2])
+        self.assertEqual(result[events[0]["payload_start"]:events[0]["end"]], b"\x09")
+        self.assertEqual(result[events[2]["payload_start"]:events[2]["end"]], b"\x04")
+        with self.assertRaises(FLPExportError):
+            keep_playlist_rows(source, (1, 1))
+
+    def test_flp_export_places_cloned_channel_before_playlist(self) -> None:
+        event_data = bytes((64, 0, 0, 196, 1, 65, 233, 3)) + b"xyz" + bytes((64, 1, 0, 196, 1, 66, 47, 0))
+        source = b"FLhd" + bytes(10) + b"FLdt" + struct.pack("<I", len(event_data)) + event_data
+
+        result = _place_audio_channels_before_playlist(source, 2)
+        events = parse_flp_event_spans(result)
+        self.assertEqual([event["id"] for event in events], [64, 196, 64, 196, 233, 47])
+        self.assertEqual(result[events[4]["payload_start"]:events[4]["end"]], b"xyz")
+        self.assertEqual(len(result), len(source))
+        with self.assertRaises(FLPExportError):
+            _place_audio_channels_before_playlist(source, 3)
 
     def test_extracts_summary_fields_and_preserves_opaque_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

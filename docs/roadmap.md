@@ -7,7 +7,7 @@ This roadmap prioritizes faithful song structure over instrument recreation. It 
 - **Package parsing and inspection — working:** `.band` ZIP inventory, keyed-archive/project metadata, bounded logic-song chunk parsing, event records, raw unknown data, and JSON inspection are implemented.
 - **Audio arrangement — partial:** source references, audio placement candidates, and starts are exposed in the neutral model. Start decoding agrees with one arrangement preview. Region lengths, trims, loops, source offsets, and complete track identity remain unresolved.
 - **MIDI — early research:** MIDI placement candidates link to `MSeq` chunks, and note-shaped records are retained. EVT-005 found opaque `0x91`–`0x9e` families clustered with unique placement/`MSeq` candidates; EVT-006 profiles byte offsets that vary among grouped records and IDA cross-checks the four observed `0x90` records. These offsets are leads only: GarageBand-specific event meanings, note fields, position units, and track mapping lack controlled validation.
-- **FL Studio output (experimental):** audio-only FLP export and PyFLP round-trip checks work locally. FLP-025 found a stable two-event pre-playlist context in local FL Studio 25 references and generated local v13 to test it. Earlier candidates still triggered the invalid-playlist warning; v13 GUI acceptance, row visibility, and playback remain unverified.
+- **FL Studio output (experimental):** audio-only FLP export and PyFLP round-trip checks work locally. FLP-027 identified channel definitions appended after the playlist as the cause of the invalid-clips warning in the test project. Moving those definitions before the playlist let FL Studio 25 open local v19 and display clips. The exporter now applies that ordering; a fresh end-to-end GUI check, media resolution, and faithful clip lengths remain open.
 - **Track metadata — unresolved:** `AuCO` candidates resemble a broader channel-strip collection. TRK-004 rules out a one-to-one count mapping to arrange tracks in the two inspected projects; no specific candidate-to-track mapping is established.
 
 See [progress.json](progress.json) and [progress.svg](progress.svg) for the current rough estimate and its workstream breakdown.
@@ -58,6 +58,6 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 
 ## Immediate next work
 
-1. Test the local v13 pre-playlist-state probe in FL Studio 25; if it still warns, compare a minimal FL Studio-created audio clip against the generated channel and playlist relationships.
+1. Generate a fresh export with the channel-order fix and check it in FL Studio 25 for clip visibility, correct rows, and sample resolution.
 2. Resolve relative/absolute media path handling and verify playback without exposing or publishing private source audio.
 3. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. Continue to label fixture-dependent and cross-format observations as hypotheses.
