@@ -34,6 +34,7 @@
 - MIDI-004's raw `Trak` chunk-order comparison did not establish a direct mapping for `0x20 +0x14`; repeated chunk groups make ordinal equality insufficient.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
 - Whether an `AudioFiles` reference originated as imported audio, an Apple Loop, or audio used by a Live Loops cell. Successfully resolving a file reference and placing its audio does not preserve the library classification or prove cell/grid semantics; CAF metadata may also omit this information.
+- Whether `AuRg` payload `+0x8a..+0x91` and audio placement `+0x28..+0x2f` encode the same persistent region identity. CROSS-004 found three unique exact links in one fixture but nine zero region fields in another. The parser reports matches as candidates only; no duration or loop semantics follow from them.
 - Audio source references and region-to-media mapping.
 - Tempo and time-signature changes, sections, automation, fades, and region gain.
 - Whether output metadata and asset lists are complete, stale, or derived caches.
