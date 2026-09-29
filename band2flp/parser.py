@@ -494,7 +494,7 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
 def _parse_midi_note_candidates(
     event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Expose Logic-shaped note fields as candidates without assigning tracks/regions."""
+    """Expose note-shaped event-family fields without assigning tracks/regions."""
     mseq_groups: dict[int, list[int]] = {}
     for chunk in chunk_stream.get("chunks", []):
         if chunk.get("type") == "MSeq":
@@ -512,10 +512,10 @@ def _parse_midi_note_candidates(
     candidates: list[dict[str, Any]] = []
     for record in event_sequences.get("records", []):
         raw = bytes.fromhex(record["raw_hex"])
-        # Logic Pro's documented note event has this marker and these fields.
-        # GarageBand uses longer records in the inspected private fixture, so
-        # retain these interpretations as hypotheses rather than normalized notes.
-        if len(raw) < 32 or raw[0] != 0x90 or raw[0x17] != 0x89:
+        # The observed 0x90..0x9e family shares this marker and candidate
+        # field layout. These are not normalized MIDI notes without controlled
+        # GarageBand note-edit fixtures.
+        if len(raw) < 32 or not 0x90 <= raw[0] <= 0x9E or raw[0x17] != 0x89:
             continue
         group_id = record.get("group_id_candidate")
         mseq_indices = mseq_groups.get(group_id, [])
@@ -537,6 +537,7 @@ def _parse_midi_note_candidates(
                 "Candidate shared-MSeq link; note fields and GarageBand semantics remain unconfirmed"
             ),
             "event_size": len(raw),
+            "event_type_byte": raw[0],
             "position_raw": struct.unpack_from("<I", raw, 4)[0],
             "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
             "position_ticks_from_38400_candidate": struct.unpack_from("<I", raw, 4)[0] - 38_400,
