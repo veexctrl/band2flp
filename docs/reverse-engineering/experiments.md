@@ -925,3 +925,22 @@
 **Result and confidence:** Finite +0x1c values on the candidate grid are HIGH CONFIDENCE in these two fixtures. Duration semantics are only a HYPOTHESIS: most placements use the sentinel, including visible 16-beat clips. The parser preserves this word but does not set region duration. The projects are not controlled variants.
 
 **Next:** Make a single-source GarageBand fixture and change only region length twice. Compare +0x1c, the full placement record, related AuRg chunks, and preview boundaries before assigning duration semantics.
+
+
+## ARR-028 — repeated source-frame and placement-suffix links
+
+**Question:** Does the extended placement suffix correlate with same-source AuRg frame-count candidates, and can the local arrangement preview constrain those candidates?
+
+**Fixture:** One locally supplied audio-bearing project. Project title, source names, exact positions, preview image, and audio remain private.
+
+**Method:** Ran `audio_region_source_link_probe.py`, which aggregates source-frame relations and placement suffix matches without emitting paths, media names, raw values, or event bytes. Compared the candidate records with the local cached arrangement preview. The audio was not decoded or played.
+
+**Observation:** The fixture contains 10 recognized audio placements, three extended placement records, and six embedded sources with decodable frame counts. Two extended suffixes match same-source, filename-stem-matched AuRg candidates; each suffix matches two duplicate candidate records, while the third extended suffix has no match. The preview provides one boundary consistent with the retained tick candidate and another boundary consistent with the shorter frame candidate.
+
+**Result:** This repeats the suffix-to-source-associated-AuRg candidate correlation but still does not identify a unique region record or prove whether the value represents trim, source extent, loop length, or timeline duration. The visual matches are from one cached preview and do not replace a controlled edit.
+
+**Confidence:** HIGH CONFIDENCE in the aggregate candidate-match counts in this fixture; HYPOTHESIS that the shorter source-frame candidate represents a trimmed loop segment; UNKNOWN how its source-frame extent maps to GarageBand beats or tempo-following behavior.
+
+**Alternative considered:** Duplicate AuRg records may be serialized copies or separate region states; a suffix match can therefore be coincidental or refer to a different edit quantity. The cached preview may be stale.
+
+**Next:** Change only one region's trim or timeline length while holding its source and start fixed. Compare the two AuRg records, full placement event, and preview edge, then repeat with a second source.
