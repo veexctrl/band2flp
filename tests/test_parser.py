@@ -59,6 +59,7 @@ from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
     _match_audio_file_references,
+    _mseq_label_candidates,
     _parse_audio_placements,
     _parse_chunk_stream,
     _parse_event_sequences,
@@ -1055,6 +1056,22 @@ class ParserTests(unittest.TestCase):
         struct.pack_into("<Q", header, 28, 5)
         with self.assertRaises(BandFormatError):
             _parse_chunk_stream(bytes.fromhex("2347c0ab") + bytes(20) + bytes(header) + b"abc")
+
+    def test_mseq_length_framed_text_is_retained_as_a_candidate(self) -> None:
+        label = "Synth A".encode("utf-8")
+        region = bytearray(0x12 + len(label))
+        struct.pack_into("<H", region, 0x10, len(label))
+        region[0x12:] = label
+        payload = bytes.fromhex("2347c0ab") + bytes(20)
+        payload += make_chunk("MSeq", 0x00100000, bytes(region))
+        payload += make_chunk("MSeq", 0x00140000, bytes(0x12))
+        stream = _parse_chunk_stream(payload)
+        candidates = _mseq_label_candidates(payload, stream)
+        self.assertEqual(candidates[0]["length_at_0x10_candidate"], len(label))
+        self.assertEqual(candidates[0]["text_at_0x12_candidate"], "Synth A")
+        self.assertEqual(candidates[0]["status"], "candidate")
+        self.assertIn("role unknown", candidates[0]["interpretation"])
+        self.assertEqual(candidates[1]["status"], "empty")
 
     def test_audio_asset_match_correlates_shared_chunk_group(self) -> None:
         name = "loops/example.caf"
