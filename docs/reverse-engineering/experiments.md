@@ -945,3 +945,20 @@
 
 **Next:** Change only one region's trim or timeline length while holding its source and start fixed. Compare the two AuRg records, full placement event, and preview edge, then repeat with a second source.
 
+## AUD-001 — inventory CAF metadata chunks for explicit loop markers
+
+**Question:** Does a referenced CAF source carry an explicit standard-chunk marker that identifies it as a loop or provides tempo-following metadata?
+
+**Fixture:** One locally supplied CAF file. Project identifiers, source names, audio, and recording content remain private.
+
+**Method:** A small Python scan walked the CAF's 64-bit chunk lengths from the file header and verified that each chunk ended within the file and that the final chunk ended exactly at EOF. IDA MCP independently read the four-byte tag at each parser-computed chunk-header address. The file was not decoded or played. The scan examined chunk tags and selected metadata strings only; opaque chunk payloads were not interpreted.
+
+**Observation:** Both readers agree on nine chunks: `desc`, `kuki`, `pakt`, `free`, `data`, `info`, two `uuid` chunks, and `ovvw`. No `mark`, `inst`, or literal `loop` chunk is present. The opaque UUID metadata contains a generic beat-related string but no explicit tempo, BPM, loop, region, or stretch label.
+
+**Result:** The CAF is structurally readable and carries its encoded audio and codec/container metadata, but this file does not expose an explicit loop-classification or tempo-following marker in the inspected chunk tags or strings. Loop provenance may instead be represented in GarageBand project data or external library metadata. Absence of these literal tags does not disprove use as an Apple Loop or Live Loops source.
+
+**Confidence:** CONFIRMED for this file's chunk boundaries and tags, with independent Python/IDA agreement; UNKNOWN for UUID chunk semantics and the source's GarageBand library classification.
+
+**Alternative considered:** Loop state can be stored in the project or library while the CAF remains a generic audio container. Opaque UUID data may also encode metadata in a non-text form not recognized by this scan.
+
+**Next:** Compare a known ordinary audio region and a known Live Loops cell that reference the same controlled sound. Inspect both project data and media metadata for the changed identifiers and region/cell structures before assigning a class.
