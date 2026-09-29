@@ -162,6 +162,16 @@ def main(argv: list[str] | None = None) -> int:
         event_sequences = project.project_data.get("event_sequences")
         if event_sequences:
             print(f"Event records: {event_sequences['record_count']}")
+            status_families = Counter(
+                record["midi_status_candidate"]["family"]
+                for record in event_sequences["records"]
+                if "midi_status_candidate" in record
+            )
+            if status_families:
+                summary = ", ".join(
+                    f"{family}={count}" for family, count in sorted(status_families.items())
+                )
+                print(f"MIDI-status-shaped records: {summary} (interpretation unconfirmed)")
         midi_candidates = project.project_data.get("midi_note_event_candidates", [])
         if midi_candidates:
             print(
