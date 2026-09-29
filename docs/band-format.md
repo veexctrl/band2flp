@@ -24,6 +24,10 @@ The parser emits every observed tag, offset, payload size, and raw chunk-header 
 
 The supplied archive has nine members totaling 3,795,565 uncompressed bytes. They are `projectData`, package/plist metadata, cache metadata, and PNG images; none is a nested archive or recognized audio media file. The audio names and paths found in metadata and `AuFl` payloads therefore identify references available to the project, not audio payloads embedded in this `.band` file. Dragged-in GarageBand live loops may be resolved from a library outside the saved project package. This conclusion concerns the supplied archive only.
 
+## CAF source beat tags
+
+One embedded CAF in a separate private fixture carries a UUID chunk with NUL-delimited metadata keys for `beat count` and `time signature`. Its sample rate and valid-frame count support a source-tempo candidate. The parser preserves these tags on the media reference rather than treating them as region duration or a Live Loops cell flag. The measurements and limits are recorded without private source values in [AUD-002](reverse-engineering/caf-loop-metadata.md).
+
 ## Audio resource cross-links
 
 In this fixture, the six `AudioFiles` entries in `assetsmetadata.plist` each have one literal basename match in a UTF-16LE string inside one of six `AuFl` chunk payloads. Each matched `AuFl` and one or two candidate-related `AuRg` chunks share the same unsigned 32-bit little-endian value at chunk-header offset 8. The six values and same-value `AuRg` counts are:
