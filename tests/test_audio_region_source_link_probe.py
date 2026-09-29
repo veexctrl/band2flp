@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from research.scripts.audio_region_source_link_probe import profile_source_link_candidates
+from research.scripts.audio_region_source_link_probe import (
+    profile_candidate_region_payloads,
+    profile_region_placement_field_links,
+    profile_source_link_candidates,
+)
 
 
 class AudioRegionSourceLinkProbeTests(unittest.TestCase):
@@ -28,6 +32,55 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
 
         self.assertEqual(result["region_frame_candidate_relations"], {"source_length_unknown": 2})
         self.assertEqual(result["extended_placement_count"], 0)
+
+    def test_duplicate_frame_candidates_compare_payloads_without_exposing_bytes(self) -> None:
+        result = profile_candidate_region_payloads(
+            [(12, b"AAAA"), (12, b"BBBB"), (24, b"CCCC")],
+        )
+
+        self.assertEqual(result["repeated_frame_candidate_bucket_count"], 1)
+        self.assertEqual(result["repeated_frame_candidate_pair_count"], 1)
+        self.assertEqual(result["identical_payload_pair_count"], 0)
+        self.assertEqual(result["distinct_payload_pair_count"], 1)
+        self.assertEqual(result["unequal_payload_size_pair_count"], 0)
+        self.assertEqual(result["pair_byte_difference_counts"], {"4": 1})
+        self.assertNotIn("payload", result)
+        self.assertNotIn("bytes", result)
+
+    def test_equal_duplicate_payloads_are_not_reported_as_distinct(self) -> None:
+        result = profile_candidate_region_payloads(
+            [(12, b"same"), (12, b"same")]
+        )
+
+        self.assertEqual(result["identical_payload_pair_count"], 1)
+        self.assertEqual(result["distinct_payload_pair_count"], 0)
+
+    def test_fixed_field_link_is_counted_only_when_nonzero_and_unique(self) -> None:
+        first = bytes(0x8A) + b"AAAAGGGG"
+        second = bytes(0x8A) + b"BBBBGGGG"
+        unset = bytes(0x92)
+        first_placement = bytes(0x28) + b"AAAAGGGG"
+        second_placement = bytes(0x28) + b"BBBBGGGG"
+        result = profile_region_placement_field_links(
+            [first, second, unset], [first_placement, second_placement]
+        )
+
+        self.assertEqual(result["region_field_count"], 3)
+        self.assertEqual(result["zero_region_field_count"], 1)
+        self.assertEqual(result["nonzero_region_field_count"], 2)
+        self.assertEqual(result["same_source_field_match_count"], 2)
+        self.assertEqual(result["one_to_one_field_match_count"], 2)
+        self.assertNotIn("AAAAGGGG", str(result))
+
+    def test_repeated_placement_field_cannot_claim_one_to_one_link(self) -> None:
+        candidate = bytes(0x8A) + b"AAAAGGGG"
+        placement = bytes(0x28) + b"AAAAGGGG"
+        result = profile_region_placement_field_links(
+            [candidate], [placement, placement]
+        )
+
+        self.assertEqual(result["same_source_field_match_count"], 2)
+        self.assertEqual(result["one_to_one_field_match_count"], 0)
 
 
 if __name__ == "__main__":
