@@ -274,6 +274,48 @@ def _match_audio_file_references(
     return matched
 
 
+def _mseq_label_candidates(data: bytes, chunk_stream: dict[str, Any]) -> list[dict[str, Any]]:
+    """Preserve a length-framed MSeq string without assuming it names a track."""
+    candidates: list[dict[str, Any]] = []
+    for chunk in chunk_stream["chunks"]:
+        if chunk["type"] != "MSeq":
+            continue
+        start, size = chunk["payload_offset"], chunk["payload_size"]
+        payload = data[start:start + size]
+        if len(payload) < 0x12:
+            candidates.append({
+                "chunk_index": chunk["index"],
+                "group_id_candidate": chunk["group_id_candidate"],
+                "status": "payload_too_short",
+            })
+            continue
+        length = struct.unpack_from("<H", payload, 0x10)[0]
+        raw = payload[0x12:0x12 + length]
+        status = "empty" if length == 0 else "candidate"
+        label: str | None = None
+        if length > len(payload) - 0x12:
+            status = "out_of_bounds"
+        elif length > 0:
+            try:
+                decoded = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                status = "invalid_utf8"
+            else:
+                if decoded.isprintable():
+                    label = decoded
+                else:
+                    status = "nonprintable"
+        candidates.append({
+            "chunk_index": chunk["index"],
+            "group_id_candidate": chunk["group_id_candidate"],
+            "length_at_0x10_candidate": length,
+            "text_at_0x12_candidate": label,
+            "status": status,
+            "interpretation": "HYPOTHESIS: MSeq label; track/region/instrument role unknown",
+        })
+    return candidates
+
+
 def _media_references(
     assets: dict[str, Any], members: list[dict[str, Any]], audio_matches: list[dict[str, Any]]
 ) -> list[MediaReference]:
@@ -715,6 +757,9 @@ def parse_band(path: str | Path) -> Project:
                     except BandFormatError as exc:
                         project.warnings.append(f"Logic-song chunk stream was not decoded: {exc}")
                     else:
+                        project.project_data["mseq_label_candidates"] = _mseq_label_candidates(
+                            logic_payload, project.project_data["logic_song_chunk_stream"]
+                        )
                         try:
                             events = _parse_event_sequences(logic_payload, project.project_data["logic_song_chunk_stream"])
                         except BandFormatError as exc:
