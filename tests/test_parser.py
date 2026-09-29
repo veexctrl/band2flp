@@ -1060,9 +1060,10 @@ class ParserTests(unittest.TestCase):
         name = "loops/example.caf"
         payload = bytes.fromhex("2347c0ab") + bytes(20)
         payload += make_chunk("AuFl", 0x00100000, name.rsplit("/", 1)[-1].encode("utf-16le"))
-        region = bytearray(40)
+        region = bytearray(0x92)
         struct.pack_into("<I", region, 0x16, 1234)
         region[30:38] = b"example\x00"
+        region[0x8A:0x92] = b"ABCD\x10\x00\x00\x00"
         payload += make_chunk("AuRg", 0x00100000, bytes(region))
         payload += make_chunk("AuRg", 0x00100000, b"other\x00")
         payload += make_chunk("AuRg", 0x00140000, b"example\x00")
@@ -1073,6 +1074,10 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1, 2])
         self.assertEqual(matches[0]["name_matched_AuRg_chunk_indices"], [1])
         self.assertEqual(matches[0]["related_AuRg_metadata_candidates"][0]["payload_u32_at_0x16_candidate"], 1234)
+        self.assertEqual(
+            matches[0]["related_AuRg_metadata_candidates"][0]["payload_bytes_at_0x8a_candidate_hex"],
+            b"ABCD\x10\x00\x00\x00".hex(),
+        )
 
     def test_audio_placement_recovers_beats_track_and_external_source(self) -> None:
         event = bytearray(160)
@@ -1084,6 +1089,7 @@ class ParserTests(unittest.TestCase):
         struct.pack_into("<I", event, 0x1C, 122_880)
         event[0x17] = 0x89
         event[0x27] = 0xBC
+        event[0x28:0x2C] = b"ABCD"
         event[0x2C:0x30] = bytes.fromhex("14000000")
         event[0x37] = 0x8A
         event[0x47] = 0x89
@@ -1099,6 +1105,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(decoded[0]["start_beats"], "16")
         self.assertEqual(decoded[0]["track_number_1_based_candidate"], 3)
         self.assertEqual(decoded[0]["media_group_id_candidate"], 0x140000)
+        self.assertEqual(decoded[0]["bytes_at_0x28_candidate_hex"], b"ABCD\x14\x00\x00\x00".hex())
         self.assertEqual(decoded[0]["u32_at_0x18_candidate"], 0x12345678)
         self.assertEqual(decoded[0]["u32_at_0x1c_candidate"], 122_880)
         self.assertIn("not used as duration", decoded[0]["u32_at_0x1c_interpretation"])
@@ -1116,6 +1123,7 @@ class ParserTests(unittest.TestCase):
                 "payload_size": 230,
                 "filename_stem_matches": True,
                 "payload_u32_at_0x16_candidate": 0xC7,
+                "payload_bytes_at_0x8a_candidate_hex": b"ABCD\x14\x00\x00\x00".hex(),
             }],
         )])
         _attach_audio_placements(project, decoded)
@@ -1127,6 +1135,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(region.source, "loops/example.caf")
         self.assertEqual(region.unknown["candidate_region_chunk_indices_for_source"], [10])
         self.assertEqual(region.unknown["region_chunk_indices_matching_trailing_u32_candidate"], [10])
+        self.assertEqual(region.unknown["region_chunk_indices_matching_0x8a_to_0x28_candidate"], [10])
 
     def test_package_parse_builds_audio_track_and_region_from_placement(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
