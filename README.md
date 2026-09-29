@@ -20,13 +20,13 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
-- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. FL Studio 25 opened both the reordered song probe and a fresh two-source export without invalid-clip errors; clips appeared in the arrangement. The synthetic sources are intentionally silent. The private song still reports one missing CAF, and playback of its real media remains unverified.
+- Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. FL Studio 25 opened both the reordered song probe and a fresh two-source export without invalid-clip errors; clips appeared in the arrangement. The synthetic sources are intentionally silent. A local WAV-relinked probe now loads fully in FL Studio 25 according to the user; source identity and audible playback remain unverified, and no recording or generated media is in the repository.
 
 ## What is still being researched
 
 GarageBand audio-region duration, trimming, looping, stretching, source offsets, complete track identity, and mixer state are not recovered. MIDI pitch, velocity, onset, duration, and track assignment still need controlled GarageBand fixtures. Automation, sections, and tempo/meter changes are not reconstructed.
 
-The audio-only FLP exporter is experimental. When a region length is unknown, the default export stops with an error. The optional source-full policy uses the complete audio source length as an explicit placeholder; it does not reproduce GarageBand trims or loops. FL Studio 25 loaded the channel-order probe without invalid playlist clips, but clip lengths can overlap and one private CAF source is still reported missing. Media resolution and playback remain under investigation.
+The audio-only FLP exporter is experimental. When a region length is unknown, the default export stops with an error. The optional source-full policy uses the complete audio source length as an explicit placeholder; it does not reproduce GarageBand trims or loops. FL Studio 25 loaded the channel-order probe without invalid playlist clips. A later local WAV-relinked probe also loaded fully according to the user. Its WAV source was made from an accessible same-basename CAF copy, so identity with the exact referenced source is unconfirmed; no audio playback was checked. Clip lengths can overlap because GarageBand region timing is still unknown. All recordings and test media remain local.
 
 ## Install
 
@@ -165,3 +165,4 @@ Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`
 Cross-format research references include [loov/logicx](https://github.com/loov/logicx) and [Jon Kubis's LogicProFormatWriter format notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md). They document Logic Pro, so we use them as research leads and validate candidate meanings against GarageBand evidence. The band2flp implementation was written independently; no code was copied from these projects.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the research workflow and fixture privacy guidance, [docs/roadmap.md](docs/roadmap.md) for milestones, [docs/architecture.md](docs/architecture.md) for the parser/model/exporter boundary, [docs/band-format.md](docs/band-format.md) for observed format details, and [docs/flp-mapping.md](docs/flp-mapping.md) for FL Studio status.
+
