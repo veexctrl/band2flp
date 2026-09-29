@@ -1061,6 +1061,7 @@ class ParserTests(unittest.TestCase):
         payload = bytes.fromhex("2347c0ab") + bytes(20)
         payload += make_chunk("AuFl", 0x00100000, name.rsplit("/", 1)[-1].encode("utf-16le"))
         region = bytearray(0x92)
+        struct.pack_into("<I", region, 0x06, 300)
         struct.pack_into("<I", region, 0x16, 1234)
         region[30:38] = b"example\x00"
         region[0x8A:0x92] = b"ABCD\x10\x00\x00\x00"
@@ -1073,6 +1074,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(matches[0]["group_id_candidate"], 0x00100000)
         self.assertEqual(matches[0]["related_AuRg_chunk_indices"], [1, 2])
         self.assertEqual(matches[0]["name_matched_AuRg_chunk_indices"], [1])
+        self.assertEqual(matches[0]["related_AuRg_metadata_candidates"][0]["payload_u32_at_0x06_candidate"], 300)
         self.assertEqual(matches[0]["related_AuRg_metadata_candidates"][0]["payload_u32_at_0x16_candidate"], 1234)
         self.assertEqual(
             matches[0]["related_AuRg_metadata_candidates"][0]["payload_bytes_at_0x8a_candidate_hex"],
