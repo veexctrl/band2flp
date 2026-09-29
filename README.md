@@ -53,6 +53,8 @@ band2flp extract-audio path/to/project.band path/to/new-wav-folder --to-wav
 
 Extraction is explicit. It copies only uniquely matched AudioFiles references, gives the files generated names such as audio-001.caf, and writes a JSON mapping. Use `--to-wav` to ask a separately installed FFmpeg executable to convert the referenced media to 16-bit PCM WAV; pass `--transcoder path/to/ffmpeg` if it is not on `PATH`. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
 
+Extracting a referenced audio file recovers the media bytes, not its original GarageBand library classification. The current parser cannot yet tell whether a source was imported audio, an Apple Loop, or audio used by a Live Loops cell, and it does not reconstruct Live Loops cell/grid state.
+
 ## Export an experimental FLP
 
     band2flp export-flp path/to/project.band path/to/new-project.flp --template path/to/blank.flp --media-dir path/to/new-media-folder --length-policy source-full --to-wav
