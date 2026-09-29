@@ -933,7 +933,7 @@
 
 **Fixture:** One locally supplied audio-bearing project. Project title, source names, exact positions, preview image, and audio remain private.
 
-**Method:** Ran `audio_region_source_link_probe.py`, which aggregates source-frame relations and placement suffix matches without emitting paths, media names, raw values, or event bytes. Compared the candidate records with the local cached arrangement preview. The audio was not decoded or played.
+**Method:** Ran `audio_region_source_link_probe.py`, which aggregates source-frame relations and placement suffix matches without emitting paths, media names, raw values, or event bytes. Compared the candidate records with the local cached arrangement preview. IDA MCP independently read the four source-associated AuRg payloads at the parser-reported offsets, and their +0x16 candidate frame values matched Python. The CAF info chunk exposes no source-tempo or loop-control entry. The sole AppleLoops string in the keyed archive is the value for CurrentMediaImporterPage (UI state), so it does not establish CAF provenance. The audio was not decoded or played.
 
 **Observation:** The fixture contains 10 recognized audio placements, three extended placement records, and six embedded sources with decodable frame counts. Two extended suffixes match same-source, filename-stem-matched AuRg candidates; each suffix matches two duplicate candidate records, while the third extended suffix has no match. The preview provides one boundary consistent with the retained tick candidate and another boundary consistent with the shorter frame candidate.
 
@@ -944,3 +944,4 @@
 **Alternative considered:** Duplicate AuRg records may be serialized copies or separate region states; a suffix match can therefore be coincidental or refer to a different edit quantity. The cached preview may be stale.
 
 **Next:** Change only one region's trim or timeline length while holding its source and start fixed. Compare the two AuRg records, full placement event, and preview edge, then repeat with a second source.
+
