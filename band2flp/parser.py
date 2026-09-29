@@ -245,6 +245,10 @@ def _match_audio_file_references(
                     "chunk_index": region_index,
                     "payload_size": len(region_payload),
                     "filename_stem_matches": region_index in name_matched,
+                    "payload_u32_at_0x06_candidate": (
+                        struct.unpack_from("<I", region_payload, 0x06)[0]
+                        if len(region_payload) >= 0x0A else None
+                    ),
                     "payload_u32_at_0x16_candidate": (
                         struct.unpack_from("<I", region_payload, 0x16)[0]
                         if len(region_payload) >= 0x1A else None
