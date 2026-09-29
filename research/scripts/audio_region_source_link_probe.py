@@ -94,6 +94,44 @@ def profile_candidate_region_payloads(
     }
 
 
+def profile_source_frame_window_candidates(
+    source_frames: int | None, region_payloads: list[bytes]
+) -> dict[str, int]:
+    """Compare AuRg +0x06 and +0x16 words with source frames, without naming them."""
+    counts: collections.Counter[str] = collections.Counter()
+    pairs: list[tuple[int, int]] = []
+    for payload in region_payloads:
+        if len(payload) < 0x1A:
+            counts["too_short"] += 1
+            continue
+        first = int.from_bytes(payload[0x06:0x0A], "little")
+        second = int.from_bytes(payload[0x16:0x1A], "little")
+        pairs.append((first, second))
+        counts["candidate_pair_count"] += 1
+        counts["first_nonzero" if first else "first_zero"] += 1
+        if source_frames is None:
+            counts["source_length_unknown"] += 1
+        elif first + second == source_frames:
+            counts["sum_equals_source_frames"] += 1
+        else:
+            counts["sum_differs_from_source_frames"] += 1
+    zero_baselines = {second for first, second in pairs if first == 0}
+    if len(zero_baselines) == 1:
+        baseline = next(iter(zero_baselines))
+        for first, second in pairs:
+            if first == 0:
+                continue
+            relation = (
+                "equals" if first + second == baseline
+                else "below" if first + second < baseline
+                else "above"
+            )
+            counts[f"nonzero_sum_{relation}_zero_baseline"] += 1
+    elif any(first for first, _ in pairs):
+        counts["nonzero_without_unique_zero_baseline"] += sum(first != 0 for first, _ in pairs)
+    return dict(sorted(counts.items()))
+
+
 def profile_region_placement_field_links(
     region_payloads: list[bytes], placement_records: list[bytes]
 ) -> dict[str, Any]:
@@ -246,6 +284,11 @@ def probe_project(path: str | Path) -> dict[str, Any]:
             for key, value in link_report.items():
                 if key != "interpretation":
                     region_payload_aggregates[f"fixed_field_{key}"] += value
+            frame_window_report = profile_source_frame_window_candidates(
+                frames, [payload for _, payload in candidate_payloads]
+            )
+            for key, value in frame_window_report.items():
+                region_payload_aggregates[f"frame_window_{key}"] += value
 
     return {
         "audio_reference_count": audio_reference_count,
@@ -255,8 +298,8 @@ def probe_project(path: str | Path) -> dict[str, Any]:
         **dict(sorted(aggregates.items())),
         **dict(sorted(region_payload_aggregates.items())),
         "interpretation": (
-            "Aggregate only. Suffix and fixed-field equalities are candidate associations, "
-            "not proof of GarageBand object identity, duration, or loop semantics."
+            "Aggregate only. Suffix, fixed-field, and source-frame-sum equalities are candidates, "
+            "not proof of GarageBand object identity, source offset, duration, or loop semantics."
         ),
         "privacy_note": "Project paths, source names, raw values, event bytes, and audio are omitted.",
     }
