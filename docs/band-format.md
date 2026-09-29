@@ -49,6 +49,12 @@ The cross-format specification places an audio-region frame count at `AuRg` payl
 
 Position, track, and source-link recovery are HIGH CONFIDENCE for this fixture. The external Logic specification targets Logic Pro 11.2.2, so it is corroboration rather than proof of universal GarageBand behavior. The parser exposes the placements as audio regions with exact beat-string starts and external source references. It does not yet decode arrangement duration, source offset, trim, loop, mute, or track names/settings. Unknown event suffix bytes remain in the raw project data and are also attached to their neutral regions; the candidate frame-count correlation is diagnostic only.
 
+## Additional audio timing and link candidates
+
+ARR-027 found that finite nonzero values at audio placement event offset `+0x1c` lie on the candidate 960-tick grid in two fixtures. One value matches a preview-measured 128-beat clip, while most placements carry `0x3fffffff`, including visible 16-beat clips. The parser retains the word as a candidate and does not treat it as a duration.
+
+CROSS-004 found a separate candidate relation. In one audio-bearing fixture, three nonzero eight-byte values at filename-matched `AuRg` payload offset `+0x8a` each match exactly one same-source `0x24` placement's bytes at event `+0x28..+0x2f`. The last four bytes overlap the already known audio-source link at `+0x2c`. One additional region field is zero. In another fixture, all nine examined `AuRg +0x8a` fields are zero. The parser exposes exact nonzero matches as candidate region chunk indices in the neutral region's unknown data; it does not assign duration, trim, loop, or source offset from this relation. Controlled edits are needed to establish the field's GarageBand meaning.
+
 ## MIDI placement and region candidates
 
 Two locally inspected projects contain 80-byte `0x20` `EvSq` records with marker bytes `89 88 8A 88` at event offsets `+0x17`, `+0x27`, `+0x37`, and `+0x47`. In both, the little-endian value at event `+0x20`, shifted left 16 bits, matches a chunk-header group value belonging to exactly one `MSeq` chunk for each recognized placement. This is HIGH CONFIDENCE for the cluster-to-`MSeq` relation in those fixtures and agrees with the [Logic Pro MIDI placement description](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#L630-L635).
