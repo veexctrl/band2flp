@@ -16,8 +16,8 @@ def fixture(fields: dict[str, str], *, uuid: bytes = LOOP_METADATA_UUID) -> byte
         key.encode() + b"\0" + value.encode() + b"\0"
         for key, value in fields.items()
     )
-    desc = struct.pack(">d", 44100) + b"aac " + bytes(20)
-    pakt = (1).to_bytes(8, "big") + (302400).to_bytes(8, "big") + bytes(8)
+    desc = struct.pack(">d", 48000) + b"aac " + bytes(20)
+    pakt = (1).to_bytes(8, "big") + (192000).to_bytes(8, "big") + bytes(8)
     return (
         b"caff\0\x01\0\0"
         + chunk(b"desc", desc)
@@ -29,19 +29,19 @@ def fixture(fields: dict[str, str], *, uuid: bytes = LOOP_METADATA_UUID) -> byte
 
 class CafMetadataTests(unittest.TestCase):
     def test_source_beat_count_and_tempo_candidate(self) -> None:
-        data = fixture({"time signature": "4/4", "beat count": "8", "category": "Drums"})
+        data = fixture({"time signature": "4/4", "beat count": "4", "category": "Drums"})
         result = inspect_caf_loop_metadata(BytesIO(data))
         assert result is not None
-        self.assertEqual(result["beat_count"], 8)
-        self.assertEqual(result["source_tempo_bpm_from_frames_candidate"], 70)
+        self.assertEqual(result["beat_count"], 4)
+        self.assertEqual(result["source_tempo_bpm_from_frames_candidate"], 60)
         self.assertEqual(result["fields"]["time signature"], "4/4")
         self.assertNotIn("arrangement_loop", result)
 
     def test_unknown_uuid_is_not_interpreted(self) -> None:
-        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(fixture({"beat count": "8"}, uuid=bytes(16)))))
+        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(fixture({"beat count": "4"}, uuid=bytes(16)))))
 
     def test_malformed_pair_count_is_rejected(self) -> None:
-        data = fixture({"beat count": "8"}).replace(
+        data = fixture({"beat count": "4"}).replace(
             LOOP_METADATA_UUID + (1).to_bytes(4, "big"),
             LOOP_METADATA_UUID + (2).to_bytes(4, "big"),
         )
