@@ -28,6 +28,28 @@ class Track:
 
 
 @dataclass
+class MidiNoteCandidate:
+    onset_beats_candidate: str
+    duration_beats_candidate: str
+    pitch_candidate: int
+    velocity_candidate: int
+    channel_1_based_candidate: int
+    source_chunk_index: int
+    source_event_index: int
+
+
+@dataclass
+class UnplacedMidiRegionCandidate:
+    start_beats_candidate: str
+    label_candidate: str | None
+    notes: list[MidiNoteCandidate]
+    source_mseq_chunk_index: int
+    source_placement_chunk_index: int
+    source_placement_event_index: int
+    unknown: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class MediaReference:
     index: int
     category: str
@@ -52,6 +74,7 @@ class Project:
     duration_value: float | None = None
     declared_track_count: int | None = None
     tracks: list[Track] = field(default_factory=list)
+    unplaced_midi_regions: list[UnplacedMidiRegionCandidate] = field(default_factory=list)
     media_references: list[MediaReference] = field(default_factory=list)
     package_members: list[dict[str, Any]] = field(default_factory=list)
     project_data: dict[str, Any] = field(default_factory=dict)
