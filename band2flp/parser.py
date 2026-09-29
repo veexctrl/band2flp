@@ -515,7 +515,7 @@ def _parse_midi_note_candidates(
         # The observed 0x90..0x9e family shares this marker and candidate
         # field layout. These are not normalized MIDI notes without controlled
         # GarageBand note-edit fixtures.
-        if len(raw) < 32 or not 0x90 <= raw[0] <= 0x9E or raw[0x17] != 0x89:
+        if len(raw) < 32 or not 0x90 <= raw[0] <= 0x9F or raw[0x17] != 0x89:
             continue
         group_id = record.get("group_id_candidate")
         mseq_indices = mseq_groups.get(group_id, [])
@@ -538,6 +538,7 @@ def _parse_midi_note_candidates(
             ),
             "event_size": len(raw),
             "event_type_byte": raw[0],
+            "midi_channel_1_based_candidate": (raw[0] & 0x0F) + 1,
             "position_raw": struct.unpack_from("<I", raw, 4)[0],
             "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
             "position_ticks_from_38400_candidate": struct.unpack_from("<I", raw, 4)[0] - 38_400,
@@ -700,8 +701,19 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
     project.tracks = [tracks[index] for index in sorted(tracks)]
 
 
+_MIDI_CHANNEL_VOICE_FAMILIES = {
+    0x80: "note_off",
+    0x90: "note_on",
+    0xA0: "polyphonic_key_pressure",
+    0xB0: "control_change",
+    0xC0: "program_change",
+    0xD0: "channel_pressure",
+    0xE0: "pitch_bend",
+}
+
+
 def _event_record(chunk: dict[str, Any], event_index: int, payload_start: int, relative_start: int, raw: bytes) -> dict[str, Any]:
-    return {
+    record = {
         "chunk_index": chunk["index"],
         "chunk_offset": chunk["offset"],
         "group_id_candidate": chunk["group_id_candidate"],
@@ -711,6 +723,14 @@ def _event_record(chunk: dict[str, Any], event_index: int, payload_start: int, r
         "length": len(raw),
         "raw_hex": raw.hex(),
     }
+    family = _MIDI_CHANNEL_VOICE_FAMILIES.get(raw[0] & 0xF0)
+    if family is not None:
+        record["midi_status_candidate"] = {
+            "family": family,
+            "channel_1_based": (raw[0] & 0x0F) + 1,
+            "confidence": "HYPOTHESIS: first record byte matches a MIDI 1.0 channel-voice status; wrapper fields are not decoded",
+        }
+    return record
 
 
 def parse_band(path: str | Path) -> Project:
