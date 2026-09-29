@@ -25,7 +25,7 @@
       "name": "Region lengths, trims, loops, and offsets",
       "weight": 17,
       "recovered": 10,
-      "basis": "Preview boundaries constrain some lengths, but serialized duration and edit fields remain unidentified."
+      "basis": "Preview boundaries constrain some lengths. ARR-027 found an unconfirmed audio-placement +0x1c word on a 960-tick grid that matches one 128-beat preview length; duration, sentinel, trim, and loop semantics remain unresolved."
     },
     {
       "name": "MIDI placement and note semantics",
@@ -61,7 +61,7 @@
     },
     {
       "name": "Region boundaries and track state",
-      "state": "open"
+      "state": "open: +0x1c tick-grid candidate; duration meaning unconfirmed"
     },
     {
       "name": "FL Studio audio clip loading",
@@ -69,4 +69,3 @@
     }
   ]
 }
-

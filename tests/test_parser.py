@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 16323)
-Total output lines: 1320
-
 from __future__ import annotations
 
 import json
@@ -22,6 +19,7 @@ from research.scripts.auco_probe import probe_logic_payload
 from research.scripts.audio_frame_probe import audio_frame_count, audio_sample_rate
 from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.audio_track_index_probe import profile_audio_track_indices
+from research.scripts.audio_placement_timing_probe import profile_candidates as profile_audio_timing_candidates
 from research.scripts.binary_diff import compare, load_component
 from research.scripts.event_inventory import inventory_records
 from research.scripts.midi_event_family_probe import profile_midi_event_families
@@ -372,6 +370,23 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(report["audio_track_index_max"], 3)
         self.assertTrue(report["all_audio_indices_below_declared_count"])
 
+    def test_audio_placement_timing_probe_profiles_unknown_word_without_semantics(self) -> None:
+        report = profile_audio_timing_candidates([
+            {"u32_at_0x1c_candidate": 122_880},
+            {"u32_at_0x1c_candidate": 0x3FFFFFFF},
+            {"u32_at_0x1c_candidate": 30_720},
+            {"u32_at_0x1c_candidate": 17},
+            {"other": "ignored"},
+        ])
+
+        self.assertEqual(report["placement_count"], 5)
+        self.assertEqual(report["candidate_count"], 4)
+        self.assertEqual(report["sentinel_count"], 1)
+        self.assertEqual(report["finite_nonzero_count"], 3)
+        self.assertEqual(report["finite_values_on_960_tick_grid"], 2)
+        self.assertIn("UNKNOWN", report["interpretation"])
+        self.assertNotIn("path", report)
+
     def test_arrange_ui_probe_reports_inspector_shape_without_values(self) -> None:
         objects = [
             "$null",
@@ -703,13 +718,32 @@ class ParserTests(unittest.TestCase):
         fmt = struct.pack("<HHIIHH", 1, 2, 44_100, 176_400, 4, 16)
         data = bytes(40)
         body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt
-        body += b"data" + struct.p…323 tokens truncated…f += b"desc" + struct.pack(">q", len(description)) + description
-        caf += b"data" + struct.pack(">q", len(audio_data)) + audio_data
-        self.assertEqual(audio_frame_count(caf), (10, "CAF-fixed-packet"))
-        self.assertEqual(audio_sample_rate(caf), 44_100)
+        body += b"data" + struct.pack("<I", len(data)) + data
+        wave = b"RIFF" + struct.pack("<I", len(body)) + body
+        self.assertEqual(audio_frame_count(wave), (10, "WAVE"))
+        self.assertEqual(audio_sample_rate(wave), 44_100)
 
-    def test_binary_diff_loads_a_unique_zip_member(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+    def test_audio_frame_probe_reads_aiff_comm_count(self) -> None:
+        comm = struct.pack(">HIH", 2, 1234, 16) + bytes.fromhex("400eac44000000000000")
+        body = b"AIFF" + b"COMM" + struct.pack(">I", len(comm)) + comm
+        aiff = b"FORM" + struct.pack(">I", len(body)) + body
+        self.assertEqual(audio_frame_count(aiff), (1234, "AIFF"))
+        self.assertEqual(audio_sample_rate(aiff), 44_100)
+
+    def test_audio_frame_probe_reads_caf_valid_frame_count(self) -> None:
+        packet_table = struct.pack(">qqii", 100, 9876, 0, 0)
+        caf = b"caff" + struct.pack(">HH", 1, 0)
+        caf += b"pakt" + struct.pack(">q", len(packet_table)) + packet_table
+        self.assertEqual(audio_frame_count(caf), (9876, "CAF-packet-table"))
+        self.assertEqual(audio_sample_rate(caf), None)
+
+    def test_audio_frame_probe_reads_caf_fixed_packet_count(self) -> None:
+        description = struct.pack(">d4sIIIII", 44_100.0, b"lpcm", 0, 2, 1, 2, 16)
+        audio_data = struct.pack(">I", 0) + bytes(20)
+        caf = b"caff" + struct.pack(">HH", 1, 0)
+        caf += b"desc" + struct.pack(">q", len(description)) + description
+        caf += b"data" + struct.pack(">q", len(audio_data)) + audio_data
+        self.assertEqual(audio_frame_count(caf), (10, "CAF-fixed-pack…38 tokens truncated…mpfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.band"
             make_fixture(fixture)
             data, member = load_component(fixture, "/projectData")
@@ -1084,6 +1118,7 @@ class ParserTests(unittest.TestCase):
         struct.pack_into("<I", event, 0x10, 0x70)
         event[0x14] = 3
         struct.pack_into("<I", event, 0x18, 0x12345678)
+        struct.pack_into("<I", event, 0x1C, 122_880)
         event[0x17] = 0x89
         event[0x27] = 0xBC
         event[0x2C:0x30] = bytes.fromhex("14000000")
@@ -1103,6 +1138,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(decoded[0]["media_group_id_candidate"], 0x140000)
         self.assertEqual(decoded[0]["u32_at_0x18_candidate"], 0x12345678)
         self.assertIn("not used as duration", decoded[0]["u32_at_0x18_interpretation"])
+        self.assertEqual(decoded[0]["u32_at_0x1c_candidate"], 122_880)
+        self.assertIn("not used as duration", decoded[0]["u32_at_0x1c_interpretation"])
         self.assertEqual(decoded[0]["trailing_event_data_hex"], (bytes([0xC7]) + bytes(79)).hex())
 
         project = Project(media_references=[MediaReference(
@@ -1124,6 +1161,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(region.name, "example")
         self.assertEqual(region.start_beats, "16")
         self.assertIsNone(region.duration_beats)
+        self.assertEqual(region.unknown["placement"]["u32_at_0x1c_candidate"], 122_880)
         self.assertEqual(region.source, "loops/example.caf")
         self.assertEqual(region.unknown["candidate_region_chunk_indices_for_source"], [10])
         self.assertEqual(region.unknown["region_chunk_indices_matching_trailing_u32_candidate"], [10])
@@ -1297,4 +1335,3 @@ class ParserTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

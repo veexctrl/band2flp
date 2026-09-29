@@ -97,94 +97,7 @@ def _keyed_archive_summary(archive: Any) -> dict[str, Any]:
     objects = archive["$objects"]
     class_names: list[str] = []
     for item in objects:
-        if isinstance(item, dict) and isinstance(item.get("$classname"), str):
-            class_names.append(item["$classname"])
-
-    blobs: list[dict[str, Any]] = []
-    for index, item in enumerate(objects):
-        if isinstance(item, dict):
-            data = item.get("NS.data")
-            if isinstance(data, bytes):
-                blobs.append({
-                    "object_index": index,
-                    "length": len(data),
-                    "sha256": hashlib.sha256(data).hexdigest(),
-                    "prefix_hex": data[:24].hex(),
-                    # Retain the uninterpreted bytes so later format work can use them.
-                    "base64": base64.b64encode(data).decode("ascii"),
-                })
-
-    top = archive.get("$top")
-    top_keys = sorted(top) if isinstance(top, dict) else []
-    return {
-        "recognized": archive.get("$archiver") == "NSKeyedArchiver",
-        "archiver": archive.get("$archiver"),
-        "version": archive.get("$version"),
-        "top_level_keys": top_keys,
-        "class_names": class_names,
-        "opaque_data_objects": blobs,
-    }
-
-
-def _archive_plist_with_blob_references(archive: dict[str, Any]) -> Any:
-    """Preserve plist fields while keeping large NSData bytes in one JSON location."""
-    objects = archive.get("$objects")
-    if not isinstance(objects, list):
-        return _json_safe(archive)
-    safe_objects = []
-    for index, item in enumerate(objects):
-        if isinstance(item, dict) and isinstance(item.get("NS.data"), bytes):
-            safe_item = {key: _json_safe(value) for key, value in item.items() if key != "NS.data"}
-            blob = item["NS.data"]
-            safe_item["NS.data"] = {
-                "opaque_data_object_index": index,
-                "length": len(blob),
-                "sha256": hashlib.sha256(blob).hexdigest(),
-            }
-            safe_objects.append(safe_item)
-        else:
-            safe_objects.append(_json_safe(item))
-    result = {key: _json_safe(value) for key, value in archive.items() if key != "$objects"}
-    result["$objects"] = safe_objects
-    return result
-
-
-def _parse_chunk_stream(data: bytes) -> dict[str, Any]:
-    """Split a validated Logic-family chunk stream while preserving raw headers."""
-    if len(data) < 24 or data[:4] != bytes.fromhex("2347c0ab"):
-        raise BandFormatError("logic-song data lacks the observed 24-byte chunk-stream header")
-    chunks: list[dict[str, Any]] = []
-    offset = 24
-    while offset < len(data):
-        remaining = len(data) - offset
-        if remaining < 36:
-            raise BandFormatError(f"truncated chunk header at logic-song offset {offset}")
-        header = data[offset:offset + 36]
-        payload_size = struct.unpack_from("<Q", header, 28)[0]
-        if payload_size > remaining - 36:
-            raise BandFormatError(f"chunk payload exceeds logic-song bounds at offset {offset}")
-        raw_tag = header[:4]
-        type_bytes = raw_tag[::-1]
-        chunk_type = type_bytes.decode("ascii") if all(0x20 <= byte <= 0x7e for byte in type_bytes) else None
-        payload_start = offset + 36
-        chunks.append({
-            "index": len(chunks),
-            "offset": offset,
-            "type": chunk_type,
-            "raw_type_hex": raw_tag.hex(),
-            "group_id_candidate": struct.unpack_from("<I", header, 8)[0],
-            "opaque_header_fields_hex": header[4:28].hex(),
-            "payload_size": payload_size,
-            "payload_offset": payload_start,
-            "header_hex": header.hex(),
-        })
-        offset = payload_start + payload_size
-    if offset != len(data):
-        raise BandFormatError("chunk stream does not end at the logic-song data boundary")
-    counts: dict[str, int] = {}
-    for chunk in chunks:
-        label = chunk["type"] if chunk["type"] is not None else f"raw:{chunk['raw_type_hex']}"
-        counts[label] = counts.get(label, 0) + 1
+        if isinstance(item, dict) and is…1014 tokens truncated…ts.get(label, 0) + 1
     return {
         "header_hex": data[:24].hex(),
         "header_size": 24,
@@ -407,6 +320,11 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
             "u32_at_0x18_candidate": struct.unpack_from("<I", raw, 0x18)[0],
             "u32_at_0x18_interpretation": "UNKNOWN; preserved as a raw candidate, not used as duration or end position",
+            "u32_at_0x1c_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
+            "u32_at_0x1c_interpretation": (
+                "UNKNOWN; some finite values align to the candidate 960-PPQ grid and one matches a preview-measured extent; "
+                "duration/end-position semantics and the 0x3FFFFFFF sentinel are unresolved; not used as duration"
+            ),
         })
     return placements
 
