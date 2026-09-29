@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import io
+from contextlib import redirect_stdout
 from types import SimpleNamespace
 import plistlib
 import subprocess
@@ -41,6 +42,7 @@ from research.scripts.trak_group_probe import summarize_trak_groups
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
+from band2flp.cli import main as cli_main
 from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.flp_export import (
     _fl_playlist_track_index,
@@ -1196,6 +1198,23 @@ class ParserTests(unittest.TestCase):
             )
         self.assertIn("candidate beat starts", result.stdout)
         self.assertIn("not validated for this project", result.stdout)
+
+    def test_text_inspection_summarizes_candidate_midi_status_families(self) -> None:
+        project = Project()
+        project.project_data["event_sequences"] = {
+            "record_count": 3,
+            "records": [
+                {"midi_status_candidate": {"family": "note_on"}},
+                {"midi_status_candidate": {"family": "note_on"}},
+                {"midi_status_candidate": {"family": "pitch_bend"}},
+            ],
+        }
+        output = io.StringIO()
+        with patch("band2flp.cli.parse_band", return_value=project), redirect_stdout(output):
+            result = cli_main(["inspect", "synthetic.band"])
+        self.assertEqual(result, 0)
+        self.assertIn("MIDI-status-shaped records: note_on=2, pitch_bend=1", output.getvalue())
+        self.assertIn("interpretation unconfirmed", output.getvalue())
 
     def test_midi_note_fields_are_exposed_as_unconfirmed_candidates(self) -> None:
         note = bytearray(80)
