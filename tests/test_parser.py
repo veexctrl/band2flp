@@ -64,6 +64,7 @@ from band2flp.parser import (
     _parse_audio_placements,
     _parse_chunk_stream,
     _parse_event_sequences,
+    _event_record,
     _parse_midi_note_candidates,
     _parse_midi_region_placement_candidates,
     parse_band,
@@ -1278,10 +1279,29 @@ class ParserTests(unittest.TestCase):
             {"records": records}, {"chunks": [{"type": "MSeq", "index": 2, "group_id_candidate": 0x10000}]}
         )
 
-        self.assertEqual([item["event_type_byte"] for item in candidates], [0x90, 0x91, 0x9E])
-        self.assertEqual([item["pitch_candidate"] for item in candidates], [60, 61, 62])
+        self.assertEqual([item["event_type_byte"] for item in candidates], [0x90, 0x91, 0x9E, 0x9F])
+        self.assertEqual([item["midi_channel_1_based_candidate"] for item in candidates], [1, 2, 15, 16])
+        self.assertEqual([item["pitch_candidate"] for item in candidates], [60, 61, 62, 63])
         self.assertTrue(all(item["position_scope_candidate"] == "unknown" for item in candidates))
         self.assertTrue(all("HYPOTHESIS" in item["field_interpretation_confidence"] for item in candidates))
+
+    def test_event_record_labels_midi_status_shapes_as_candidates(self) -> None:
+        chunk = {"index": 2, "offset": 100, "group_id_candidate": 0}
+        expected = {
+            0x90: ("note_on", 1),
+            0x9F: ("note_on", 16),
+            0xB0: ("control_change", 1),
+            0xD1: ("channel_pressure", 2),
+            0xEE: ("pitch_bend", 15),
+        }
+        for status, (family, channel) in expected.items():
+            record = _event_record(chunk, 0, 136, 0, bytes([status]) + bytes(15))
+            self.assertEqual(record["midi_status_candidate"]["family"], family)
+            self.assertEqual(record["midi_status_candidate"]["channel_1_based"], channel)
+            self.assertIn("HYPOTHESIS", record["midi_status_candidate"]["confidence"])
+        self.assertNotIn(
+            "midi_status_candidate", _event_record(chunk, 0, 136, 0, bytes([0x20]) + bytes(15))
+        )
 
     def test_midi_placement_cluster_links_to_candidate_mseq_group(self) -> None:
         event = bytearray(80)
