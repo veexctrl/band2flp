@@ -33,11 +33,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     extract_audio.add_argument("project", help="GarageBand .band package")
     extract_audio.add_argument("output_dir", help="new directory for the extracted audio files")
+    extract_audio.add_argument(
+        "--to-wav", action="store_true",
+        help="transcode referenced audio to 16-bit PCM WAV with FFmpeg",
+    )
+    extract_audio.add_argument(
+        "--transcoder", default="ffmpeg",
+        help="FFmpeg executable name or path used with --to-wav (default: ffmpeg)",
+    )
     export = subparsers.add_parser("export-flp", help="export recovered audio starts to an FL Studio project")
     export.add_argument("project", help="GarageBand .band package")
     export.add_argument("output", help="new FL Studio .flp output path")
     export.add_argument("--template", required=True, help="path to a blank FL Studio project template")
     export.add_argument("--media-dir", required=True, help="new directory for referenced audio used by the FLP")
+    export.add_argument(
+        "--to-wav", action="store_true",
+        help="transcode referenced audio to 16-bit PCM WAV with FFmpeg before linking it",
+    )
+    export.add_argument(
+        "--transcoder", default="ffmpeg",
+        help="FFmpeg executable name or path used with --to-wav (default: ffmpeg)",
+    )
     export.add_argument(
         "--length-policy", choices=("reject-unknown", "source-full"), default="reject-unknown",
         help="reject unknown region lengths, or use full source-file lengths as explicit placeholders",
@@ -46,7 +62,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "extract-audio":
-            report = extract_referenced_audio(args.project, args.output_dir)
+            report = extract_referenced_audio(
+                args.project,
+                args.output_dir,
+                to_wav=args.to_wav,
+                transcoder=args.transcoder,
+            )
             _print_json(report)
             return 0
         project = parse_band(args.project)
@@ -59,7 +80,12 @@ def main(argv: list[str] | None = None) -> int:
                     "GarageBand audio region lengths are unknown; rerun with --length-policy source-full "
                     "to use full-source placeholders explicitly"
                 )
-            extraction = extract_referenced_audio(args.project, args.media_dir)
+            extraction = extract_referenced_audio(
+                args.project,
+                args.media_dir,
+                to_wav=args.to_wav,
+                transcoder=args.transcoder,
+            )
             media_root = Path(args.media_dir).expanduser().resolve()
             media_by_reference = {
                 entry["reference"]: media_root / entry["file"]
@@ -166,3 +192,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

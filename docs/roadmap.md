@@ -7,7 +7,7 @@ This roadmap prioritizes faithful song structure over instrument recreation. It 
 - **Package parsing and inspection — working:** `.band` ZIP inventory, keyed-archive/project metadata, bounded logic-song chunk parsing, event records, raw unknown data, and JSON inspection are implemented.
 - **Audio arrangement — partial:** source references, audio placement candidates, and starts are exposed in the neutral model. Start decoding agrees with one arrangement preview. Region lengths, trims, loops, source offsets, and complete track identity remain unresolved.
 - **MIDI — early research:** MIDI placement candidates link to `MSeq` chunks, and note-shaped records are retained. EVT-005 found opaque `0x91`–`0x9e` families clustered with unique placement/`MSeq` candidates; EVT-006 profiles byte offsets that vary among grouped records and IDA cross-checks the four observed `0x90` records. These offsets are leads only: GarageBand-specific event meanings, note fields, position units, and track mapping lack controlled validation.
-- **FL Studio output (experimental):** audio-only FLP export and PyFLP round-trip checks work locally. FLP-027 identified channel definitions appended after the playlist as the cause of the invalid-clips warning in the test project. Both the reordered song probe and a fresh two-source exporter output opened in FL Studio 25 with clips visible. A WAV relink from a CAF byte-matched to the supplied project archive loads fully in FL Studio 25 according to the user. Playback remains unverified, and full-source placeholder lengths remain unresolved.
+- **FL Studio output (experimental):** audio-only FLP export and PyFLP round-trip checks work locally. FLP-027 identified channel definitions appended after the playlist as the cause of the invalid-clips warning in the test project. Both the reordered song probe and a fresh two-source exporter output opened in FL Studio 25 with clips visible. A WAV relink from a CAF byte-matched to the supplied project archive loads fully in FL Studio 25 according to the user. `extract-audio` and `export-flp` now support opt-in FFmpeg conversion to 16-bit PCM WAV; conversion flow has synthetic unit coverage, but FFmpeg is unavailable in the current environment. Playback remains unverified, and full-source placeholder lengths remain unresolved.
 - **Track metadata — unresolved:** `AuCO` candidates resemble a broader channel-strip collection. TRK-004 rules out a one-to-one count mapping to arrange tracks in the two inspected projects; no specific candidate-to-track mapping is established.
 
 See [progress.json](progress.json) and [progress.svg](progress.svg) for the current rough estimate and its workstream breakdown.
@@ -58,7 +58,7 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 
 ## Immediate next work
 
-1. Verify playback of the source-matched WAV in FL Studio 25 if desired, without publishing the recording.
+1. Run the optional FFmpeg conversion with an available FFmpeg build and validate generated WAVs in FL Studio; do not use WAV frame counts as GarageBand region durations.
 2. Decode GarageBand region durations and source offsets before replacing full-source placeholder lengths; keep duration inference independent from AAC decoder padding.
 3. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. Continue to label fixture-dependent and cross-format observations as hypotheses.
 

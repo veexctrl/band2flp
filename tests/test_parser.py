@@ -1,6 +1,10 @@
+Warning: truncated output (original token count: 16323)
+Total output lines: 1320
+
 from __future__ import annotations
 
 import json
+import io
 from types import SimpleNamespace
 import plistlib
 import subprocess
@@ -8,6 +12,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import uuid
 import wave
 import zipfile
@@ -72,7 +77,8 @@ def make_fixture(
     test_payload: bytes = b"abc",
     include_audio_placement: bool = False,
     embedded_audio: bytes | None = None,
-    audio_reference: str = "${CONTENT:loops/example.caf",
+    audio_reference: str | None = None,
+    audio_file_name: str = "example.caf",
 ) -> None:
     summary_tempo = 160 if include_events else 120
     summary_numerator = 4 if include_events else 3
@@ -85,8 +91,9 @@ def make_fixture(
         logic_payload += make_chunk("EvSq", 0, make_tempo_event(160) + make_meter_event(4, 2))
         logic_payload += make_chunk("EvSq", 0x00040000, make_tempo_event(120))
     if include_audio_placement:
-        logic_payload += make_chunk("AuFl", 0x00140000, "example.caf".encode("utf-16le"))
-        logic_payload += make_chunk("AuRg", 0x00140000, b"\x07\x00example\x00")
+        audio_stem = Path(audio_file_name).stem
+        logic_payload += make_chunk("AuFl", 0x00140000, audio_file_name.encode("utf-16le"))
+        logic_payload += make_chunk("AuRg", 0x00140000, b"\x07\x00" + audio_stem.encode() + b"\x00")
         placement = bytearray(80)
         placement[:4] = b"\x24\x00\x00\x00"
         struct.pack_into("<I", placement, 4, 49_920)
@@ -116,7 +123,7 @@ def make_fixture(
         "BeatsPerMinute": float(summary_tempo),
         "SongSignatureNumerator": summary_numerator,
         "SongSignatureDenominator": 4,
-        "AudioFiles": [audio_reference],
+        "AudioFiles": [audio_reference or f"${{CONTENT:loops/{audio_file_name}"],
     }
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
         package.writestr("fixture.band/projectData", plistlib.dumps(archive))
@@ -124,7 +131,7 @@ def make_fixture(
         package.writestr("fixture.band/Output/assetsmetadata.plist", plistlib.dumps(assets, fmt=plistlib.FMT_BINARY))
         package.writestr("fixture.band/Contents/PkgInfo", b"BNDLband")
         if embedded_audio is not None:
-            package.writestr("fixture.band/Audio Files/example.caf", embedded_audio)
+            package.writestr(f"fixture.band/Audio Files/{audio_file_name}", embedded_audio)
 
 
 def make_chunk(tag: str, group_id: int, payload: bytes) -> bytes:
@@ -594,34 +601,109 @@ class ParserTests(unittest.TestCase):
                 extract_referenced_audio(project_path, output_dir)
             self.assertEqual(extracted_path.read_bytes(), payload)
 
+    def test_extract_referenced_audio_can_transcode_to_valid_wav(self) -> None:
+        audio = io.BytesIO()
+        with wave.open(audio, "wb") as output:
+            output.setnchannels(1)
+            output.setsampwidth(2)
+            output.setframerate(44_100)
+            output.writeframes(bytes(32))
+        wav_bytes = audio.getvalue()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project_path = root / "fixture.band"
+            output_dir = root / "transcoded"
+            transcoder = root / "ffmpeg-test.exe"
+            transcoder.touch()
+            make_fixture(
+                project_path,
+                include_audio_placement=True,
+                embedded_audio=wav_bytes,
+                audio_file_name="example.wav",
+            )
+
+            def fake_transcode(args: list[str], **kwargs: object) -> SimpleNamespace:
+                source = Path(args[args.index("-i") + 1])
+                destination = Path(args[-1])
+                self.assertNotEqual(source, destination)
+                destination.write_bytes(source.read_bytes())
+                self.assertFalse(kwargs.get("shell"))
+                self.assertIn("-nostdin", args)
+                self.assertIn("pcm_s16le", args)
+                self.assertIn("-fs", args)
+                return SimpleNamespace(returncode=0)
+
+            with patch("band2flp.media.subprocess.run", side_effect=fake_transcode):
+                report = extract_referenced_audio(
+                    project_path, output_dir, to_wav=True, transcoder=str(transcoder)
+                )
+
+            self.assertEqual(report["extracted"][0]["file"], "audio-001.wav")
+            self.assertEqual(report["extracted"][0]["transcoded_to"], "WAVE PCM 16-bit")
+            self.assertEqual(sorted(path.name for path in output_dir.iterdir()), ["audio-001.wav"])
+            with wave.open(str(output_dir / "audio-001.wav"), "rb") as converted:
+                self.assertEqual(converted.getnframes(), 16)
+
+    def test_wav_transcode_failure_does_not_publish_output_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project_path = root / "fixture.band"
+            output_dir = root / "transcoded"
+            transcoder = root / "ffmpeg-test.exe"
+            transcoder.touch()
+            make_fixture(
+                project_path,
+                include_audio_placement=True,
+                embedded_audio=b"synthetic audio payload",
+            )
+            with patch(
+                "band2flp.media.subprocess.run",
+                return_value=SimpleNamespace(returncode=1),
+            ):
+                with self.assertRaisesRegex(MediaExtractionError, "could not convert"):
+                    extract_referenced_audio(
+                        project_path, output_dir, to_wav=True, transcoder=str(transcoder)
+                    )
+            self.assertFalse(output_dir.exists())
+
+    def test_wav_transcode_requires_explicitly_available_ffmpeg(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project_path = root / "fixture.band"
+            output_dir = root / "transcoded"
+            make_fixture(project_path)
+            with self.assertRaisesRegex(MediaExtractionError, "requires FFmpeg"):
+                extract_referenced_audio(
+                    project_path, output_dir, to_wav=True,
+                    transcoder="band2flp-test-transcoder-unavailable",
+                )
+            self.assertFalse(output_dir.exists())
+
+    def test_wav_transcode_timeout_does_not_publish_output_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project_path = root / "fixture.band"
+            output_dir = root / "transcoded"
+            transcoder = root / "ffmpeg-test.exe"
+            transcoder.touch()
+            make_fixture(
+                project_path,
+                include_audio_placement=True,
+                embedded_audio=b"synthetic audio payload",
+            )
+            timeout = subprocess.TimeoutExpired("ffmpeg-test", 300)
+            with patch("band2flp.media.subprocess.run", side_effect=timeout):
+                with self.assertRaisesRegex(MediaExtractionError, "five-minute limit"):
+                    extract_referenced_audio(
+                        project_path, output_dir, to_wav=True, transcoder=str(transcoder)
+                    )
+            self.assertFalse(output_dir.exists())
+
     def test_audio_frame_probe_reads_wave_sample_frames(self) -> None:
         fmt = struct.pack("<HHIIHH", 1, 2, 44_100, 176_400, 4, 16)
         data = bytes(40)
         body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt
-        body += b"data" + struct.pack("<I", len(data)) + data
-        wave = b"RIFF" + struct.pack("<I", len(body)) + body
-        self.assertEqual(audio_frame_count(wave), (10, "WAVE"))
-        self.assertEqual(audio_sample_rate(wave), 44_100)
-
-    def test_audio_frame_probe_reads_aiff_comm_count(self) -> None:
-        comm = struct.pack(">HIH", 2, 1234, 16) + bytes.fromhex("400eac44000000000000")
-        body = b"AIFF" + b"COMM" + struct.pack(">I", len(comm)) + comm
-        aiff = b"FORM" + struct.pack(">I", len(body)) + body
-        self.assertEqual(audio_frame_count(aiff), (1234, "AIFF"))
-        self.assertEqual(audio_sample_rate(aiff), 44_100)
-
-    def test_audio_frame_probe_reads_caf_valid_frame_count(self) -> None:
-        packet_table = struct.pack(">qqii", 100, 9876, 0, 0)
-        caf = b"caff" + struct.pack(">HH", 1, 0)
-        caf += b"pakt" + struct.pack(">q", len(packet_table)) + packet_table
-        self.assertEqual(audio_frame_count(caf), (9876, "CAF-packet-table"))
-        self.assertEqual(audio_sample_rate(caf), None)
-
-    def test_audio_frame_probe_reads_caf_fixed_packet_count(self) -> None:
-        description = struct.pack(">d4sIIIII", 44_100.0, b"lpcm", 0, 2, 1, 2, 16)
-        audio_data = struct.pack(">I", 0) + bytes(20)
-        caf = b"caff" + struct.pack(">HH", 1, 0)
-        caf += b"desc" + struct.pack(">q", len(description)) + description
+        body += b"data" + struct.p…323 tokens truncated…f += b"desc" + struct.pack(">q", len(description)) + description
         caf += b"data" + struct.pack(">q", len(audio_data)) + audio_data
         self.assertEqual(audio_frame_count(caf), (10, "CAF-fixed-packet"))
         self.assertEqual(audio_sample_rate(caf), 44_100)
@@ -1215,3 +1297,4 @@ class ParserTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

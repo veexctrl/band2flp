@@ -48,17 +48,18 @@ Text inspection gives a concise summary. JSON output preserves raw project paylo
 
 ## Extract referenced audio
 
-    band2flp extract-audio path/to/project.band path/to/new-audio-folder
+band2flp extract-audio path/to/project.band path/to/new-audio-folder
+band2flp extract-audio path/to/project.band path/to/new-wav-folder --to-wav
 
-Extraction is explicit. It copies only uniquely matched AudioFiles references, gives the files generated names such as audio-001.caf, and writes a JSON mapping. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
+Extraction is explicit. It copies only uniquely matched AudioFiles references, gives the files generated names such as audio-001.caf, and writes a JSON mapping. Use `--to-wav` to ask a separately installed FFmpeg executable to convert the referenced media to 16-bit PCM WAV; pass `--transcoder path/to/ffmpeg` if it is not on `PATH`. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
 
 ## Export an experimental FLP
 
-    band2flp export-flp path/to/project.band path/to/new-project.flp --template path/to/blank.flp --media-dir path/to/new-media-folder --length-policy source-full
+    band2flp export-flp path/to/project.band path/to/new-project.flp --template path/to/blank.flp --media-dir path/to/new-media-folder --length-policy source-full --to-wav
 
 The command extracts uniquely matched audio into the new media folder, writes the FLP, and saves a JSON report beside it. Both output paths must be new. Without source-full, export rejects audio regions whose duration is unknown. Source-full estimates a placeholder length from the full source file.
 
-Keep the FLP and its referenced media together, or make sure the paths stored in the FLP still resolve on the target computer. The song's `audio-006.caf` exists at the path in the FLP, but its CAF header identifies AAC audio. FL Studio's documented sample formats do not list CAF, so this likely needs local transcoding to WAV before playback.
+Keep the FLP and its referenced media together, or make sure the paths stored in the FLP still resolve on the target computer. `--to-wav` creates local PCM WAV media and updates the FLP links to those files. It requires FFmpeg and does not reconstruct GarageBand trims, loops, or durations; source-full lengths use the decoded WAV frame count as a placeholder. A source-matched WAV relinked probe loaded in FL Studio 25, but audible playback has not been verified.
 
 ## Research and tests
 
