@@ -59,6 +59,7 @@ from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
     _match_audio_file_references,
+    _link_mseq_labels_to_placements,
     _mseq_label_candidates,
     _parse_audio_placements,
     _parse_chunk_stream,
@@ -1072,6 +1073,18 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(candidates[0]["status"], "candidate")
         self.assertIn("role unknown", candidates[0]["interpretation"])
         self.assertEqual(candidates[1]["status"], "empty")
+
+    def test_mseq_label_join_keeps_track_role_unknown(self) -> None:
+        placements = [{"candidate_mseq_chunk_indices": [4], "track_value_candidate": 9}]
+        labels = [{"chunk_index": 4, "text_at_0x12_candidate": "Synth A", "status": "candidate"}]
+        linked = _link_mseq_labels_to_placements(placements, labels)
+        self.assertEqual(linked[0]["candidate_mseq_labels"], [{
+            "mseq_chunk_index": 4,
+            "text_candidate": "Synth A",
+            "status": "candidate",
+        }])
+        self.assertIn("track mapping unknown", linked[0]["candidate_mseq_label_interpretation"])
+        self.assertNotIn("track_name", linked[0])
 
     def test_audio_asset_match_correlates_shared_chunk_group(self) -> None:
         name = "loops/example.caf"
