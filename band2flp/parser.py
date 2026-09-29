@@ -524,6 +524,8 @@ def _parse_midi_note_candidates(
             for mseq_index in mseq_indices
             for placement in placements_by_mseq.get(mseq_index, [])
         }
+        position_raw = struct.unpack_from("<I", raw, 4)[0]
+        duration_ticks = struct.unpack_from("<I", raw, 0x1C)[0]
         candidates.append({
             "source_chunk_index": record["chunk_index"],
             "source_event_index": record["event_index"],
@@ -539,14 +541,16 @@ def _parse_midi_note_candidates(
             "event_size": len(raw),
             "event_type_byte": raw[0],
             "midi_channel_1_based_candidate": (raw[0] & 0x0F) + 1,
-            "position_raw": struct.unpack_from("<I", raw, 4)[0],
+            "position_raw": position_raw,
             "position_fraction_raw": struct.unpack_from("<H", raw, 2)[0],
-            "position_ticks_from_38400_candidate": struct.unpack_from("<I", raw, 4)[0] - 38_400,
+            "position_ticks_from_38400_candidate": position_raw - 38_400,
             "ppq_candidate": 960,
+            "onset_beats_region_relative_candidate": str(Fraction(position_raw - 38_400, 960)),
             "fine_velocity_byte_candidate": raw[0x0A],
             "velocity_candidate": raw[0x0B],
             "pitch_candidate": raw[0x0C],
-            "duration_ticks_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
+            "duration_ticks_candidate": duration_ticks,
+            "duration_beats_candidate": str(Fraction(duration_ticks, 960)),
             "field_interpretation_confidence": "HYPOTHESIS transferred from Logic Pro; GarageBand note fixtures are not yet controlled",
             "position_scope_candidate": "unknown",
             "position_scope_confidence": "UNKNOWN; no unique linked placement comparison supports a scope yet",
