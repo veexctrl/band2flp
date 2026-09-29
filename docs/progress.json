@@ -65,7 +65,7 @@
     },
     {
       "name": "FL Studio audio clip loading",
-      "state": "partial: relinked WAV project loads; playback unverified"
+      "state": "partial: source-matched WAV relink loads; playback unverified"
     }
   ]
 }
