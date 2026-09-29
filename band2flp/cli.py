@@ -133,6 +133,9 @@ def main(argv: list[str] | None = None) -> int:
         if project.media_references:
             embedded = sum(reference.package_member is not None for reference in project.media_references)
             print(f"Media references: {len(project.media_references)} ({embedded} matched to package members)")
+            beat_tagged = sum(reference.source_loop_metadata is not None for reference in project.media_references)
+            if beat_tagged:
+                print(f"Beat-tagged CAF sources: {beat_tagged} (source metadata; arrangement looping unknown)")
         if project.project_data.get("opaque_data_objects"):
             sizes = [item["length"] for item in project.project_data["opaque_data_objects"]]
             print(f"Opaque data objects: {len(sizes)} ({sum(sizes)} bytes)")
