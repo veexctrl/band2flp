@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .model import MediaReference, Project, Region, Track
+from .caf import inspect_caf_loop_metadata
 
 MAX_TOTAL_UNCOMPRESSED = 1_000_000_000
 MAX_MEMBER_SIZE = 512_000_000
@@ -777,6 +778,19 @@ def parse_band(path: str | Path) -> Project:
                     )
                     project.project_data["audio_file_reference_matches"] = audio_matches
                 project.media_references = _media_references(assets, project.package_members, audio_matches)
+                loop_metadata_by_member: dict[str, dict[str, object] | None] = {}
+                for reference in project.media_references:
+                    member = reference.package_member
+                    if reference.category != "AudioFiles" or member is None or not member.lower().endswith(".caf"):
+                        continue
+                    if member not in loop_metadata_by_member:
+                        try:
+                            with archive.open(info_by_name[member]) as source:
+                                loop_metadata_by_member[member] = inspect_caf_loop_metadata(source)
+                        except (OSError, EOFError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as exc:
+                            project.warnings.append(f"Could not inspect CAF metadata in {member!r}: {exc}")
+                            loop_metadata_by_member[member] = None
+                    reference.source_loop_metadata = loop_metadata_by_member[member]
                 asset_track_count = _integer(assets.get("NumberOfTracks"))
                 if asset_track_count is not None and project.declared_track_count is not None and asset_track_count != project.declared_track_count:
                     project.warnings.append(
