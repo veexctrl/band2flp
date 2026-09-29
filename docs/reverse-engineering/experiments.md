@@ -962,3 +962,21 @@
 **Alternative considered:** Loop state can be stored in the project or library while the CAF remains a generic audio container. Opaque UUID data may also encode metadata in a non-text form not recognized by this scan.
 
 **Next:** Compare a known ordinary audio region and a known Live Loops cell that reference the same controlled sound. Inspect both project data and media metadata for the changed identifiers and region/cell structures before assigning a class.
+
+## CROSS-004 — candidate `AuRg` to audio-placement field link
+
+**Question:** Does the eight-byte field at `AuRg` payload offset `+0x8a` associate a region record with an audio placement's bytes at event offset `+0x28`?
+
+**Fixtures:** Both supplied project archives. One has embedded audio; the other has audio references but no embedded audio members. Project titles, source names, track values, event bytes, and audio remain private.
+
+**Method:** For each `AudioFiles` reference, select only same-group `AuRg` chunks whose NUL-delimited filename stem matches the source. Compare payload `+0x8a..+0x91` with `0x24` placement `+0x28..+0x2f` within that source group, excluding all-zero region fields. Count one-to-one exact matches without assigning meaning. A Python probe also compared complete payloads when two candidates had the same `AuRg +0x16` frame value. IDA MCP read all four relevant 216-byte region payloads in the first fixture, independently confirmed each of the three nonzero field equalities, and read all nine candidate fields in the second fixture. IDA and Python agreed byte for byte; no audio was decoded or played.
+
+**Observation:** In the embedded-audio fixture, four filename-matched region candidates refer to one source. Three have nonzero `+0x8a` fields; each equals exactly one same-source placement field, with no placement matching more than one of those candidates. The fourth region field is zero. In all three matches, the last four bytes also equal the placement's already identified audio-source link at `+0x2c`. Two equal-frame candidate pairs are not full-payload duplicates: their payloads differ by 27 and 28 bytes. In the other fixture, all nine filename-matched region fields at `+0x8a` are zero, and no nonzero field link is available.
+
+**Result:** Exact equality can narrow the region-to-placement candidates in the embedded-audio fixture, including records whose `+0x16` frame values are duplicated. The second fixture does not carry usable values at this offset. The parser preserves the bytes and reports matching region chunk indices as a **candidate** in the neutral region's unknown data; it does not use the match to set duration, trim, source offset, or loop state.
+
+**Confidence:** CONFIRMED for the observed byte equalities, zeros, full-payload differences, and Python/IDA agreement. HIGH CONFIDENCE that these three pairs are a meaningful structural relationship in this fixture; HYPOTHESIS that the fields identify the GarageBand region object; UNKNOWN whether the relation generalizes across media origins or projects.
+
+**Alternative considered:** The eight-byte equality includes a four-byte source link already shared by records from the same source. The remaining four bytes could be another correlated field rather than a persistent region identifier. The all-zero second fixture may reflect omitted or optional metadata rather than a different format.
+
+**Next:** Create a controlled project with one audio region, then move, copy, trim, and loop it in separate saves while keeping the source fixed. Check whether `AuRg +0x8a` follows the corresponding placement through each edit, and repeat with embedded and library-resolved media.
