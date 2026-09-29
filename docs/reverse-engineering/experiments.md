@@ -955,7 +955,7 @@
 
 **Observation:** Both readers agree on nine chunks: `desc`, `kuki`, `pakt`, `free`, `data`, `info`, two `uuid` chunks, and `ovvw`. No `mark`, `inst`, or literal `loop` chunk is present. The opaque UUID metadata contains a generic beat-related string but no explicit tempo, BPM, loop, region, or stretch label.
 
-**Result:** The CAF is structurally readable and carries its encoded audio and codec/container metadata, but this file does not expose an explicit loop-classification or tempo-following marker in the inspected chunk tags or strings. Loop provenance may instead be represented in GarageBand project data or external library metadata. Absence of these literal tags does not disprove use as an Apple Loop or Live Loops source.
+**Result:** The CAF is structurally readable and carries its encoded audio and codec/container metadata. This first scan found no literal loop-classification or tempo-following marker among inspected chunk tags or selected strings. A later structured read of one UUID chunk in [AUD-002](caf-loop-metadata.md#aud-002--beat-tagged-source-metadata-in-a-caf-uuid-chunk) recovered beat-count and time-signature pairs, correcting the broader negative implication. Those source tags still do not establish Live Loops cell provenance or arrangement repeat behavior.
 
 **Confidence:** CONFIRMED for this file's chunk boundaries and tags, with independent Python/IDA agreement; UNKNOWN for UUID chunk semantics and the source's GarageBand library classification.
 
