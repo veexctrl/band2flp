@@ -248,6 +248,10 @@ def _match_audio_file_references(
                         struct.unpack_from("<I", region_payload, 0x16)[0]
                         if len(region_payload) >= 0x1A else None
                     ),
+                    "payload_bytes_at_0x8a_candidate_hex": (
+                        region_payload[0x8A:0x92].hex()
+                        if len(region_payload) >= 0x92 else None
+                    ),
                 })
             matched.append({
                 "asset_reference_index": ref_index,
@@ -396,6 +400,7 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "track_number_1_based_candidate": raw[0x14],
             "audio_link_candidate": struct.unpack_from("<I", raw, 0x2C)[0],
             "media_group_id_candidate": struct.unpack_from("<I", raw, 0x2C)[0] << 16,
+            "bytes_at_0x28_candidate_hex": raw[0x28:0x30].hex(),
             "event_size": len(raw),
             "placement_record_size": 80,
             "trailing_u32_at_0_candidate": struct.unpack_from("<I", raw, 80)[0] if len(raw) >= 84 else None,
@@ -590,6 +595,15 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
             and item["payload_u32_at_0x16_candidate"] == suffix_value
             and item["filename_stem_matches"]
         ]
+        placement_field = placement.get("bytes_at_0x28_candidate_hex")
+        field_matches = [
+            item["chunk_index"] for item in region_metadata
+            if isinstance(placement_field, str)
+            and len(placement_field) == 16
+            and placement_field != "0000000000000000"
+            and item.get("filename_stem_matches")
+            and item.get("payload_bytes_at_0x8a_candidate_hex") == placement_field
+        ]
         track.regions.append(Region(
             name=stem,
             start_beats=placement["start_beats"],
@@ -600,6 +614,11 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
                 "candidate_region_chunk_indices_for_source": region_chunk_indices,
                 "candidate_region_chunk_metadata_for_source": region_metadata,
                 "region_chunk_indices_matching_trailing_u32_candidate": suffix_matches,
+                "region_chunk_indices_matching_0x8a_to_0x28_candidate": field_matches,
+                "region_chunk_field_link_confidence": (
+                    "HYPOTHESIS; exact eight-byte equality linked three unique pairs in one fixture "
+                    "but the corresponding fields were zero in another fixture"
+                ),
                 "duration": "unknown",
                 "region_chunk_to_placement_ordinal": "unknown",
             },
