@@ -18,8 +18,8 @@
     {
       "name": "Audio references and placement starts",
       "weight": 18,
-      "recovered": 62,
-      "basis": "Embedded source links and starts are recovered in inspected fixtures; three nonzero AuRg-to-placement candidate links match one source group, while mapping needs broader validation."
+      "recovered": 65,
+      "basis": "Embedded source links and starts recovered; three region links match in one fixture. One CAF has beat tags; placement and loop behavior need broader validation."
     },
     {
       "name": "Region lengths, trims, loops, and offsets",
