@@ -316,6 +316,32 @@ def _mseq_label_candidates(data: bytes, chunk_stream: dict[str, Any]) -> list[di
     return candidates
 
 
+def _link_mseq_labels_to_placements(
+    placements: list[dict[str, Any]], labels: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Join already candidate-linked MSeq chunks to their framed text."""
+    by_chunk = {item["chunk_index"]: item for item in labels}
+    linked = []
+    for placement in placements:
+        candidates = [
+            {
+                "mseq_chunk_index": index,
+                "text_candidate": by_chunk[index].get("text_at_0x12_candidate"),
+                "status": by_chunk[index].get("status"),
+            }
+            for index in placement.get("candidate_mseq_chunk_indices", [])
+            if index in by_chunk
+        ]
+        linked.append({
+            **placement,
+            "candidate_mseq_labels": candidates,
+            "candidate_mseq_label_interpretation": (
+                "HYPOTHESIS: same MSeq chunk as placement; label role and track mapping unknown"
+            ),
+        })
+    return linked
+
+
 def _media_references(
     assets: dict[str, Any], members: list[dict[str, Any]], audio_matches: list[dict[str, Any]]
 ) -> list[MediaReference]:
@@ -770,8 +796,11 @@ def parse_band(path: str | Path) -> Project:
                             project.project_data["midi_note_event_candidates"] = _parse_midi_note_candidates(
                                 events, project.project_data["logic_song_chunk_stream"]
                             )
-                            project.project_data["midi_region_placement_candidates"] = _parse_midi_region_placement_candidates(
-                                events, project.project_data["logic_song_chunk_stream"]
+                            project.project_data["midi_region_placement_candidates"] = _link_mseq_labels_to_placements(
+                                _parse_midi_region_placement_candidates(
+                                    events, project.project_data["logic_song_chunk_stream"]
+                                ),
+                                project.project_data["mseq_label_candidates"],
                             )
                         project.warnings.append(
                             "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
