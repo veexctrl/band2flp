@@ -980,3 +980,7 @@
 **Alternative considered:** The eight-byte equality includes a four-byte source link already shared by records from the same source. The remaining four bytes could be another correlated field rather than a persistent region identifier. The all-zero second fixture may reflect omitted or optional metadata rather than a different format.
 
 **Next:** Create a controlled project with one audio region, then move, copy, trim, and loop it in separate saves while keeping the source fixed. Check whether `AuRg +0x8a` follows the corresponding placement through each edit, and repeat with embedded and library-resolved media.
+
+## CROSS-005 — aggregate search for alternate audio region links
+
+The two-fixture scan, method, limitations, and confidence assessment are recorded in [audio-window-links.md](audio-window-links.md). The only varying, one-to-one four- and eight-byte match in the embedded-audio fixture is the previously observed `AuRg +0x8a` to placement `+0x28` pair; the other fixture has no qualifying match under this scan.
