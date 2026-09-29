@@ -33,6 +33,7 @@
 - MIDI `0x20` event `+0x14` track identity semantics and whether `+0x04` uses the Logic-derived 34,560/960 PPQ conversion in GarageBand. MIDI-009 rules out treating `+0x14` as a direct arrange-track index in the two inspected fixtures, but it may be an identifier or index into another object table. MIDI-010 found one zero-payload, same-group `Trak` chunk alongside every unique `MSeq` target; whether that group relation identifies an arrange track remains UNKNOWN. The `+0x20` cluster-to-`MSeq` association is HIGH CONFIDENCE in two fixtures; timing semantics still need controlled validation.
 - MIDI-004's raw `Trak` chunk-order comparison did not establish a direct mapping for `0x20 +0x14`; repeated chunk groups make ordinal equality insufficient.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
+- Whether an `AudioFiles` reference originated as imported audio, an Apple Loop, or audio used by a Live Loops cell. Successfully resolving a file reference and placing its audio does not preserve the library classification or prove cell/grid semantics; CAF metadata may also omit this information.
 - Audio source references and region-to-media mapping.
 - Tempo and time-signature changes, sections, automation, fades, and region gain.
 - Whether output metadata and asset lists are complete, stale, or derived caches.
