@@ -20,6 +20,7 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
+- Inspect beat-tagged CAF source metadata when present, including beat count, meter, and an inferred source-tempo candidate. These source tags do not establish arrangement repeats or Live Loops cells.
 - Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. FL Studio 25 opened both the reordered song probe and a fresh two-source export without invalid-clip errors; clips appeared in the arrangement. The synthetic sources are intentionally silent. A local WAV-relinked probe now loads fully in FL Studio 25 according to the user; an in-memory hash comparison matched the transcode input to the source in the supplied project archive; audible playback remains unverified, and no recording or generated media is in the repository.
 
 ## What is still being researched
@@ -53,7 +54,7 @@ band2flp extract-audio path/to/project.band path/to/new-wav-folder --to-wav
 
 Extraction is explicit. It copies only uniquely matched AudioFiles references, gives the files generated names such as audio-001.caf, and writes a JSON mapping. Use `--to-wav` to ask a separately installed FFmpeg executable to convert the referenced media to 16-bit PCM WAV; pass `--transcoder path/to/ffmpeg` if it is not on `PATH`. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
 
-Extracting a referenced audio file recovers the media bytes, not its original GarageBand library classification. The current parser cannot yet tell whether a source was imported audio, an Apple Loop, or audio used by a Live Loops cell, and it does not reconstruct Live Loops cell/grid state.
+Extracting a referenced audio file recovers the media bytes, not its original GarageBand library classification. Some CAF sources carry beat-count and time-signature metadata; `inspect --json` reports it on the media reference. The parser cannot yet tell whether a source was imported audio, an Apple Loop, or audio used by a Live Loops cell, and it does not reconstruct Live Loops cell/grid state.
 
 ## Export an experimental FLP
 
