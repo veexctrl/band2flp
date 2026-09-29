@@ -24,14 +24,14 @@
     {
       "name": "Region lengths, trims, loops, and offsets",
       "weight": 17,
-      "recovered": 10,
-      "basis": "ARR-027/028 retain tick and source-frame candidates with one additional local preview correlation; duration, sentinel, trim, repeat, and tempo-following semantics remain unconfirmed."
+      "recovered": 15,
+      "basis": "AuRg source-window candidates agree with embedded frames and two external groups; timeline duration, repeats, and stretch remain unknown."
     },
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 26,
-      "basis": "All 68 MSeq payloads share an IDA-verified 8-byte prefix, found only at MSeq starts in both full streams. Opaque event groups link to MIDI placements; four grouped 0x90 records have IDA-verified byte-offset variation that guides controlled tests. Event and length semantics remain unknown."
+      "recovered": 28,
+      "basis": "MSeq labels are length-framed in both fixtures; placement links exist, but note timing, pitch, and track roles remain unconfirmed."
     },
     {
       "name": "Tempo and meter timeline",
