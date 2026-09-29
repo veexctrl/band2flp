@@ -61,11 +61,13 @@
     },
     {
       "name": "Region boundaries and track state",
-      "state": "open: repeated suffix/AuRg candidate links and one preview correlation; semantics unconfirmed"
+      "state": "open: source-window candidate; timeline duration and track state unconfirmed",
+      "display_label": "SOURCE WINDOW LEAD"
     },
     {
       "name": "FL Studio audio clip loading",
-      "state": "partial: source-matched WAV loads; optional FFmpeg conversion available; playback unverified"
+      "state": "partial: source-matched WAV loads; optional FFmpeg conversion available; playback unverified",
+      "display_label": "SOURCE MATCH + WAV"
     }
   ]
 }
