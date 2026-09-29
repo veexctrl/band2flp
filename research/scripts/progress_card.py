@@ -49,7 +49,9 @@ def render(data: dict) -> str:
     step = (right - left) / max(1, len(milestones) - 1)
     for index, item in enumerate(milestones):
         x = left + step * index
-        color, label = state_style[item["state"]]
+        state = item["state"].split(":", 1)[0]
+        color, default_label = state_style[state]
+        label = escape(item.get("display_label", default_label))
         name = escape(item["name"])
         milestone_nodes.append(f'<circle cx="{x:.1f}" cy="786" r="8" fill="{color}"/>')
         milestone_nodes.append(f'<text x="{x:.1f}" y="816" class="milestone-name" text-anchor="middle">{name}</text>')
