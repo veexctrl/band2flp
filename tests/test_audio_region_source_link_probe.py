@@ -5,11 +5,39 @@ import unittest
 from research.scripts.audio_region_source_link_probe import (
     profile_candidate_region_payloads,
     profile_region_placement_field_links,
+    profile_source_frame_window_candidates,
     profile_source_link_candidates,
 )
 
 
 class AudioRegionSourceLinkProbeTests(unittest.TestCase):
+    def test_source_frame_window_sum_is_counted_without_assigning_trim_semantics(self) -> None:
+        first = bytearray(0x1A)
+        first[0x16:0x1A] = (100).to_bytes(4, "little")
+        second = bytearray(first)
+        second[0x06:0x0A] = (25).to_bytes(4, "little")
+        second[0x16:0x1A] = (75).to_bytes(4, "little")
+        result = profile_source_frame_window_candidates(100, [bytes(first), bytes(second)])
+        self.assertEqual(result["candidate_pair_count"], 2)
+        self.assertEqual(result["first_zero"], 1)
+        self.assertEqual(result["first_nonzero"], 1)
+        self.assertEqual(result["sum_equals_source_frames"], 2)
+        self.assertEqual(result["nonzero_sum_equals_zero_baseline"], 1)
+
+    def test_source_frame_window_reports_unavailable_source(self) -> None:
+        result = profile_source_frame_window_candidates(None, [bytes(0x1A), b"short"])
+        self.assertEqual(result["source_length_unknown"], 1)
+        self.assertEqual(result["too_short"], 1)
+
+    def test_source_frame_window_reports_shorter_window_with_unknown_source(self) -> None:
+        whole = bytearray(0x1A)
+        whole[0x16:0x1A] = (100).to_bytes(4, "little")
+        shorter = bytearray(whole)
+        shorter[0x06:0x0A] = (20).to_bytes(4, "little")
+        shorter[0x16:0x1A] = (70).to_bytes(4, "little")
+        result = profile_source_frame_window_candidates(None, [bytes(whole), bytes(shorter)])
+        self.assertEqual(result["nonzero_sum_below_zero_baseline"], 1)
+
     def test_candidate_links_are_counted_without_assigning_region_semantics(self) -> None:
         result = profile_source_link_candidates(
             source_frames=100,
