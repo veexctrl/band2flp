@@ -1257,9 +1257,11 @@ class ParserTests(unittest.TestCase):
             [{"source_chunk_index": 10, "source_event_index": 3}],
         )
         self.assertEqual(candidates[0]["position_ticks_from_38400_candidate"], 960)
+        self.assertEqual(candidates[0]["onset_beats_region_relative_candidate"], "1")
         self.assertEqual(candidates[0]["pitch_candidate"], 60)
         self.assertEqual(candidates[0]["velocity_candidate"], 64)
         self.assertEqual(candidates[0]["duration_ticks_candidate"], 480)
+        self.assertEqual(candidates[0]["duration_beats_candidate"], "1/2")
         self.assertEqual(candidates[0]["position_scope_candidate"], "region-relative")
         self.assertIn("HYPOTHESIS", candidates[0]["position_scope_confidence"])
         self.assertEqual(
