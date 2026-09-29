@@ -1248,6 +1248,41 @@ class ParserTests(unittest.TestCase):
         )
         self.assertEqual(candidates[0]["raw_hex"], note.hex())
 
+    def test_midi_note_shaped_family_retains_type_and_does_not_normalize(self) -> None:
+        records = []
+        for index, event_type in enumerate((0x90, 0x91, 0x9E, 0x9F)):
+            raw = bytearray(64)
+            raw[0] = event_type
+            raw[1] = len(raw)
+            raw[0x0B] = 90
+            raw[0x0C] = 60 + index
+            raw[0x17] = 0x89
+            records.append({
+                "type_byte": event_type,
+                "chunk_index": 1,
+                "event_index": index,
+                "group_id_candidate": 0x10000,
+                "raw_hex": raw.hex(),
+            })
+        invalid_marker = bytearray.fromhex(records[1]["raw_hex"])
+        invalid_marker[0x17] = 0
+        records.append({
+            "type_byte": 0x91,
+            "chunk_index": 1,
+            "event_index": 4,
+            "group_id_candidate": 0x10000,
+            "raw_hex": invalid_marker.hex(),
+        })
+
+        candidates = _parse_midi_note_candidates(
+            {"records": records}, {"chunks": [{"type": "MSeq", "index": 2, "group_id_candidate": 0x10000}]}
+        )
+
+        self.assertEqual([item["event_type_byte"] for item in candidates], [0x90, 0x91, 0x9E])
+        self.assertEqual([item["pitch_candidate"] for item in candidates], [60, 61, 62])
+        self.assertTrue(all(item["position_scope_candidate"] == "unknown" for item in candidates))
+        self.assertTrue(all("HYPOTHESIS" in item["field_interpretation_confidence"] for item in candidates))
+
     def test_midi_placement_cluster_links_to_candidate_mseq_group(self) -> None:
         event = bytearray(80)
         event[:4] = b"\x20\x00\x00\x00"
