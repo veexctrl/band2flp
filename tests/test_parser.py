@@ -60,6 +60,7 @@ from band2flp.flp_export import (
 from band2flp.parser import (
     BandFormatError,
     _attach_audio_placements,
+    _attach_unplaced_midi_region_candidates,
     _match_audio_file_references,
     _link_mseq_labels_to_placements,
     _mseq_label_candidates,
@@ -1323,6 +1324,49 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn(
             "midi_status_candidate", _event_record(chunk, 0, 136, 0, bytes([0x20]) + bytes(15))
         )
+
+    def test_unique_midi_links_form_unplaced_neutral_candidates(self) -> None:
+        project = Project()
+        placement_location = {"source_chunk_index": 7, "source_event_index": 2}
+        project.project_data["midi_region_placement_candidates"] = [{
+            **placement_location,
+            "candidate_mseq_chunk_indices": [4],
+            "candidate_mseq_labels": [
+                {"text_candidate": "Synthetic keys", "status": "candidate"}
+            ],
+            "start_beats_candidate": "8",
+            "track_value_candidate": 3,
+        }]
+        note_location = {
+            "candidate_mseq_chunk_indices_for_group": [4],
+            "candidate_midi_region_placements_for_group": [placement_location],
+        }
+        project.project_data["midi_note_event_candidates"] = [
+            {**note_location, "onset_beats_region_relative_candidate": "3/2",
+             "duration_beats_candidate": "1/4", "pitch_candidate": 64,
+             "velocity_candidate": 80, "midi_channel_1_based_candidate": 2,
+             "source_chunk_index": 9, "source_event_index": 1},
+            {**note_location, "onset_beats_region_relative_candidate": "0",
+             "duration_beats_candidate": "1/2", "pitch_candidate": 60,
+             "velocity_candidate": 90, "midi_channel_1_based_candidate": 1,
+             "source_chunk_index": 9, "source_event_index": 0},
+            {**note_location, "candidate_mseq_chunk_indices_for_group": [4, 5],
+             "onset_beats_region_relative_candidate": "2",
+             "duration_beats_candidate": "1", "pitch_candidate": 67,
+             "velocity_candidate": 100, "midi_channel_1_based_candidate": 3,
+             "source_chunk_index": 9, "source_event_index": 2},
+        ]
+
+        _attach_unplaced_midi_region_candidates(project)
+
+        self.assertEqual(len(project.unplaced_midi_regions), 1)
+        region = project.unplaced_midi_regions[0]
+        self.assertEqual(region.start_beats_candidate, "8")
+        self.assertEqual(region.label_candidate, "Synthetic keys")
+        self.assertEqual([note.pitch_candidate for note in region.notes], [60, 64])
+        self.assertEqual(region.unknown["track_value_candidate"], 3)
+        self.assertEqual(project.tracks, [])
+        self.assertEqual(project.to_dict()["unplaced_midi_regions"][0]["notes"][0]["duration_beats_candidate"], "1/2")
 
     def test_midi_placement_cluster_links_to_candidate_mseq_group(self) -> None:
         event = bytearray(80)
