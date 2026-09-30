@@ -249,7 +249,7 @@ def _flp_event_spans(data: bytes) -> list[tuple[int, int, int, int]]:
 
 
 def _place_audio_channels_before_playlist(data: bytes, expected_channels: int) -> bytes:
-    """Move PyFLP-appended channel blocks into the template's channel section."""
+    """Move PyFLP-appended channel and pattern blocks before the playlist."""
     spans = _flp_event_spans(data)
     playlist = [i for i, span in enumerate(spans) if span[0] == 233]
     channels = [i for i, span in enumerate(spans) if span[0] == 64]
@@ -260,13 +260,9 @@ def _place_audio_channels_before_playlist(data: bytes, expected_channels: int) -
     if any(i < playlist[0] for i in channels[1:]) or spans[-1][0] != 47:
         raise FLPExportError("serialized FLP channel blocks do not match the supported template layout")
     base_paths = [i for i in range(channels[0], playlist[0]) if spans[i][0] == 196]
-    if len(base_paths) != 1:
-        raise FLPExportError("serialized base audio channel has no unique sample path")
-    for start, end in zip(channels[1:], channels[2:] + [len(spans) - 1]):
-        block = spans[start:end]
-        if not block or block[-1][0] != 196 or sum(span[0] == 196 for span in block) != 1:
-            raise FLPExportError("serialized cloned channel block has an unexpected ending")
-    insertion = spans[base_paths[0]][3]
+    if len(base_paths) > 1:
+        raise FLPExportError("serialized base channel has multiple sample paths")
+    insertion = spans[base_paths[0]][3] if base_paths else spans[playlist[0]][1]
     moved_start = spans[channels[1]][1]
     moved_end = spans[-1][1]
     if not insertion <= spans[playlist[0]][1] < moved_start < moved_end:
@@ -289,6 +285,7 @@ def export_flp(
     output_path: str | Path,
     media_by_reference: dict[str, str | Path],
     length_policy: str = "reject-unknown",
+    include_midi_candidates: bool = False,
 ) -> dict[str, Any]:
     """Export recovered audio starts using a user-supplied blank FLP template.
 
@@ -308,8 +305,9 @@ def export_flp(
         raise FLPExportError("FLP or report output already exists; choose new paths")
 
     regions = [region for track in project.tracks for region in track.regions if region.kind == "audio"]
-    if not regions:
-        raise FLPExportError("the neutral model contains no audio regions to export")
+    midi_regions = list(project.unplaced_midi_regions) if include_midi_candidates else []
+    if not regions and not midi_regions:
+        raise FLPExportError("the neutral model contains no supported audio or MIDI candidates to export")
     if length_policy == "reject-unknown" and any(region.duration_beats is None for region in regions):
         raise FLPExportError(
             "one or more GarageBand audio durations are unknown; pass --length-policy source-full "
@@ -340,9 +338,10 @@ def export_flp(
 
     pyflp, shim_used = _pyflp_module()
     try:
-        from pyflp._events import UnicodeEvent
+        from pyflp._events import U16Event, U32Event, UnicodeEvent
         from pyflp.arrangement import ArrangementID, TrackID
         from pyflp.channel import ChannelID, ChannelType
+        from pyflp.pattern import NotesEvent, PatternID
         from pyflp.plugin import PluginID
     except ImportError as exc:
         raise FLPExportError("PyFLP does not expose the expected channel and playlist API") from exc
@@ -363,61 +362,51 @@ def export_flp(
     if len(channels) != 1 or type(channels[0]).__name__ != "Sampler":
         raise FLPExportError("template must contain exactly one blank sampler channel")
     base_channel = channels[0]
-    type_event = next((event for event in base_channel.events if event.id == ChannelID.Type), None)
-    if type_event is None or PluginID.InternalName not in base_channel.events.ids:
-        raise FLPExportError("template sampler lacks the channel type or internal-name events needed for audio clips")
-    # FL Studio stores playlist audio clips as Instrument channels with an
-    # empty native-plugin name; PyFLP then recognizes a loaded sample path as
-    # an audio clip/Sampler model. A regular type-0 Sampler is not equivalent.
-    type_event.value = ChannelType.Instrument
-    base_channel.internal_name = ""
-    sampler_flags = next(
-        (event for event in base_channel.events if event.id == ChannelID.SamplerFlags),
-        None,
-    )
-    if sampler_flags is None:
-        raise FLPExportError("template sampler lacks the sample flags event needed for audio clips")
-    # Blank sampler templates set bit 0 (Resample). In sampled, valid FL Studio
-    # audio-clip channels examined so far this bit is clear; other flag bits
-    # are retained from the template.
-    sampler_flags.value = int(sampler_flags.value) & ~0x01
-    polyphony = next(
-        (event for event in base_channel.events if event.id == ChannelID.Polyphony),
-        None,
-    )
-    if polyphony is None:
-        raise FLPExportError("template sampler lacks the polyphony event needed for audio clips")
-    # FL Studio audio-clip channels sampled from valid projects use slide=500;
-    # the blank sampler template's 820 value has not appeared in that sample.
-    polyphony.value["slide"] = 500
-    base_events = [copy.deepcopy(event) for event in base_channel.events]
+    midi_base_events = [copy.deepcopy(event) for event in base_channel.events]
     unique_sources = list(dict.fromkeys(region.source for region in regions))
     source_iid: dict[str, int] = {}
-    for iid, source in enumerate(unique_sources):
-        name = f"Audio source {iid + 1:02d}"
-        media_path = source_paths[source]
-        sample_event = UnicodeEvent(
-            ChannelID.SamplePath,
-            str(media_path).encode("utf-16-le") + b"\0\0",
-        )
-        if iid == 0:
-            channel = base_channel
-            channel.name = name
-            _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
-        else:
-            cloned = [copy.deepcopy(event) for event in base_events]
-            for event in cloned:
-                if event.id == ChannelID.New:
-                    event.value = iid
-                elif event.id == PluginID.Name:
-                    event.value = name
-            for event in cloned:
-                fl_project.events.insert(len(fl_project.events) - 1, event)
-            channel = next(channel for channel in fl_project.channels if channel.iid == iid)
-            channel.name = name
-            _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
-        source_iid[source] = iid
-    fl_project.channel_count = len(source_iid)
+    if regions:
+        type_event = next((event for event in base_channel.events if event.id == ChannelID.Type), None)
+        if type_event is None or PluginID.InternalName not in base_channel.events.ids:
+            raise FLPExportError("template sampler lacks the channel type or internal-name events needed for audio clips")
+        # FL Studio stores playlist audio clips as Instrument channels with an
+        # empty native-plugin name; PyFLP then recognizes a loaded sample path as an audio clip.
+        type_event.value = ChannelType.Instrument
+        base_channel.internal_name = ""
+        sampler_flags = next((event for event in base_channel.events if event.id == ChannelID.SamplerFlags), None)
+        if sampler_flags is None:
+            raise FLPExportError("template sampler lacks the sample flags event needed for audio clips")
+        sampler_flags.value = int(sampler_flags.value) & ~0x01
+        polyphony = next((event for event in base_channel.events if event.id == ChannelID.Polyphony), None)
+        if polyphony is None:
+            raise FLPExportError("template sampler lacks the polyphony event needed for audio clips")
+        polyphony.value["slide"] = 500
+        base_events = [copy.deepcopy(event) for event in base_channel.events]
+        for iid, source in enumerate(unique_sources):
+            name = f"Audio source {iid + 1:02d}"
+            media_path = source_paths[source]
+            sample_event = UnicodeEvent(
+                ChannelID.SamplePath,
+                str(media_path).encode("utf-16-le") + b"\0\0",
+            )
+            if iid == 0:
+                channel = base_channel
+                channel.name = name
+                _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
+            else:
+                cloned = [copy.deepcopy(event) for event in base_events]
+                for event in cloned:
+                    if event.id == ChannelID.New:
+                        event.value = iid
+                    elif event.id == PluginID.Name:
+                        event.value = name
+                for event in cloned:
+                    fl_project.events.insert(len(fl_project.events) - 1, event)
+                channel = next(channel for channel in fl_project.channels if channel.iid == iid)
+                channel.name = name
+                _move_sample_path_after_pingpong(channel, sample_event, ChannelID)
+            source_iid[source] = iid
+        fl_project.channel_count = len(source_iid)
 
     if project.tempo_bpm is not None:
         fl_project.tempo = project.tempo_bpm
@@ -436,6 +425,112 @@ def export_flp(
         )
 
     ppq = fl_project.ppq
+    midi_preview_items: list[dict[str, Any]] = []
+    if midi_regions:
+        next_channel_iid = len(source_iid) if source_iid else max(channel.iid for channel in channels) + 1
+        next_pattern_iid = max((pattern.iid for pattern in fl_project.patterns), default=0) + 1
+        audio_rows = [
+            _fl_playlist_track_index(track.index, max_tracks)
+            for track in project.tracks if any(region.kind == "audio" for region in track.regions)
+        ]
+        first_midi_row = max(audio_rows, default=0) + 1
+        for index, region in enumerate(midi_regions):
+            channel_iid = next_channel_iid + index
+            pattern_iid = next_pattern_iid + index
+            midi_name = f"MIDI candidate {index + 1:02d}"
+            channel_events = [
+                copy.deepcopy(event) for event in midi_base_events
+                if event.id != ChannelID.SamplePath
+            ]
+            for event in channel_events:
+                if event.id == ChannelID.New:
+                    event.value = channel_iid
+                elif event.id == PluginID.Name:
+                    event.value = midi_name
+                elif event.id == ChannelID.Type:
+                    event.value = ChannelType.Sampler
+            for event in channel_events:
+                fl_project.events.insert(len(fl_project.events) - 1, event)
+            midi_channel = next(
+                (channel for channel in fl_project.channels if channel.iid == channel_iid), None
+            )
+            if midi_channel is None:
+                raise FLPExportError("PyFLP did not create the provisional MIDI channel")
+            midi_channel.name = midi_name
+
+            note_records: list[bytes] = []
+            note_positions: list[int] = []
+            expected_notes: list[tuple[int, int, int, int]] = []
+            for note in region.notes:
+                key = int(note.pitch_candidate)
+                velocity = int(note.velocity_candidate)
+                if not 0 <= key <= 131 or not 0 <= velocity <= 127:
+                    raise FLPExportError("a MIDI candidate pitch or velocity is outside FL Studio's supported range")
+                position = _beats_to_ticks(note.onset_beats_candidate, ppq, "MIDI note onset")
+                duration = max(1, _beats_to_ticks(note.duration_beats_candidate, ppq, "MIDI note duration"))
+                if position < 0:
+                    raise FLPExportError("negative MIDI note onsets are not supported")
+                note_positions.append(position + duration)
+                expected_notes.append((position, duration, key, velocity))
+                note_records.append(struct.pack(
+                    "<IHHIHH8B",
+                    position, 0, 0, duration, key, 0,
+                    120, 0, 64, 0, 64, velocity, 128, 128,
+                ))
+            if not note_records:
+                continue
+            raw_notes = b"".join(note_records)
+            pattern_events = [
+                U16Event(PatternID.New, struct.pack("<H", pattern_iid)),
+                NotesEvent(PatternID.Notes, raw_notes),
+                U16Event(PatternID.New, struct.pack("<H", pattern_iid)),
+                UnicodeEvent(PatternID.Name, midi_name.encode("utf-16-le") + b"\0\0"),
+                U32Event(PatternID.ChannelIID, struct.pack("<I", channel_iid)),
+                U32Event(PatternID.Length, struct.pack("<I", max(note_positions))),
+            ]
+            for event in pattern_events:
+                fl_project.events.insert(len(fl_project.events) - 1, event)
+
+            playlist_row = first_midi_row + index
+            if playlist_row >= max_tracks:
+                raise FLPExportError("not enough empty FL Studio playlist tracks remain for MIDI candidates")
+            storage_index = _fl_track_event_storage_index(playlist_row, max_tracks)
+            fl_tracks[storage_index].events.insert(
+                len(fl_tracks[storage_index].events) - 1,
+                UnicodeEvent(TrackID.Name, midi_name.encode("utf-16-le") + b"\0\0"),
+            )
+            region_start = _beats_to_ticks(region.start_beats_candidate, ppq, "MIDI region start")
+            if region_start < 0:
+                raise FLPExportError("negative MIDI region starts are not supported")
+            clip_length = max(note_positions)
+            playlist.append({
+                "position": region_start,
+                "pattern_base": 20480,
+                "item_index": 20480 + pattern_iid,
+                "length": clip_length,
+                "track_rvidx": (max_tracks - 1) - playlist_row,
+                "group": 0,
+                "_u1": bytes((120, 0)),
+                "item_flags": 64,
+                "_u2": bytes((64, 100, 128, 128)),
+                "start_offset": -1.0,
+                "end_offset": -1.0,
+                "_u3": None,
+            })
+            midi_preview_items.append({
+                "pattern_iid": pattern_iid,
+                "channel_iid": channel_iid,
+                "playlist_track_index": playlist_row,
+                "position_ticks": region_start,
+                "length_ticks": clip_length,
+                "note_count": len(note_records),
+                "_expected_notes": expected_notes,
+                "source_mseq_chunk_index": region.source_mseq_chunk_index,
+                "source_placement_chunk_index": region.source_placement_chunk_index,
+                "source_placement_event_index": region.source_placement_event_index,
+            })
+        fl_project.channel_count = len(source_iid) + len(midi_preview_items) if source_iid else len(channels) + len(midi_preview_items)
+
     exported_items: list[dict[str, Any]] = []
     for track in project.tracks:
         for region in track.regions:
@@ -475,6 +570,7 @@ def export_flp(
                 "_u3": None,
             })
             exported_items.append({
+                "item_index": iid,
                 "track_index": track.index,
                 "start_beats": region.start_beats,
                 "start_ticks": start_ticks,
@@ -496,7 +592,11 @@ def export_flp(
         with tempfile.NamedTemporaryFile(prefix=".band2flp-", suffix=".json", dir=output.parent, delete=False) as temp:
             report_tmp = Path(temp.name)
         pyflp.save(fl_project, str(flp_tmp))
-        flp_tmp.write_bytes(_place_audio_channels_before_playlist(flp_tmp.read_bytes(), len(source_iid)))
+        expected_channel_count = (
+            len(source_iid) + len(midi_preview_items)
+            if source_iid else len(channels) + len(midi_preview_items)
+        )
+        flp_tmp.write_bytes(_place_audio_channels_before_playlist(flp_tmp.read_bytes(), expected_channel_count))
         roundtrip = pyflp.parse(str(flp_tmp))
         clock_report = _validate_clock_roundtrip(roundtrip, project)
         channels_by_iid = {channel.iid: channel for channel in roundtrip.channels}
@@ -517,30 +617,70 @@ def export_flp(
             event for event in roundtrip.arrangements[0].events
             if event.id == ArrangementID.Playlist
         )
-        if len(roundtrip_playlist) != len(exported_items):
+        expected_playlist_count = len(exported_items) + len(midi_preview_items)
+        if len(roundtrip_playlist) != expected_playlist_count:
             raise FLPExportError("PyFLP round-trip changed the playlist item count")
         if getattr(roundtrip_playlist, "_struct_size", None) != 32:
             raise FLPExportError("PyFLP round-trip did not preserve base-size playlist records")
-        for expected, actual in zip(exported_items, roundtrip_playlist):
+        actual_playlist_by_index = {actual["item_index"]: actual for actual in roundtrip_playlist}
+        expected_playlist_indices = {
+            item["item_index"] for item in exported_items
+        } | {
+            20480 + item["pattern_iid"] for item in midi_preview_items
+        }
+        if set(actual_playlist_by_index) != expected_playlist_indices:
+            raise FLPExportError("PyFLP round-trip changed the playlist item references")
+        for expected in exported_items:
+            actual = actual_playlist_by_index[expected["item_index"]]
             if actual["position"] != expected["start_ticks"] or actual["length"] != expected["length_ticks"]:
                 raise FLPExportError("PyFLP round-trip changed a playlist position or length")
             if actual["item_index"] >= roundtrip.channel_count:
                 raise FLPExportError("PyFLP round-trip left an audio clip without a channel")
+        for expected in midi_preview_items:
+            actual = actual_playlist_by_index[20480 + expected["pattern_iid"]]
+            if (
+                actual["position"] != expected["position_ticks"]
+                or actual["length"] != expected["length_ticks"]
+                or actual["item_index"] != 20480 + expected["pattern_iid"]
+            ):
+                raise FLPExportError("PyFLP round-trip changed a MIDI candidate playlist clip")
+        patterns_by_iid = {pattern.iid: pattern for pattern in roundtrip.patterns}
+        for expected in midi_preview_items:
+            pattern = patterns_by_iid.get(expected["pattern_iid"])
+            channel_iid_event = next(
+                (event for event in pattern.events if event.id == PatternID.ChannelIID), None
+            ) if pattern is not None else None
+            if pattern is None or channel_iid_event is None or channel_iid_event.value != expected["channel_iid"]:
+                raise FLPExportError("PyFLP round-trip lost a MIDI candidate pattern or channel link")
+            notes = list(pattern.notes)
+            if len(notes) != expected["note_count"]:
+                raise FLPExportError("PyFLP round-trip changed a MIDI candidate note count")
+            actual_notes = [(note.position, note.length, note["key"], note.velocity) for note in notes]
+            if actual_notes != expected["_expected_notes"]:
+                raise FLPExportError("PyFLP round-trip changed MIDI candidate note data")
 
         report = {
             "flp_version": str(roundtrip.version),
             **clock_report,
             "ppq": roundtrip.ppq,
-            "audio_channels": roundtrip.channel_count,
-            "playlist_items": len(exported_items),
+            "audio_channels": len(source_iid),
+            "channel_count": roundtrip.channel_count,
+            "midi_candidate_patterns": len(midi_preview_items),
+            "playlist_items": expected_playlist_count,
             "playlist_record_size": roundtrip_playlist._struct_size,
             "duration_policy": length_policy,
             "compatibility_shim_used": shim_used,
             "project_warnings": list(project.warnings),
             "items": exported_items,
+            "midi_candidates": [
+                {key: value for key, value in item.items() if not key.startswith("_")}
+                for item in midi_preview_items
+            ],
             "warnings": ([
                 "Full-source placeholder lengths do not represent GarageBand trims, loops, or playback stretching."
-            ] if length_policy == "source-full" else []),
+            ] if length_policy == "source-full" else []) + ([
+                "MIDI candidate placement and note data are provisional; track assignment, velocity meaning, and instrument are unconfirmed."
+            ] if midi_preview_items else []),
         }
         report_tmp.write_text(json.dumps(report, indent=2), encoding="utf-8")
         _atomic_publish(flp_tmp, output)
@@ -558,5 +698,3 @@ def export_flp(
                     temp_path.unlink()
                 except FileNotFoundError:
                     pass
-    # Keep the machine-specific directory out of the JSON printed by the CLI.
-    return {"output": output.name, "report": report_path.name, "summary": report}
