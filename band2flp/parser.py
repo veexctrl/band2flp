@@ -13,7 +13,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from .model import MediaReference, Project, Region, Track
+from .model import MediaReference, MidiNoteCandidate, Project, Region, Track, UnplacedMidiRegionCandidate
 from .caf import inspect_caf_loop_metadata
 
 MAX_TOTAL_UNCOMPRESSED = 1_000_000_000
@@ -591,6 +591,62 @@ def _parse_midi_note_candidates(
     return candidates
 
 
+def _attach_unplaced_midi_region_candidates(project: Project) -> None:
+    """Join uniquely linked note candidates without inventing arrange tracks."""
+    placements = project.project_data.get("midi_region_placement_candidates", [])
+    placement_by_location = {
+        (item["source_chunk_index"], item["source_event_index"]): item
+        for item in placements
+    }
+    grouped: dict[tuple[int, int, int], list[MidiNoteCandidate]] = {}
+    for note in project.project_data.get("midi_note_event_candidates", []):
+        mseq_links = note["candidate_mseq_chunk_indices_for_group"]
+        placement_links = note["candidate_midi_region_placements_for_group"]
+        if len(mseq_links) != 1 or len(placement_links) != 1:
+            continue
+        location = (
+            placement_links[0]["source_chunk_index"],
+            placement_links[0]["source_event_index"],
+        )
+        placement = placement_by_location.get(location)
+        if placement is None or placement["candidate_mseq_chunk_indices"] != mseq_links:
+            continue
+        key = (mseq_links[0], *location)
+        grouped.setdefault(key, []).append(MidiNoteCandidate(
+            onset_beats_candidate=note["onset_beats_region_relative_candidate"],
+            duration_beats_candidate=note["duration_beats_candidate"],
+            pitch_candidate=note["pitch_candidate"],
+            velocity_candidate=note["velocity_candidate"],
+            channel_1_based_candidate=note["midi_channel_1_based_candidate"],
+            source_chunk_index=note["source_chunk_index"],
+            source_event_index=note["source_event_index"],
+        ))
+    regions: list[UnplacedMidiRegionCandidate] = []
+    for (mseq_index, chunk_index, event_index), notes in grouped.items():
+        placement = placement_by_location[(chunk_index, event_index)]
+        labels = placement.get("candidate_mseq_labels", [])
+        label = labels[0]["text_candidate"] if len(labels) == 1 and labels[0]["status"] == "candidate" else None
+        notes.sort(key=lambda item: (Fraction(item.onset_beats_candidate), item.source_chunk_index, item.source_event_index))
+        regions.append(UnplacedMidiRegionCandidate(
+            start_beats_candidate=placement["start_beats_candidate"],
+            label_candidate=label,
+            notes=notes,
+            source_mseq_chunk_index=mseq_index,
+            source_placement_chunk_index=chunk_index,
+            source_placement_event_index=event_index,
+            unknown={
+                "track_value_candidate": placement["track_value_candidate"],
+                "confidence": "HYPOTHESIS for note timing, fields, label role, and placement track identity",
+            },
+        ))
+    regions.sort(key=lambda item: (
+        Fraction(item.start_beats_candidate),
+        item.source_placement_chunk_index,
+        item.source_placement_event_index,
+    ))
+    project.unplaced_midi_regions = regions
+
+
 def _parse_midi_region_placement_candidates(
     event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -932,6 +988,7 @@ def parse_band(path: str | Path) -> Project:
             if any(item["source_group_id_candidate"] != 0 for item in event_sequences["tempo_candidates"]):
                 project.warnings.append("Nonzero-group tempo candidates are preserved separately; their scope is unknown.")
         _attach_audio_placements(project, project.project_data.get("audio_placements", []))
+        _attach_unplaced_midi_region_candidates(project)
         if project.project_data.get("audio_placements"):
             project.warnings.append(
                 "Audio placement starts are beat candidates using a Logic-derived 34,560 origin and 960 PPQ; "
