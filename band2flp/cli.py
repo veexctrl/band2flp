@@ -183,6 +183,12 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"MIDI region placement candidates: {len(midi_placements)} ({linked} uniquely linked to an MSeq group; track/timing semantics unconfirmed)"
             )
+        if project.unplaced_midi_regions:
+            note_count = sum(len(region.notes) for region in project.unplaced_midi_regions)
+            print(
+                f"Unplaced MIDI region candidates: {len(project.unplaced_midi_regions)} "
+                f"({note_count} note candidates; track identity unconfirmed)"
+            )
         if project.tempo_map:
             values = ", ".join(f"{item['bpm']:g} BPM @ raw {item['position_raw']}" for item in project.tempo_map)
             print(f"Group-zero tempo candidates: {values}")
