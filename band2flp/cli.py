@@ -41,11 +41,11 @@ def main(argv: list[str] | None = None) -> int:
         "--transcoder", default="ffmpeg",
         help="FFmpeg executable name or path used with --to-wav (default: ffmpeg)",
     )
-    export = subparsers.add_parser("export-flp", help="export recovered audio starts to an FL Studio project")
+    export = subparsers.add_parser("export-flp", help="export recovered audio and optional MIDI candidates to an FL Studio project")
     export.add_argument("project", help="GarageBand .band package")
     export.add_argument("output", help="new FL Studio .flp output path")
     export.add_argument("--template", required=True, help="path to a blank FL Studio project template")
-    export.add_argument("--media-dir", required=True, help="new directory for referenced audio used by the FLP")
+    export.add_argument("--media-dir", help="new directory for referenced audio used by the FLP (required when exporting audio regions)")
     export.add_argument(
         "--to-wav", action="store_true",
         help="transcode referenced audio to 16-bit PCM WAV with FFmpeg before linking it",
@@ -57,6 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument(
         "--length-policy", choices=("reject-unknown", "source-full"), default="reject-unknown",
         help="reject unknown region lengths, or use full source-file lengths as explicit placeholders",
+    )
+    export.add_argument(
+        "--include-midi-candidates", action="store_true",
+        help="add provisional silent MIDI patterns on separate tracks for inspection",
     )
     args = parser.parse_args(argv)
 
@@ -72,7 +76,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         project = parse_band(args.project)
         if args.command == "export-flp":
-            if args.length_policy == "reject-unknown" and any(
+            has_audio = any(region.kind == "audio" for track in project.tracks for region in track.regions)
+            if has_audio and args.length_policy == "reject-unknown" and any(
                 region.kind == "audio" and region.duration_beats is None
                 for track in project.tracks for region in track.regions
             ):
@@ -80,23 +85,29 @@ def main(argv: list[str] | None = None) -> int:
                     "GarageBand audio region lengths are unknown; rerun with --length-policy source-full "
                     "to use full-source placeholders explicitly"
                 )
-            extraction = extract_referenced_audio(
-                args.project,
-                args.media_dir,
-                to_wav=args.to_wav,
-                transcoder=args.transcoder,
-            )
-            media_root = Path(args.media_dir).expanduser().resolve()
-            media_by_reference = {
-                entry["reference"]: media_root / entry["file"]
-                for entry in extraction.get("extracted", [])
-            }
+            extraction = {"extracted": [], "unresolved_audio_reference_count": 0}
+            media_by_reference = {}
+            if has_audio:
+                if not args.media_dir:
+                    raise FLPExportError("--media-dir is required when exporting audio regions")
+                extraction = extract_referenced_audio(
+                    args.project,
+                    args.media_dir,
+                    to_wav=args.to_wav,
+                    transcoder=args.transcoder,
+                )
+                media_root = Path(args.media_dir).expanduser().resolve()
+                media_by_reference = {
+                    entry["reference"]: media_root / entry["file"]
+                    for entry in extraction.get("extracted", [])
+                }
             report = export_flp(
                 project,
                 template_path=args.template,
                 output_path=args.output,
                 media_by_reference=media_by_reference,
                 length_policy=args.length_policy,
+                include_midi_candidates=args.include_midi_candidates,
             )
             report["media_extraction"] = {
                 "file_count": len(extraction.get("extracted", [])),
