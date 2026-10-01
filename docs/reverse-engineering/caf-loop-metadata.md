@@ -19,4 +19,3 @@
 **Next:** Compare controlled CAF sources tagged with different beat counts and source tempos. Separately create a GarageBand project that uses the same source first as an ordinary audio region and then as a Live Loops cell, changing only one property per save. Compare project data, arrangement preview, and CAF metadata before mapping loop or stretch behavior to FL Studio.
 
 **Earlier scan correction:** AUD-001 searched chunk tags and selected strings for literal `loop`/`tempo` markers and left the UUID chunks uninterpreted. It therefore missed the structured `beat count` and `time signature` pairs. Its negative result applies only to explicit chunk tags and labels, not to musical metadata within the UUID payload.
-

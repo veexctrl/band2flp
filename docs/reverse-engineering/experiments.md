@@ -569,15 +569,17 @@
 
 **Question:** Does GarageBand version metadata agree across the supplied project archives?
 
-**Fixtures:** Two locally supplied .band archives. Archive contents remain outside the repository.
+**Fixtures:** Both locally supplied `.band` archives. Archive contents remain outside the repository.
 
-**Method:** Inspected plist and projectData members in memory and compared the version strings without copying archive contents into the repository.
+**Method:** Inspected plist and `projectData` members in memory and compared the version strings without copying archive contents into the repository.
 
-**Observation:** Both archives contain the literal GarageBand version string 2.3.19 in their metadata. Other project metadata is not treated as proof of a particular device or serializer behavior.
+**Observation:** Both archives contain the literal GarageBand version string `2.3.19` in their metadata. Other project metadata is not treated as proof of a particular device or serializer behavior.
 
 **Result:** The version string is consistent across these two archives. The archives are not controlled variants, so no format difference can be attributed to a single project property.
 
 **Confidence:** HIGH CONFIDENCE for the version string in these two inspected archives; UNKNOWN whether the same metadata appears in all projects produced by that GarageBand release.
+
+**Source:** [Apple GarageBand for iOS and iPadOS release notes](https://support.apple.com/en-au/106346).
 ## MIDI-006 - note-shaped events share linked `MSeq` chunks with placements
 
 **Question:** Do the `0x90` note-shaped records in the audio-bearing fixture share their candidate `MSeq` records with MIDI placement events?
@@ -911,76 +913,20 @@
 **Next:** A controlled one-note project with an independently moved and resized region is still required. Compare the full changed records rather than probing additional Logic-derived offsets in isolation.
 
 
+## ARR-027 — audio placement `+0x1c` tick-grid and preview-length candidate
 
+**Question:** Does the little-endian word at `0x24` placement offset `+0x1c` carry a region-length candidate?
 
+**Fixtures:** Two supplied project archives, labeled A and B. Fixture A is the archive with the previously analyzed arrangement preview; fixture B is the audio-bearing archive. No audio bytes were opened for this test.
 
-## ARR-027 — audio placement +0x1c timing candidate
+**Method:** Added `research/scripts/audio_placement_timing_probe.py` to count recognized placements, the `0x3fffffff` value, and finite nonzero `+0x1c` values divisible by the Logic-derived 960-PPQ candidate. The script omits project paths, event values, tracks, and source references. For the direct preview comparison, correlate the already preview-matched `+0x04` start and track grouping from ARR-021 with visible clip boundaries from ARR-024. Independently read the finite `+0x1c` words through IDA MCP at the parser-reported event offsets.
 
-**Question:** Does the little-endian word at audio-placement offset +0x1c encode region duration?
+**Observation:** Fixture A has 9 placements: 5 carry `0x3fffffff`; all 4 finite nonzero words lie on the 960-tick grid. Fixture B has 10 placements: 9 carry `0x3fffffff`; its single finite nonzero word also lies on that grid. IDA bytes match Python at all four finite offsets in A and the finite offset in B. In the preview-linked row starting at beat zero and ending at beat 128, the finite candidate equals 128 beats at 960 ticks per beat. Another visible row starts at beat 32, has a finite candidate of 104 beats on the same grid, and continues beyond the preview's right edge; adding the candidate to the start places its possible end beyond the displayed 128-beat span. The candidate word remains at event-relative `+0x1c`; its byte order is little-endian and size four bytes.
 
-**Fixtures and method:** Two supplied archives were profiled locally. The aggregate-only script counts recognized placements, the 0x3fffffff sentinel, and finite nonzero values divisible by the candidate 960 PPQ. IDA MCP independently confirmed the bytes at five finite field locations.
+**Result:** The observations make a tick-scaled duration a useful HYPOTHESIS for finite `+0x1c` values and a better fit than absolute end position for the beat-32 row. They do not prove that interpretation: the direct 128-beat match is one clip, the second relation depends on the preview extent, and most events carry `0x3fffffff`, including clips whose visible lengths are 16 beats. No value is transferred into `Region.duration_beats`.
 
-**Observation:** Fixture A had 9 placements (5 sentinel, 4 finite nonzero, all 4 on the 960 grid). Fixture B had 10 placements (9 sentinel, 1 finite nonzero, also on the grid). One finite value matches a preview-measured 128-beat extent; another plus a beat-32 start places a possible end beyond the preview edge.
+**Confidence:** HIGH CONFIDENCE that the finite words in these two fixtures lie on the candidate 960-tick grid and that IDA agrees with the parser offsets. HYPOTHESIS that finite `+0x1c` words encode region duration; UNKNOWN what the sentinel means and how visible 16-beat clips with that sentinel derive their boundaries.
 
-**Result and confidence:** Finite +0x1c values on the candidate grid are HIGH CONFIDENCE in these two fixtures. Duration semantics are only a HYPOTHESIS: most placements use the sentinel, including visible 16-beat clips. The parser preserves this word but does not set region duration. The projects are not controlled variants.
+**Alternatives:** The field could be an end/extent in another origin, a loop or edit quantity, or a tick-valued property that happens to agree with one preview length. The sentinel might denote an unset value, a special loop mode, or a large valid extent. The cross-format [Logic Pro ProjectData specification](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#81-track-identity-for-multiple-tracks) describes the 0x24 event in terms of position, track, and region link, and marks nearby fields as constants. That Logic layout does not establish the GarageBand layout, but it cautions against transferring a Logic duration interpretation. The projects are not controlled variants.
 
-**Next:** Make a single-source GarageBand fixture and change only region length twice. Compare +0x1c, the full placement record, related AuRg chunks, and preview boundaries before assigning duration semantics.
-
-
-## ARR-028 — repeated source-frame and placement-suffix links
-
-**Question:** Does the extended placement suffix correlate with same-source AuRg frame-count candidates, and can the local arrangement preview constrain those candidates?
-
-**Fixture:** One locally supplied audio-bearing project. Project title, source names, exact positions, preview image, and audio remain private.
-
-**Method:** Ran `audio_region_source_link_probe.py`, which aggregates source-frame relations and placement suffix matches without emitting paths, media names, raw values, or event bytes. Compared the candidate records with the local cached arrangement preview. IDA MCP independently read the four source-associated AuRg payloads at the parser-reported offsets, and their +0x16 candidate frame values matched Python. The CAF info chunk exposes no source-tempo or loop-control entry. The sole AppleLoops string in the keyed archive is the value for CurrentMediaImporterPage (UI state), so it does not establish CAF provenance. The audio was not decoded or played.
-
-**Observation:** The fixture contains 10 recognized audio placements, three extended placement records, and six embedded sources with decodable frame counts. Two extended suffixes match same-source, filename-stem-matched AuRg candidates; each suffix matches two duplicate candidate records, while the third extended suffix has no match. The preview provides one boundary consistent with the retained tick candidate and another boundary consistent with the shorter frame candidate.
-
-**Result:** This repeats the suffix-to-source-associated-AuRg candidate correlation but still does not identify a unique region record or prove whether the value represents trim, source extent, loop length, or timeline duration. The visual matches are from one cached preview and do not replace a controlled edit.
-
-**Confidence:** HIGH CONFIDENCE in the aggregate candidate-match counts in this fixture; HYPOTHESIS that the shorter source-frame candidate represents a trimmed loop segment; UNKNOWN how its source-frame extent maps to GarageBand beats or tempo-following behavior.
-
-**Alternative considered:** Duplicate AuRg records may be serialized copies or separate region states; a suffix match can therefore be coincidental or refer to a different edit quantity. The cached preview may be stale.
-
-**Next:** Change only one region's trim or timeline length while holding its source and start fixed. Compare the two AuRg records, full placement event, and preview edge, then repeat with a second source.
-
-## AUD-001 — inventory CAF metadata chunks for explicit loop markers
-
-**Question:** Does a referenced CAF source carry an explicit standard-chunk marker that identifies it as a loop or provides tempo-following metadata?
-
-**Fixture:** One locally supplied CAF file. Project identifiers, source names, audio, and recording content remain private.
-
-**Method:** A small Python scan walked the CAF's 64-bit chunk lengths from the file header and verified that each chunk ended within the file and that the final chunk ended exactly at EOF. IDA MCP independently read the four-byte tag at each parser-computed chunk-header address. The file was not decoded or played. The scan examined chunk tags and selected metadata strings only; opaque chunk payloads were not interpreted.
-
-**Observation:** Both readers agree on nine chunks: `desc`, `kuki`, `pakt`, `free`, `data`, `info`, two `uuid` chunks, and `ovvw`. No `mark`, `inst`, or literal `loop` chunk is present. The opaque UUID metadata contains a generic beat-related string but no explicit tempo, BPM, loop, region, or stretch label.
-
-**Result:** The CAF is structurally readable and carries its encoded audio and codec/container metadata. This first scan found no literal loop-classification or tempo-following marker among inspected chunk tags or selected strings. A later structured read of one UUID chunk in [AUD-002](caf-loop-metadata.md#aud-002--beat-tagged-source-metadata-in-a-caf-uuid-chunk) recovered beat-count and time-signature pairs, correcting the broader negative implication. Those source tags still do not establish Live Loops cell provenance or arrangement repeat behavior.
-
-**Confidence:** CONFIRMED for this file's chunk boundaries and tags, with independent Python/IDA agreement; UNKNOWN for UUID chunk semantics and the source's GarageBand library classification.
-
-**Alternative considered:** Loop state can be stored in the project or library while the CAF remains a generic audio container. Opaque UUID data may also encode metadata in a non-text form not recognized by this scan.
-
-**Next:** Compare a known ordinary audio region and a known Live Loops cell that reference the same controlled sound. Inspect both project data and media metadata for the changed identifiers and region/cell structures before assigning a class.
-
-## CROSS-004 — candidate `AuRg` to audio-placement field link
-
-**Question:** Does the eight-byte field at `AuRg` payload offset `+0x8a` associate a region record with an audio placement's bytes at event offset `+0x28`?
-
-**Fixtures:** Both supplied project archives. One has embedded audio; the other has audio references but no embedded audio members. Project titles, source names, track values, event bytes, and audio remain private.
-
-**Method:** For each `AudioFiles` reference, select only same-group `AuRg` chunks whose NUL-delimited filename stem matches the source. Compare payload `+0x8a..+0x91` with `0x24` placement `+0x28..+0x2f` within that source group, excluding all-zero region fields. Count one-to-one exact matches without assigning meaning. A Python probe also compared complete payloads when two candidates had the same `AuRg +0x16` frame value. IDA MCP read all four relevant 216-byte region payloads in the first fixture, independently confirmed each of the three nonzero field equalities, and read all nine candidate fields in the second fixture. IDA and Python agreed byte for byte; no audio was decoded or played.
-
-**Observation:** In the embedded-audio fixture, four filename-matched region candidates refer to one source. Three have nonzero `+0x8a` fields; each equals exactly one same-source placement field, with no placement matching more than one of those candidates. The fourth region field is zero. In all three matches, the last four bytes also equal the placement's already identified audio-source link at `+0x2c`. Two equal-frame candidate pairs are not full-payload duplicates: their payloads differ by 27 and 28 bytes. In the other fixture, all nine filename-matched region fields at `+0x8a` are zero, and no nonzero field link is available.
-
-**Result:** Exact equality can narrow the region-to-placement candidates in the embedded-audio fixture, including records whose `+0x16` frame values are duplicated. The second fixture does not carry usable values at this offset. The parser preserves the bytes and reports matching region chunk indices as a **candidate** in the neutral region's unknown data; it does not use the match to set duration, trim, source offset, or loop state.
-
-**Confidence:** CONFIRMED for the observed byte equalities, zeros, full-payload differences, and Python/IDA agreement. HIGH CONFIDENCE that these three pairs are a meaningful structural relationship in this fixture; HYPOTHESIS that the fields identify the GarageBand region object; UNKNOWN whether the relation generalizes across media origins or projects.
-
-**Alternative considered:** The eight-byte equality includes a four-byte source link already shared by records from the same source. The remaining four bytes could be another correlated field rather than a persistent region identifier. The all-zero second fixture may reflect omitted or optional metadata rather than a different format.
-
-**Next:** Create a controlled project with one audio region, then move, copy, trim, and loop it in separate saves while keeping the source fixed. Check whether `AuRg +0x8a` follows the corresponding placement through each edit, and repeat with embedded and library-resolved media.
-
-## CROSS-005 — aggregate search for alternate audio region links
-
-The two-fixture scan, method, limitations, and confidence assessment are recorded in [audio-window-links.md](audio-window-links.md). The only varying, one-to-one four- and eight-byte match in the embedded-audio fixture is the previously observed `AuRg +0x8a` to placement `+0x28` pair; the other fixture has no qualifying match under this scan.
+**Next:** Create a single-source GarageBand fixture, hold source and start constant, and change only the region length twice. Compare `+0x1c`, all placement suffix bytes, related `AuRg` chunks, and the preview edges. Do not decode this word into the neutral duration field until the value follows both controlled edits.

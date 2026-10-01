@@ -86,4 +86,3 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
             )
             result["tempo_confidence"] = "HYPOTHESIS: valid CAF frames may include edits or codec padding"
     return result
-

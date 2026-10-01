@@ -108,6 +108,26 @@ def _beats_to_ticks(value: str, ppq: int, label: str) -> int:
         raise FLPExportError(f"an audio region {label} is not a finite beat value") from exc
 
 
+def _pack_midi_note_candidate(
+    position: int,
+    duration: int,
+    key: int,
+    velocity: int,
+    channel_iid: int,
+) -> bytes:
+    """Encode one editable FL note linked to its containing channel IID.
+
+    FL Studio 25 requires the note flags word to include 0x4000 for notes
+    created in a pattern to be editable rather than displayed as ghost notes.
+    The flag meaning itself is not identified.
+    """
+    return struct.pack(
+        "<IHHIHH8B",
+        position, 0x4000, channel_iid, duration, key, 0,
+        120, 0, 64, 0, 64, velocity, 128, 128,
+    )
+
+
 def audio_info(path: str | Path) -> AudioInfo:
     """Read bounded WAVE or CAF timing metadata without decoding audio."""
     path = Path(path)
@@ -435,32 +455,39 @@ def export_flp(
         ]
         first_midi_row = max(audio_rows, default=0) + 1
         for index, region in enumerate(midi_regions):
-            channel_iid = next_channel_iid + index
+            use_template_channel = not regions and index == 0
+            channel_iid = (
+                0 if use_template_channel
+                else next_channel_iid + index - (1 if not regions else 0)
+            )
             pattern_iid = next_pattern_iid + index
             midi_name = f"MIDI candidate {index + 1:02d}"
-            channel_events = [
-                copy.deepcopy(event) for event in midi_base_events
-                if event.id != ChannelID.SamplePath
-            ]
-            for event in channel_events:
-                if event.id == ChannelID.New:
-                    event.value = channel_iid
-                elif event.id == PluginID.Name:
-                    event.value = midi_name
-                elif event.id == ChannelID.Type:
-                    event.value = ChannelType.Sampler
-            for event in channel_events:
-                fl_project.events.insert(len(fl_project.events) - 1, event)
-            midi_channel = next(
-                (channel for channel in fl_project.channels if channel.iid == channel_iid), None
-            )
+            if use_template_channel:
+                midi_channel = base_channel
+            else:
+                channel_events = [
+                    copy.deepcopy(event) for event in midi_base_events
+                    if event.id != ChannelID.SamplePath
+                ]
+                for event in channel_events:
+                    if event.id == ChannelID.New:
+                        event.value = channel_iid
+                    elif event.id == PluginID.Name:
+                        event.value = midi_name
+                    elif event.id == ChannelID.Type:
+                        event.value = ChannelType.Sampler
+                for event in channel_events:
+                    fl_project.events.insert(len(fl_project.events) - 1, event)
+                midi_channel = next(
+                    (channel for channel in fl_project.channels if channel.iid == channel_iid), None
+                )
             if midi_channel is None:
                 raise FLPExportError("PyFLP did not create the provisional MIDI channel")
             midi_channel.name = midi_name
 
             note_records: list[bytes] = []
             note_positions: list[int] = []
-            expected_notes: list[tuple[int, int, int, int]] = []
+            expected_notes: list[tuple[int, int, int, int, int, int]] = []
             for note in region.notes:
                 key = int(note.pitch_candidate)
                 velocity = int(note.velocity_candidate)
@@ -471,11 +498,9 @@ def export_flp(
                 if position < 0:
                     raise FLPExportError("negative MIDI note onsets are not supported")
                 note_positions.append(position + duration)
-                expected_notes.append((position, duration, key, velocity))
-                note_records.append(struct.pack(
-                    "<IHHIHH8B",
-                    position, 0, 0, duration, key, 0,
-                    120, 0, 64, 0, 64, velocity, 128, 128,
+                expected_notes.append((position, duration, key, velocity, channel_iid, 0x4000))
+                note_records.append(_pack_midi_note_candidate(
+                    position, duration, key, velocity, channel_iid
                 ))
             if not note_records:
                 continue
@@ -529,7 +554,10 @@ def export_flp(
                 "source_placement_chunk_index": region.source_placement_chunk_index,
                 "source_placement_event_index": region.source_placement_event_index,
             })
-        fl_project.channel_count = len(source_iid) + len(midi_preview_items) if source_iid else len(channels) + len(midi_preview_items)
+        fl_project.channel_count = (
+            len(source_iid) + len(midi_preview_items)
+            if source_iid else len(channels) + max(0, len(midi_preview_items) - 1)
+        )
 
     exported_items: list[dict[str, Any]] = []
     for track in project.tracks:
@@ -594,7 +622,7 @@ def export_flp(
         pyflp.save(fl_project, str(flp_tmp))
         expected_channel_count = (
             len(source_iid) + len(midi_preview_items)
-            if source_iid else len(channels) + len(midi_preview_items)
+            if source_iid else len(channels) + max(0, len(midi_preview_items) - 1)
         )
         flp_tmp.write_bytes(_place_audio_channels_before_playlist(flp_tmp.read_bytes(), expected_channel_count))
         roundtrip = pyflp.parse(str(flp_tmp))
@@ -655,9 +683,13 @@ def export_flp(
             notes = list(pattern.notes)
             if len(notes) != expected["note_count"]:
                 raise FLPExportError("PyFLP round-trip changed a MIDI candidate note count")
-            actual_notes = [(note.position, note.length, note["key"], note.velocity) for note in notes]
+            actual_notes = [
+                (note.position, note.length, note["key"], note.velocity, note.rack_channel,
+                 int(note["flags"]))
+                for note in notes
+            ]
             if actual_notes != expected["_expected_notes"]:
-                raise FLPExportError("PyFLP round-trip changed MIDI candidate note data")
+                raise FLPExportError("PyFLP round-trip changed MIDI candidate note data or channel assignment")
 
         report = {
             "flp_version": str(roundtrip.version),
@@ -698,3 +730,5 @@ def export_flp(
                     temp_path.unlink()
                 except FileNotFoundError:
                     pass
+    # Keep the machine-specific directory out of the JSON printed by the CLI.
+    return {"output": output.name, "report": report_path.name, "summary": report}

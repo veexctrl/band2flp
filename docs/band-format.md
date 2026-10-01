@@ -53,11 +53,7 @@ The cross-format specification places an audio-region frame count at `AuRg` payl
 
 Position, track, and source-link recovery are HIGH CONFIDENCE for this fixture. The external Logic specification targets Logic Pro 11.2.2, so it is corroboration rather than proof of universal GarageBand behavior. The parser exposes the placements as audio regions with exact beat-string starts and external source references. It does not yet decode arrangement duration, source offset, trim, loop, mute, or track names/settings. Unknown event suffix bytes remain in the raw project data and are also attached to their neutral regions; the candidate frame-count correlation is diagnostic only.
 
-## Additional audio timing and link candidates
-
-ARR-027 found that finite nonzero values at audio placement event offset `+0x1c` lie on the candidate 960-tick grid in two fixtures. One value matches a preview-measured 128-beat clip, while most placements carry `0x3fffffff`, including visible 16-beat clips. The parser retains the word as a candidate and does not treat it as a duration.
-
-CROSS-004 found a separate candidate relation. In one audio-bearing fixture, three nonzero eight-byte values at filename-matched `AuRg` payload offset `+0x8a` each match exactly one same-source `0x24` placement's bytes at event `+0x28..+0x2f`. The last four bytes overlap the already known audio-source link at `+0x2c`. One additional region field is zero. In another fixture, all nine examined `AuRg +0x8a` fields are zero. The parser exposes exact nonzero matches as candidate region chunk indices in the neutral region's unknown data; it does not assign duration, trim, loop, or source offset from this relation. Controlled edits are needed to establish the field's GarageBand meaning.
+ARR-027 profiles another placement word, a little-endian 32-bit value at event offset `+0x1c`. Every finite nonzero value in the two inspected fixtures is divisible by the candidate 960 PPQ, and IDA MCP matches Python's bytes at all five finite offsets. One finite value matches a preview-measured 128-beat clip; another, added to its preview-matched beat-32 start, predicts an end beyond the preview edge. Both duration and absolute-end alternatives remain possible, and most placements use `0x3fffffff` at this offset, including visibly bounded 16-beat clips. The parser preserves the word as `u32_at_0x1c_candidate`, but never converts it to a duration. A controlled region-length edit is required before promoting the field.
 
 ## MIDI placement and region candidates
 

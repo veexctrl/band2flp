@@ -17,4 +17,3 @@
 **Alternatives:** The strings could be region labels duplicated across sequence records, cached instrument/preset labels, or track labels copied into multiple serialized objects. A controlled rename and region-copy experiment is needed to distinguish these roles.
 
 **Next:** Save controlled variants changing only one track name, one MIDI region name, and one instrument preset name. Compare which `MSeq` strings change and whether each follows a stable chunk/group association or a placement.
-

@@ -17,4 +17,3 @@
 **Alternatives:** `+0x06` could be an edit offset in another origin, and `+0x16` could include codec padding or a cached extent. The audio-free fixture lacks source bytes, so its zero-field record need not equal a whole file. Same-source records may include pool and arrange variants rather than independent timeline clips.
 
 **Next:** Save controlled fixtures that trim the left edge, right edge, and both edges independently while keeping the source and placement start fixed. Check that the two words change according to the predicted source-frame differences, then test a repeated/tempo-following loop and compare visible arrangement bounds.
-

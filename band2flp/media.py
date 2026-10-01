@@ -189,4 +189,3 @@ def extract_referenced_audio(
         "extracted": extracted,
         "unresolved_audio_reference_count": sum(ref.package_member is None for ref in references),
     }
-

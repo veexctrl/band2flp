@@ -18,3 +18,18 @@
 
 **Next:** Create controlled ordinary-audio and Live Loops fixtures using the same source. Move, duplicate, trim, and loop one region at a time, then compare whether the candidate field follows its placement or remains zero by media origin.
 
+## ARR-031 — paired region/placement instance candidates
+
+**Question:** Do the three exact window matches connect individual `AuRg` region chunks to individual `0x24` placement events, rather than only identifying a matching field location?
+
+**Method:** In the one qualifying source group, order four filename-matched region chunks by logic-song offset and four placements by event offset. Compare only the eight-byte windows at `AuRg +0x8a` and placement `+0x28`. Reopen the extracted logic-song payload (not the CAF audio) in IDA MCP and read both windows for each of the three Python-matched pairs.
+
+**Observation:** Three nonzero values match uniquely. In file order, region records 2, 3, and 4 match placement records 3, 2, and 4; region 1 and placement 1 remain unmatched. All six IDA reads agree byte-for-byte with Python. The three multi-region source groups in the second fixture have no equality at these exact positions.
+
+**Result:** This is evidence for a partial per-instance link candidate in the embedded-source fixture, with a nontrivial 2↔3 ordering that is inconsistent with a simple shared ordinal. The parser retains these exact-equality candidate chunk indices but does not choose one region as authoritative, synthesize a missing pair, or assign length/trim/loop semantics.
+
+**Confidence:** CONFIRMED for offsets, width, nonzero equality, one-to-one matching, file-order mapping, and IDA/Python agreement in this fixture. HYPOTHESIS that the values are shared region-instance identifiers. UNKNOWN why one pair is absent and why the other fixture has no match.
+
+**Alternatives:** The values could identify another shared object or relationship and happen to be unique among these records. The fixtures are uncontrolled, and exact equality in one source group is not enough to generalize the field semantics.
+
+**Next:** Use same-source controlled projects with one, two, and three placed copies; reorder the copies, then change one trim at a time. A stable identity that follows the same region through reordering would support the instance-link interpretation.

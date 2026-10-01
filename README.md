@@ -4,6 +4,8 @@ Research tools for recovering GarageBand project structure into a neutral model 
 
 Licensed under the [MIT License](LICENSE).
 
+Community participation follows the [Code of Conduct](CODE_OF_CONDUCT.md). Contribution guidance is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Why this project exists
 
 GarageBand, Ableton Live, and FL Studio each have their own project formats and workflows. `band2flp` aims to make cross-DAW collaboration easier, so collaborators can work from a shared song without everyone needing to learn and own a license for every DAW in the chain. It does this by recovering song data into a neutral model, then exporting supported data for another DAW. Current work focuses on GarageBand projects and experimental FL Studio export; Ableton export and complete project conversion are not implemented yet.
@@ -19,6 +21,7 @@ The graphic is a rough estimate of format knowledge recovered, not a measure of 
 - Emit a neutral JSON representation with raw candidate data, provenance, and warnings.
 - In inspected project variants, recover candidate audio placement starts and link audio sources to placement records. One fixture's starts match its GarageBand arrangement preview.
 - Report MIDI region-placement and note-shaped event candidates, including observed links to MSeq chunks. These are research candidates, not a confirmed MIDI conversion.
+- Optionally export provisional MIDI-note previews with `export-flp --include-midi-candidates`. The notes are editable in FL Studio 25; GarageBand pitch, timing, and track interpretations remain unconfirmed.
 - Extract audio files that are explicitly referenced by the project, using generated filenames and a mapping report.
 - Inspect beat-tagged CAF source metadata when present, including beat count, meter, and an inferred source-tempo candidate. These source tags do not establish arrangement repeats or Live Loops cells.
 - Experimentally export recovered audio starts to an FL Studio project using PyFLP and a blank FL Studio template. The exporter checks sample paths and places audio-channel definitions before playlist clips. FL Studio 25 opened both the reordered song probe and a fresh two-source export without invalid-clip errors; clips appeared in the arrangement. The synthetic sources are intentionally silent. A local WAV-relinked probe now loads fully in FL Studio 25 according to the user; an in-memory hash comparison matched the transcode input to the source in the supplied project archive; audible playback remains unverified, and no recording or generated media is in the repository.
@@ -169,4 +172,3 @@ Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`
 Cross-format research references include [loov/logicx](https://github.com/loov/logicx) and [Jon Kubis's LogicProFormatWriter format notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md). They document Logic Pro, so we use them as research leads and validate candidate meanings against GarageBand evidence. The band2flp implementation was written independently; no code was copied from these projects.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the research workflow and fixture privacy guidance, [docs/roadmap.md](docs/roadmap.md) for milestones, [docs/architecture.md](docs/architecture.md) for the parser/model/exporter boundary, [docs/band-format.md](docs/band-format.md) for observed format details, and [docs/flp-mapping.md](docs/flp-mapping.md) for FL Studio status.
-

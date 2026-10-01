@@ -76,8 +76,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         project = parse_band(args.project)
         if args.command == "export-flp":
-            has_audio = any(region.kind == "audio" for track in project.tracks for region in track.regions)
-            if has_audio and args.length_policy == "reject-unknown" and any(
+            if args.length_policy == "reject-unknown" and any(
                 region.kind == "audio" and region.duration_beats is None
                 for track in project.tracks for region in track.regions
             ):
@@ -85,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
                     "GarageBand audio region lengths are unknown; rerun with --length-policy source-full "
                     "to use full-source placeholders explicitly"
                 )
+            has_audio = any(region.kind == "audio" for track in project.tracks for region in track.regions)
             extraction = {"extracted": [], "unresolved_audio_reference_count": 0}
             media_by_reference = {}
             if has_audio:
@@ -222,4 +222,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

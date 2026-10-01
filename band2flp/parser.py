@@ -484,9 +484,12 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             ),
             "record_layout_confidence": "HYPOTHESIS transferred from Logic Pro and structurally corroborated in this GarageBand fixture",
             "u32_at_0x18_candidate": struct.unpack_from("<I", raw, 0x18)[0],
-            "u32_at_0x1c_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
-            "u32_at_0x1c_interpretation": "UNKNOWN; finite values align to a candidate 960-PPQ grid in two fixtures; not used as duration",
             "u32_at_0x18_interpretation": "UNKNOWN; preserved as a raw candidate, not used as duration or end position",
+            "u32_at_0x1c_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
+            "u32_at_0x1c_interpretation": (
+                "UNKNOWN; some finite values align to the candidate 960-PPQ grid and one matches a preview-measured extent; "
+                "duration/end-position semantics and the 0x3FFFFFFF sentinel are unresolved; not used as duration"
+            ),
         })
     return placements
 
