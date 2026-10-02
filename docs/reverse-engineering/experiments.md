@@ -1388,3 +1388,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Alternative considered:** A shared region-family or parent-object identifier could also group several regions. The exact value's identity semantics remain unknown beyond its demonstrated source-group join.
 
 **Next:** In a controlled same-source project, duplicate and reorder a region, then compare `+0x2c`, `+0x28`, `AuRg +0x8a`, and the asset-group fields to determine which values follow the source and which follow a region instance.
+
+## TRK-015 — compare audio source labels with placement track-byte order
+
+**Question:** In the non-vocal audio-only fixture, does the `0x24` event byte at `+0x14` preserve the visible order of source-labeled arrangement rows?
+
+**Fixture:** The same metadata-only audio project and cached arrangement preview used in ARR-021. No audio members were opened, extracted, or decoded; source labels and project identity are omitted here.
+
+**Method:** Group the parser's recognized `0x24` placements by the existing candidate source-group join to `AudioFiles`. Compare each group's `+0x14` candidate with the visible preview row order and readable region-label suffixes. Independently reread all nine event bytes through IDA at their parser-reported offsets and compare them with Python.
+
+**Observation:** Nine placements resolve to six source-reference groups. Every group has a consistent `+0x14` value across its placements, including the three groups with repeated placements. The six groups have distinct candidate values 2 through 7, in the same sequence as the six occupied preview rows. Five row labels visibly corroborate the source-reference order; the first row's label is cropped. IDA's nine byte reads match Python. The project summary declares seven arrange tracks, one more than the six audio-populated candidate values.
+
+**Result:** This strengthens the fixture-specific evidence that `+0x14` preserves audio-track relative order and is consistent with a one-based arrange-track index: the values are consecutive, lie within the declared seven-track range, and follow the source-labeled row sequence. It does not prove an absolute row number, identify the unpopulated track's location, or map these values to serialized `Trak` records. Cached-preview staleness and omitted/cropped rows remain alternatives. The parser's one-based interpretation therefore remains a fixture-specific HYPOTHESIS, not a universal field meaning.
+
+**Confidence:** CONFIRMED for the nine IDA/Python byte matches, six source-group/value consistency, visible six-row order, and declared track count; HIGH CONFIDENCE that the byte preserves relative order in this fixture; HYPOTHESIS for direct one-based index semantics.
+
+**Next:** Use a controlled GarageBand project that adds or reorders exactly one audio track, then compare the byte values, displayed rows, and declared track count. Track UUID mapping remains a separate question.
