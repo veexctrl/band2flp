@@ -52,3 +52,18 @@
 
 **Next:** In controlled same-source projects, create one, two, and three placed copies and change only the trim or order. Check whether the fixed field remains unique and whether the suffix candidate follows one instance without duplicate frame candidates.
 
+## CROSS-006 — scan longer unaligned region/placement windows
+
+**Question:** Do same-source `AuRg` region records and audio-placement records share a longer contiguous instance identifier that the earlier four- and eight-byte scan missed?
+
+**Fixtures:** The same two supplied projects as CROSS-005 and ARR-031. Project values, identifiers, source names, and media are not reported.
+
+**Method:** Reuse the same filename-stem and candidate source-group selection, one-to-one uniqueness rule, and requirement for at least two distinct nonzero matched values. Scan 12-, 16-, 24-, and 32-byte windows at every byte alignment in the complete region payloads and 80-byte placement records. The probe now accepts custom window widths and alignment through `--widths` and `--step`.
+
+**Observation:** Three candidate source groups in one project and one in the other qualified for scanning. None produced a varying one-to-one match at any tested width or alignment.
+
+**Result:** No direct contiguous 12–32-byte instance identifier was found under these criteria. This rules out only exact, contiguous matches in the candidate groups; an encoded, split, indirect, or constant identifier remains possible.
+
+**Confidence:** CONFIRMED for the scan result in these two fixtures; UNKNOWN for whether an instance link exists in another form.
+
+**Next:** Test reordered copies of one source in a controlled GarageBand project and compare the candidate fields after each edit.
