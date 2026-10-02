@@ -1320,3 +1320,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the aggregate exact-match counts in this fixture; HYPOTHESIS that the two unique matches identify source-family records; UNKNOWN for the object roles and any relationship to arrange tracks, regions, or Live Loops cells.
 
 **Next:** Use controlled source duplication/reordering to determine whether repeated family patterns follow a source, a region instance, or a containing song object.
+
+## ARR-037 — scan exact byte windows between audio regions and placements
+
+**Question:** Do candidate `AuRg` region payloads share a varying exact byte window with their candidate audio-placement event records?
+
+**Fixture:** One supplied non-vocal, audio-only project. Project and source names, paths, field values, and payload bytes are omitted.
+
+**Method:** Reused `research/scripts/audio_window_link_probe.py` with window widths 1 through 32 bytes and a one-byte step. The probe compares the complete `AuRg` region payloads against the parsed 80-byte audio-placement records. It reports only varying, nonzero, one-to-one equalities, and only when at least two distinct values support a candidate offset pair. Three source groups had at least two candidate regions and two candidate placements.
+
+**Observation:** No candidate window was reported at any tested width or offset in any of the three groups. The fixture's audio-placement records are all 80 bytes.
+
+**Result:** This fixture provides no evidence that a small field is copied byte-for-byte between the candidate region payloads and placement records. A transformed field, a value outside the compared record, or an incorrect source/region grouping remains possible. This negative result does not reject the `+0x8a`/`+0x28` candidate relation observed in another fixture.
+
+**Confidence:** CONFIRMED for the bounded scan result in this fixture; UNKNOWN for any general relationship between region and placement objects.
+
+**Next:** Use a controlled same-source region move, copy, or trim edit to identify which structure changes and whether candidate links remain stable.
