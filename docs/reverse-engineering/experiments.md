@@ -1157,3 +1157,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the aggregate group-link and interval comparison under the stated parser candidates; UNKNOWN for the placement timing units and the role of source beat metadata in GarageBand playback.
 
 **Next:** Compare controlled ordinary-audio and Live Loops uses of one source, including a trim-only change, before assigning the source beat count to region length or repetition.
+
+## MIDI-020 — audit note-candidate coverage in the neutral model
+
+**Question:** Does the parser's unique `MSeq`/placement join preserve every MIDI-status-shaped note candidate in the neutral unplaced-region view, or does it silently drop candidates?
+
+**Fixtures:** The two supplied logic-song payloads, inspected locally. Note values, labels, group identifiers, and project names are omitted.
+
+**Method:** For each fixture, count the parser's MIDI-status-shaped event candidates, MIDI placement candidates, and notes retained across `Project.unplaced_midi_regions`. Compare source chunk/event locations to verify candidate identity, uniqueness, and coverage. The latter view is populated only when both the group-to-`MSeq` and `MSeq`-to-placement links are unique. No note fields are interpreted or reported.
+
+**Observation:** One fixture has 133 note-event candidates and 19 MIDI placement candidates; five unplaced MIDI-region candidates contain all 133 note candidates. The other fixture has no note-event candidates, 12 MIDI placement candidates, and no unplaced MIDI-region candidates.
+
+**Result:** The current candidate join accounts for all note-event records in the inspected fixture; none are lost from the neutral candidate view. MIDI-only placements with no matched note-event records remain present in `midi_region_placement_candidates`. This validates candidate retention and association counts only. It does not confirm that every status-shaped event is a note or establish timing, pitch, velocity, track, or export semantics.
+
+**Confidence:** CONFIRMED for the parser counts and unique-link join in these two fixtures; UNKNOWN for the musical interpretation and generality beyond them.
+
+**Next:** Use controlled single-note pitch, onset, duration, and velocity edits, then validate track identity separately before converting candidates to normalized MIDI regions.
