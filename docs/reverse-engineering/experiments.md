@@ -1109,3 +1109,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** HIGH CONFIDENCE in this negative result for the inspected candidate set; UNKNOWN for the meaning of `+0x1c` and the `AuRg +0x16` values.
 
 **Next:** Use a controlled same-source, same-start region-length or trim edit, then test whether the placement word or selected source-window candidate changes predictably.
+
+## BIN-004 — repeated Song payload prefix and marker position
+
+**Question:** Are the unexplained magic markers inside the `Song` payload positioned consistently across the two supplied projects, and does the payload begin with a stable prefix?
+
+**Fixtures:** Two locally inspected logic-song payloads. The vocal project's audio was not read or decoded for this test.
+
+**Method:** Parse the top-level chunk stream, locate its `Song` payload, compare the payload-relative marker positions and common prefix, then independently read the payload prefix and marker windows through IDA MCP and compare those bytes with Python.
+
+**Observation:** Each payload begins with the marker and contains another occurrence at the same relative offset, 700 bytes into the `Song` payload. The first 33 payload bytes match across the two fixtures; the following byte differs. IDA MCP and Python agree byte-for-byte on the inspected prefix and marker windows in both fixtures.
+
+**Result:** The repeated prefix and marker position suggest a stable internal layout candidate, but no field meanings are assigned. The markers still fail the validated top-level chunk framing checks; this does not establish a nested stream or identify song sections.
+
+**Confidence:** CONFIRMED for the marker positions, shared prefix length, and IDA/Python byte agreement in these two fixtures; UNKNOWN for the marker's structural role and the prefix fields.
+
+**Next:** Compare a controlled project with one song-section property changed, or find another independent boundary rule before interpreting the payload.
