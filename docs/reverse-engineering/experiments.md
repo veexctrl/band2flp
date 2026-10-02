@@ -990,11 +990,13 @@
 
 **Fixtures:** Both supplied project archives, inspected through event/chunk metadata in `projectData`. Audio samples, names, group values, and event bytes are omitted.
 
-**Method:** Added `research/scripts/f1_group_probe.py` to compare anonymous group-value multisets for `0xF1` event records, `MSeq` chunks, and empty-payload `Trak` chunks. The probe obtains only the retained logic-song NSData payload from parsed project data, verifies each event's raw bytes at its reported payload offset, and scans that payload for every occurrence of the distinct `0xF1` record. It reports aggregate occurrence counts only. Cross-fixture raw-record equality is computed internally but only emitted as a boolean. Regression tests verify the relationships, offset validation, occurrence behavior, and that output omits raw bytes and group values. This probe used Python; IDA did not independently re-read the `0xF1` ranges.
+**Method:** Added `research/scripts/f1_group_probe.py` to compare anonymous group-value multisets for `0xF1` event records, `MSeq` chunks, and empty-payload `Trak` chunks. The probe obtains only the retained logic-song NSData payload from parsed project data, verifies each event's raw bytes at its reported payload offset, and scans that payload for every occurrence of the distinct `0xF1` record. It reports aggregate occurrence counts only. Cross-fixture raw-record equality is computed internally but only emitted as a boolean. Regression tests verify the relationships, offset validation, occurrence behavior, and that output omits raw bytes and group values. This probe used Python for the payload-wide scan; IDA MCP independently re-read all 35 parser-reported 16-byte `0xF1` ranges in the audio-bearing fixture, and the bytes matched exactly.
 
 **Observation:** One payload contains 35 `0xF1` records and the other 33; all are 16 bytes long. Within each payload, every `0xF1` record has identical bytes, and the exact record is the same across both payloads. The per-group multiplicities exactly match both `MSeq` chunks and empty-payload `Trak` chunks in each payload: 35 versus 35 across 29 groups, and 33 versus 33 across 27 groups. Five records in each payload use group zero.
 
 The full-payload occurrence scan found exactly 35 and 33 instances of the distinct raw record respectively, with every occurrence starting at one of the parsed `0xF1` event offsets. This rules out an accidental match elsewhere in either logic-song payload, but does not reveal the record's purpose.
+
+The ordered group-value sequence of `0xF1` event records also exactly matches the serialized `MSeq` chunk order and the empty-payload `Trak` chunk order in each fixture. The families therefore have the same count and per-ordinal group candidate across these two payloads. This is an ordinal structural relationship only; the shared groups do not identify the represented object.
 
 **Result:** The repeated `0xF1` record family is structurally co-grouped with the complete `MSeq` and empty-`Trak` inventories in these two payloads. This strengthens the evidence that these three record families participate in a shared serialized grouping pattern, but does not identify the group field's scope, why the `0xF1` bytes are constant, or whether a group corresponds to a track, region, or another object. No MIDI or track semantics are assigned.
 
@@ -1003,6 +1005,25 @@ The full-payload occurrence scan found exactly 35 and 33 instances of the distin
 **Alternative considered:** The group field may scope a container or serializer template rather than identify related musical objects. The identical `0xF1` payload could be a generic marker, but its function cannot be inferred from repetition alone.
 
 **Next:** Seek controlled track-add, region-copy, or track-reorder fixtures and compare whether `0xF1` records are added, removed, or moved with a specific object. If additional IDA raw reads become available, verify representative and repeated group ranges there before raising confidence beyond Python.
+
+
+## EVT-008 — compare F1, MSeq, and empty-Trak group order
+
+**Question:** Does the F1-to-MSeq/empty-Trak group correspondence preserve serialized order, or only group multiplicities?
+
+**Fixtures:** The same two supplied projects as EVT-007. The probe emits aggregate counts and equality booleans only; group values, media, names, and paths are omitted.
+
+**Method:** Extended `research/scripts/f1_group_probe.py` to compare the ordered group-candidate sequence for parsed F1 event records with the chunk-order sequences for all `MSeq` chunks and zero-payload `Trak` chunks. The existing multiset comparisons remain separate so an ordering mismatch is distinguishable from a multiplicity mismatch. A synthetic regression test reverses the related group order while preserving multiplicities.
+
+**Observation:** In both fixtures, the F1 event count equals the number of `MSeq` chunks and empty-payload `Trak` chunks (33 or 35). The F1 group sequence matches both chunk sequences exactly, including repeated groups and group zero.
+
+**Result:** CONFIRMED ordinal group-candidate correspondence among these three record families in the two inspected payloads. The equality supports a parallel serialized inventory/order, but does not establish that each ordinal represents the same musical object or give the `F1` record, empty `Trak`, or group field a semantic name.
+
+**Confidence:** CONFIRMED for exact sequence equality in these two fixtures; HYPOTHESIS for an intentional ordinal/parallel-table relationship; UNKNOWN for object identity and event meaning.
+
+**Alternative considered:** All three families may be emitted from a common serializer traversal or sorted by a shared key, without denoting the same object. Repeated groups mean ordinal equality alone is not a unique-object key.
+
+**Next:** Compare a controlled track-add, MIDI-region-add, or reorder edit and check whether insertions/reordering remain synchronized across all three sequences. Until then, keep the ordinal relationship as a structural observation only.
 
 
 ## ARR-027 — audio placement `+0x1c` tick-grid and preview-length candidate
