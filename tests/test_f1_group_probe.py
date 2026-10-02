@@ -51,6 +51,61 @@ class F1GroupProbeTests(unittest.TestCase):
         with self.assertRaisesRegex(BandFormatError, "malformed raw record"):
             profile_f1_groups([record], [])
 
+    def test_scans_payload_occurrences_without_exposing_raw_bytes(self) -> None:
+        raw = bytes([0xF1, *range(1, 16)])
+        record = {
+            "type_byte": 0xF1,
+            "group_id_candidate": 7,
+            "length": len(raw),
+            "raw_hex": raw.hex(),
+            "offset": 3,
+        }
+        profile, _ = profile_f1_groups([record], [], b"abc" + raw + b"xyz")
+        self.assertEqual(profile["payload_occurrence_scan"], {
+            "raw_record_occurrence_count": 1,
+            "occurrences_at_f1_event_starts": 1,
+            "all_occurrences_at_f1_event_starts": True,
+        })
+        self.assertNotIn(raw.hex(), json.dumps(profile))
+
+    def test_reports_matching_marker_outside_f1_event_start(self) -> None:
+        raw = bytes([0xF1, *range(1, 16)])
+        record = {
+            "type_byte": 0xF1,
+            "group_id_candidate": 7,
+            "length": len(raw),
+            "raw_hex": raw.hex(),
+            "offset": 0,
+        }
+        profile, _ = profile_f1_groups([record], [], raw + b"gap" + raw)
+        self.assertEqual(profile["payload_occurrence_scan"]["raw_record_occurrence_count"], 2)
+        self.assertEqual(profile["payload_occurrence_scan"]["occurrences_at_f1_event_starts"], 1)
+        self.assertFalse(profile["payload_occurrence_scan"]["all_occurrences_at_f1_event_starts"])
+
+    def test_rejects_f1_event_payload_offset_mismatch(self) -> None:
+        record = {
+            "type_byte": 0xF1,
+            "group_id_candidate": 7,
+            "length": 16,
+            "raw_hex": "f1" * 16,
+            "offset": 0,
+        }
+        with self.assertRaisesRegex(BandFormatError, "disagree"):
+            profile_f1_groups([record], [], b"x" * 16)
+
+    def test_rejects_duplicate_f1_event_offsets(self) -> None:
+        raw = bytes([0xF1, *range(1, 16)])
+        record = {
+            "type_byte": 0xF1,
+            "group_id_candidate": 7,
+            "length": len(raw),
+            "raw_hex": raw.hex(),
+            "offset": 0,
+        }
+        with self.assertRaisesRegex(BandFormatError, "missing or duplicated"):
+            profile_f1_groups([record, record], [], raw)
+
 
 if __name__ == "__main__":
     unittest.main()
+
