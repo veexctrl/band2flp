@@ -448,15 +448,29 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn("path", report)
 
     def test_audio_name_chunk_probe_counts_length_framed_strings_privately(self) -> None:
+        name_alpha = "SyntheticLoopAlpha"
+        name_beta = "SyntheticLoopBeta"
+        name_false = "SyntheticLoopFalse"
+
+        def loop_record(name: str, is_family_loop: bool) -> bytes:
+            return plistlib.dumps(
+                {"IsFamilyLoop": is_family_loop, "LoopFamilyName": name},
+                fmt=plistlib.FMT_BINARY,
+                sort_keys=False,
+            )
+
+        alpha_record = loop_record(name_alpha, True)
+        beta_record = loop_record(name_beta, True)
+        false_record = loop_record(name_false, False)
         payload = bytearray()
         chunks = []
         for index, (chunk_type, group, body) in enumerate([
-            ("AuFl", 7, b"\x05Alpha"),
-            ("AuRg", 7, b"\x05Alpha"),
-            ("SngO", 8, b"\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10\x05Alpha\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10\x04Beta"),
-            ("GenM", 9, b"\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10\x05Alpha\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10\x05Alpha"),
-            ("AuFl", 10, b"\x04Beta"),
-            ("TstF", 11, b"\\IsFamilyLoop^LoopFamilyName\x08\x5f\x10\x05Gamma"),
+            ("AuFl", 7, bytes((len(name_alpha),)) + name_alpha.encode()),
+            ("AuRg", 7, name_alpha.encode()),
+            ("SngO", 8, alpha_record + beta_record),
+            ("GenM", 9, alpha_record + alpha_record),
+            ("AuFl", 10, bytes((len(name_beta),)) + name_beta.encode()),
+            ("TstF", 11, false_record),
         ], start=10):
             offset = len(payload)
             payload.extend(body)
@@ -469,15 +483,15 @@ class ParserTests(unittest.TestCase):
             })
         references = [
             MediaReference(
-                index=0, category="AudioFiles", reference="external/Alpha.caf",
+                index=0, category="AudioFiles", reference=f"external/{name_alpha}.caf",
                 source_chunk_index=10,
             ),
             MediaReference(
-                index=1, category="AudioFiles", reference="external/Beta.caf",
+                index=1, category="AudioFiles", reference=f"external/{name_beta}.caf",
                 source_chunk_index=14,
             ),
             MediaReference(
-                index=2, category="AudioFiles", reference="external/Gamma.caf",
+                index=2, category="AudioFiles", reference=f"external/{name_false}.caf",
                 source_chunk_index=15,
             ),
             MediaReference(index=3, category="OtherFiles", reference="external/Ignore.caf"),
@@ -548,8 +562,9 @@ class ParserTests(unittest.TestCase):
             report["group_candidate_intersections"]["GenM/SngO"]["stems_with_shared_group_candidate_count"],
             0,
         )
-        self.assertNotIn("Alpha", json.dumps(report))
-        self.assertNotIn("Beta", json.dumps(report))
+        self.assertNotIn(name_alpha, json.dumps(report))
+        self.assertNotIn(name_beta, json.dumps(report))
+        self.assertNotIn(name_false, json.dumps(report))
 
     def test_arrange_ui_probe_reports_inspector_shape_without_values(self) -> None:
         objects = [
