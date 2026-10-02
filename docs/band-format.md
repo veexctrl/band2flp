@@ -26,7 +26,7 @@ The supplied archive has nine members totaling 3,795,565 uncompressed bytes. The
 
 ## CAF source beat tags
 
-One embedded CAF in a separate private fixture carries a UUID chunk with NUL-delimited metadata keys for `beat count` and `time signature`. Its sample rate and valid-frame count support a source-tempo candidate. The parser preserves these tags on the media reference rather than treating them as region duration or a Live Loops cell flag. The measurements and limits are recorded without private source values in [AUD-002](reverse-engineering/caf-loop-metadata.md).
+One embedded CAF in a separate private fixture carries a UUID chunk with NUL-delimited metadata keys for `beat count` and `time signature`. Its sample rate and valid-frame count support a source-tempo candidate. The parser preserves these tags on the media reference rather than treating them as region duration or a Live Loops cell flag. It also retains standard CAF `desc` and `pakt` metadata (format, packet, valid-frame, priming, and remainder fields); audio samples are not decoded. The measurements and limits are recorded without private source values in [AUD-002](reverse-engineering/caf-loop-metadata.md) and [AUD-003](reverse-engineering/experiments.md).
 
 ## Audio resource cross-links
 

@@ -16,8 +16,8 @@ def fixture(fields: dict[str, str], *, uuid: bytes = LOOP_METADATA_UUID) -> byte
         key.encode() + b"\0" + value.encode() + b"\0"
         for key, value in fields.items()
     )
-    desc = struct.pack(">d", 48000) + b"aac " + bytes(20)
-    pakt = (1).to_bytes(8, "big") + (192000).to_bytes(8, "big") + bytes(8)
+    desc = struct.pack(">d4sIIIII", 48000, b"aac ", 2, 0, 1024, 2, 0)
+    pakt = struct.pack(">qqii", 190, 192000, 2112, 448)
     return (
         b"caff\0\x01\0\0"
         + chunk(b"desc", desc)
@@ -35,6 +35,25 @@ class CafMetadataTests(unittest.TestCase):
         self.assertEqual(result["beat_count"], 4)
         self.assertEqual(result["source_tempo_bpm_from_frames_candidate"], 60)
         self.assertEqual(result["fields"]["time signature"], "4/4")
+        self.assertEqual(result["sample_rate_hz"], 48000)
+        self.assertEqual(result["valid_frames"], 192000)
+        self.assertEqual(result["audio_format"], {
+            "format_id": "aac ",
+            "frames_per_packet": 1024,
+            "channels_per_frame": 2,
+        })
+        self.assertEqual(result["packet_table"], {
+            "number_packets": 190,
+            "valid_frames": 192000,
+            "priming_frames": 2112,
+            "remainder_frames": 448,
+        })
+        self.assertEqual(
+            result["packet_table"]["number_packets"] * result["audio_format"]["frames_per_packet"],
+            result["packet_table"]["valid_frames"]
+            + result["packet_table"]["priming_frames"]
+            + result["packet_table"]["remainder_frames"],
+        )
         self.assertNotIn("arrangement_loop", result)
 
     def test_unknown_uuid_is_not_interpreted(self) -> None:

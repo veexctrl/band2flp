@@ -46,6 +46,12 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
         return None
     rate: float | None = None
     valid_frames: int | None = None
+    format_id: str | None = None
+    frames_per_packet: int | None = None
+    channels_per_frame: int | None = None
+    number_packets: int | None = None
+    priming_frames: int | None = None
+    remainder_frames: int | None = None
     fields: dict[str, str] | None = None
     while True:
         header = stream.read(12)
@@ -64,8 +70,16 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
                 candidate = struct.unpack_from(">d", payload)[0]
                 if math.isfinite(candidate) and candidate > 0:
                     rate = candidate
+                if len(payload) >= 32:
+                    format_id = payload[8:12].decode("ascii", errors="replace")
+                    frames_per_packet = struct.unpack_from(">I", payload, 20)[0]
+                    channels_per_frame = struct.unpack_from(">I", payload, 24)[0]
             elif tag == b"pakt" and len(payload) >= 16:
                 valid_frames = int.from_bytes(payload[8:16], "big", signed=True)
+                if len(payload) >= 24:
+                    number_packets = int.from_bytes(payload[0:8], "big", signed=True)
+                    priming_frames = int.from_bytes(payload[16:20], "big", signed=True)
+                    remainder_frames = int.from_bytes(payload[20:24], "big", signed=True)
             elif tag == b"uuid" and payload[:16] == LOOP_METADATA_UUID:
                 fields = _metadata_pairs(payload[16:])
         elif not _discard(stream, size):
@@ -77,6 +91,29 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
         "confidence": "HIGH CONFIDENCE for literal key/value strings in this source; HYPOTHESIS for Apple Loop library classification",
         "fields": fields,
     }
+    if rate is not None:
+        result["sample_rate_hz"] = rate
+    if valid_frames is not None and valid_frames >= 0:
+        result["valid_frames"] = valid_frames
+    audio_format = {
+        key: value for key, value in {
+            "format_id": format_id,
+            "frames_per_packet": frames_per_packet,
+            "channels_per_frame": channels_per_frame,
+        }.items() if value is not None
+    }
+    if audio_format:
+        result["audio_format"] = audio_format
+    packet_table = {
+        key: value for key, value in {
+            "number_packets": number_packets,
+            "valid_frames": valid_frames,
+            "priming_frames": priming_frames,
+            "remainder_frames": remainder_frames,
+        }.items() if value is not None
+    }
+    if packet_table:
+        result["packet_table"] = packet_table
     beats = fields.get("beat count")
     if beats is not None and beats.isdecimal() and 0 < int(beats) <= 100000:
         result["beat_count"] = int(beats)

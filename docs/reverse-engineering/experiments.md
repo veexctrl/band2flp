@@ -1076,3 +1076,20 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for record counts, sizes, and exact IDA/Python byte agreement; UNKNOWN for musical field semantics and generality across projects.
 
 **Next:** Use controlled GarageBand one-note edits to separate actual note records from other members of the status-shaped family and validate each field before converting them to normalized notes.
+
+
+## AUD-003 — retain CAF packet-table timing metadata
+
+**Question:** Can the CAF source inspector preserve the codec frame accounting needed to distinguish valid audio duration from AAC packet padding?
+
+**Evidence:** Apple's Core Audio Format Specification 1.0 defines `desc` fields for format ID, frames per packet, and channel count. Its `pakt` header contains packet count, valid frames, priming frames, and remainder frames; valid frames divided by sample rate gives file duration, while priming and remainder describe frames trimmed during decode.
+
+**Method:** Extended the bounded CAF metadata reader to expose these `desc` and `pakt` fields alongside the existing UUID loop-metadata candidates. It skips the audio-data chunk without decoding or retaining its payload. A synthetic AAC fixture exercises a packet-table accounting identity, and IDA MCP reads of the `desc` and `pakt` headers from locally available CAF sources matched the Python byte reads.
+
+**Observation:** The reader retains sample rate, format ID, frame count per packet, channel count, packet count, valid frame count, priming count, and remainder count. The synthetic fixture's packet-frame total equals valid frames plus priming and remainder. The parser keeps valid frames as the duration basis for its source-tempo candidate; it does not treat encoded packet frames as playable frames.
+
+**Result:** CAF metadata can now explain the distinction between valid decoded duration and AAC packet overhead without inspecting audio samples. This improves source metadata fidelity but provides no evidence for GarageBand arrangement duration, region trimming, or Live Loops behavior.
+
+**Confidence:** CONFIRMED for the CAF field layout and timing definitions from Apple's specification, the implementation's synthetic test, and IDA/Python header-byte agreement on the locally inspected files; UNKNOWN for how GarageBand maps CAF source metadata to arrangement regions.
+
+**Next:** Keep source duration separate from region timing. Test arrangement trim/loop behavior with controlled GarageBand projects before using any CAF field to set FL Studio playlist lengths.
