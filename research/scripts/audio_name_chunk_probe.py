@@ -76,11 +76,21 @@ def profile_audio_name_chunks(
                 totals[chunk_type]["preceding_byte_equals_utf8_length_count"] += int(
                     offset > start and payload[offset - 1] == len(needle)
                 )
-                totals[chunk_type]["bplist_extended_ascii_string_marker_match_count"] += int(
+                has_extended_ascii_marker = (
                     offset >= start + 3
                     and payload[offset - 3:offset]
                     == b"\x5f\x10" + bytes((len(needle),))
                 )
+                totals[chunk_type]["bplist_extended_ascii_string_marker_match_count"] += int(
+                    has_extended_ascii_marker
+                )
+                if has_extended_ascii_marker and offset >= start + 4:
+                    totals[chunk_type]["name_after_bplist_true_marker_count"] += int(
+                        payload[offset - 4] == 0x09
+                    )
+                    totals[chunk_type]["name_after_bplist_false_marker_count"] += int(
+                        payload[offset - 4] == 0x08
+                    )
                 totals[chunk_type]["same_source_group_occurrence_count"] += int(
                     source_group is not None
                     and chunk.get("group_id_candidate") == source_group
