@@ -1043,3 +1043,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Alternatives:** The field could be an end/extent in another origin, a loop or edit quantity, or a tick-valued property that happens to agree with one preview length. The sentinel might denote an unset value, a special loop mode, or a large valid extent. The cross-format [Logic Pro ProjectData specification](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#81-track-identity-for-multiple-tracks) describes the 0x24 event in terms of position, track, and region link, and marks nearby fields as constants. That Logic layout does not establish the GarageBand layout, but it cautions against transferring a Logic duration interpretation. The projects are not controlled variants.
 
 **Next:** Create a single-source GarageBand fixture, hold source and start constant, and change only the region length twice. Compare `+0x1c`, all placement suffix bytes, related `AuRg` chunks, and the preview edges. Do not decode this word into the neutral duration field until the value follows both controlled edits.
+
+## BIN-003 — nested logic-stream marker candidate
+
+**Question:** Do `23 47 C0 AB` markers inside top-level `Song` payloads begin recursively framed chunk streams?
+
+**Fixtures:** Two locally inspected logic-song payloads, independently reopened in IDA MCP.
+
+**Method:** `research/scripts/nested_chunk_probe.py` tries the validated 24-byte root / 36-byte chunk framing at candidate markers on payload boundaries. It emits only counts and chunk type tags. IDA MCP reads at the start of each `Song` payload and at the second marker within it agree with Python's bytes.
+
+**Observation:** Both fixtures contain two marker occurrences inside the `Song` payload. Treating either occurrence as a new complete chunk stream fails the existing framing bounds check; neither fixture yields a valid nested stream. The probe reports one malformed magic-start candidate per fixture because its recursive search reaches the `Song` payload start, while the deeper marker is not a child payload boundary recognized by the outer framing.
+
+**Result:** The repeated magic alone is insufficient evidence for recursive chunk framing. No child semantics, song sections, or song-length structure are assigned. This falsifies the simple “every marker starts another copy of the top-level stream” hypothesis for these fixtures; other framing schemes remain possible.
+
+**Confidence:** CONFIRMED for the candidate count and failed framing checks in these two payloads; UNKNOWN whether the marker has another structural role.
+
+**Next:** Identify the `Song` payload's actual record boundaries from controlled project changes or a separately validated framing rule before interpreting its fields.
