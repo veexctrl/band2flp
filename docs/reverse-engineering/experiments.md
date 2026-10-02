@@ -984,6 +984,24 @@
 
 **Next:** Check another project's cached arrangement image for at least three exact label/MSeq/placement matches, then compare after a controlled track reorder if such a fixture becomes available. Keep this byte uninterpreted in the neutral model meanwhile.
 
+## EVT-007 — compare repeated `0xF1` event groups with `MSeq` and empty `Trak`
+
+**Question:** Do the repeated 16-byte `0xF1` event records have the same group multiplicities as `MSeq` and zero-payload `Trak` chunks?
+
+**Fixtures:** Both supplied project archives, inspected through event/chunk metadata in `projectData`. Audio samples, names, group values, and event bytes are omitted.
+
+**Method:** Added `research/scripts/f1_group_probe.py` to compare anonymous group-value multisets for `0xF1` event records, `MSeq` chunks, and empty-payload `Trak` chunks. It also reports only the number of distinct `0xF1` byte records and validates their framed lengths. Cross-fixture raw-record equality is computed internally but only emitted as a boolean. Regression tests verify the relationships and prevent output of raw bytes or group values. This probe used Python; IDA did not independently re-read the `0xF1` ranges.
+
+**Observation:** One payload contains 35 `0xF1` records and the other 33; all are 16 bytes long. Within each payload, every `0xF1` record has identical bytes, and the exact record is the same across both payloads. The per-group multiplicities exactly match both `MSeq` chunks and empty `Trak` chunks in each payload: 35 versus 35 across 29 groups, and 33 versus 33 across 27 groups. Five records in each payload use group zero.
+
+**Result:** The repeated `0xF1` record family is structurally co-grouped with the complete `MSeq` and empty-`Trak` inventories in these two payloads. This strengthens the evidence that these three record families participate in a shared serialized grouping pattern, but does not identify the group field's scope, why the `0xF1` bytes are constant, or whether a group corresponds to a track, region, or another object. No MIDI or track semantics are assigned.
+
+**Confidence:** CONFIRMED for the Python-parsed counts, byte identity, cross-fixture payload equality, and per-group multiset matches in these two payloads; UNKNOWN for `0xF1` record meaning and the semantic role of group values.
+
+**Alternative considered:** The group field may scope a container or serializer template rather than identify related musical objects. The identical `0xF1` payload could be a generic marker, but its function cannot be inferred from repetition alone.
+
+**Next:** Seek controlled track-add, region-copy, or track-reorder fixtures and compare whether `0xF1` records are added, removed, or moved with a specific object. If additional IDA raw reads become available, verify representative and repeated group ranges there before raising confidence beyond Python.
+
 
 ## ARR-027 — audio placement `+0x1c` tick-grid and preview-length candidate
 
