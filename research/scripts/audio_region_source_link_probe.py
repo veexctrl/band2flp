@@ -11,7 +11,7 @@ from pathlib import Path
 import zipfile
 from typing import Any
 
-from band2flp.parser import BandFormatError, parse_band
+from band2flp.parser import BandFormatError, _unique_candidate_region_field_pairs, parse_band
 from research.scripts.audio_frame_probe import audio_frame_count
 
 
@@ -69,6 +69,11 @@ def profile_candidate_region_payloads(
     return candidate field values, payload bytes, identifiers, or filenames.
     """
     buckets: dict[int, list[bytes]] = {}
+    ordinal_field_candidates = [
+        (index, payload[0x8A:0x92])
+        for index, (_frame_candidate, payload) in enumerate(candidate_payloads)
+        if isinstance(payload, bytes) and len(payload) >= 0x92
+    ]
     for frame_candidate, payload in candidate_payloads:
         if isinstance(frame_candidate, int) and isinstance(payload, bytes):
             buckets.setdefault(frame_candidate, []).append(payload)
@@ -122,6 +127,11 @@ def profile_candidate_region_payloads(
         "repeated_candidate_0x8a_nonzero_byte_count_histogram": dict(sorted(
             link_field_nonzero_byte_counts.items(), key=lambda item: int(item[0])
         )),
+        "source_region_order_field_candidate_count": len(ordinal_field_candidates),
+        "source_region_order_field_match_count": sum(
+            int.from_bytes(field, "little") == index
+            for index, field in ordinal_field_candidates
+        ),
         "interpretation": "UNKNOWN; equal frame candidates need not be identical region records.",
     }
 
@@ -185,6 +195,11 @@ def profile_region_placement_field_links(
     ]
     region_counts = collections.Counter(region_index for region_index, _ in links)
     placement_counts = collections.Counter(placement_index for _, placement_index in links)
+    anchored_pairs = _unique_candidate_region_field_pairs(region_fields, placement_fields)
+    anchored_zero_matches = sum(
+        region_fields[region_index] == bytes(8)
+        for region_index, _ in anchored_pairs
+    )
     return {
         "region_field_count": sum(field is not None for field in region_fields),
         "zero_region_field_count": sum(field == bytes(8) for field in region_fields),
@@ -196,6 +211,8 @@ def profile_region_placement_field_links(
             region_counts[region_index] == 1 and placement_counts[placement_index] == 1
             for region_index, placement_index in links
         ),
+        "anchored_zero_field_candidate_match_count": anchored_zero_matches,
+        "candidate_field_match_count_including_anchored_zero": len(anchored_pairs),
         "interpretation": (
             "HYPOTHESIS; exact field equality is a candidate region-to-placement link, "
             "not a confirmed object identity or duration."

@@ -709,6 +709,37 @@ def _parse_midi_region_placement_candidates(
     return placements
 
 
+def _unique_candidate_region_field_pairs(
+    region_fields: list[bytes | None], placement_fields: list[bytes | None]
+) -> list[tuple[int, int]]:
+    """Keep unique nonzero field links and an anchored unique zero-valued slot.
+
+    Zero is ambiguous in the inspected projects: it appears as repeated unset-like
+    data in one fixture, but also as the first value in a complete one-to-one
+    sequence in another. Only retain a zero pair when unique nonzero matches in
+    the same source group provide an anchor.
+    """
+    width = 8
+    valid_regions = [field if isinstance(field, bytes) and len(field) == width else None for field in region_fields]
+    valid_placements = [field if isinstance(field, bytes) and len(field) == width else None for field in placement_fields]
+    region_counts = {field: valid_regions.count(field) for field in set(valid_regions) if field is not None}
+    placement_counts = {field: valid_placements.count(field) for field in set(valid_placements) if field is not None}
+
+    pairs = [
+        (region_index, placement_index)
+        for region_index, field in enumerate(valid_regions)
+        if field is not None and field != bytes(width)
+        and region_counts[field] == 1 and placement_counts.get(field) == 1
+        for placement_index, placement_field in enumerate(valid_placements)
+        if placement_field == field
+    ]
+    zero_regions = [index for index, field in enumerate(valid_regions) if field == bytes(width)]
+    zero_placements = [index for index, field in enumerate(valid_placements) if field == bytes(width)]
+    if pairs and len(zero_regions) == 1 and len(zero_placements) == 1:
+        pairs.append((zero_regions[0], zero_placements[0]))
+    return sorted(pairs)
+
+
 def _attach_audio_placements(project: Project, placements: list[dict[str, Any]]) -> None:
     """Create neutral audio tracks/regions from decoded placement candidates."""
     references = {
@@ -716,6 +747,38 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
         for reference in project.media_references
         if reference.category == "AudioFiles" and reference.group_id_candidate is not None
     }
+    field_links_by_placement: dict[tuple[int, int], list[int]] = {}
+    for group_id, reference in references.items():
+        region_metadata = [
+            item for item in reference.region_chunk_metadata_candidates
+            if item.get("filename_stem_matches") and isinstance(item.get("chunk_index"), int)
+        ]
+        source_placements = [
+            item for item in placements if item.get("media_group_id_candidate") == group_id
+        ]
+        region_fields = [
+            bytes.fromhex(value)
+            if isinstance(value, str) and len(value) == 16 else None
+            for value in (
+                item.get("payload_bytes_at_0x8a_candidate_hex") for item in region_metadata
+            )
+        ]
+        placement_fields = [
+            bytes.fromhex(value)
+            if isinstance(value, str) and len(value) == 16 else None
+            for value in (
+                item.get("bytes_at_0x28_candidate_hex") for item in source_placements
+            )
+        ]
+        for region_index, placement_index in _unique_candidate_region_field_pairs(
+            region_fields, placement_fields
+        ):
+            placement = source_placements[placement_index]
+            identity = (placement.get("source_chunk_index"), placement.get("source_event_index"))
+            if all(isinstance(value, int) for value in identity):
+                field_links_by_placement.setdefault(identity, []).append(
+                    region_metadata[region_index]["chunk_index"]
+                )
     tracks: dict[int, Track] = {}
     for placement in placements:
         track_number = placement["track_number_1_based_candidate"]
@@ -738,15 +801,8 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
             and item["payload_u32_at_0x16_candidate"] == suffix_value
             and item["filename_stem_matches"]
         ]
-        placement_field = placement.get("bytes_at_0x28_candidate_hex")
-        field_matches = [
-            item["chunk_index"] for item in region_metadata
-            if isinstance(placement_field, str)
-            and len(placement_field) == 16
-            and placement_field != "0000000000000000"
-            and item.get("filename_stem_matches")
-            and item.get("payload_bytes_at_0x8a_candidate_hex") == placement_field
-        ]
+        identity = (placement.get("source_chunk_index"), placement.get("source_event_index"))
+        field_matches = field_links_by_placement.get(identity, [])
         track.regions.append(Region(
             name=stem,
             start_beats=placement["start_beats"],
@@ -759,8 +815,8 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
                 "region_chunk_indices_matching_trailing_u32_candidate": suffix_matches,
                 "region_chunk_indices_matching_0x8a_to_0x28_candidate": field_matches,
                 "region_chunk_field_link_confidence": (
-                    "HYPOTHESIS; exact eight-byte equality linked three unique pairs in one fixture "
-                    "but the corresponding fields were zero in another fixture"
+                    "HYPOTHESIS; exact eight-byte equality linked unique nonzero pairs in one fixture "
+                    "and a unique zero-valued pair when anchored by them; zero-only groups did not link"
                 ),
                 "duration": "unknown",
                 "region_chunk_to_placement_ordinal": "unknown",

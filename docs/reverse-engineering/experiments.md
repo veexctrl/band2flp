@@ -1158,6 +1158,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** A controlled duplicate/reorder fixture is needed to determine whether the candidate follows one region instance and whether the zero field represents an unset relationship.
 
+## ARR-036 — test zero-based region-field candidates against placements
+
+**Question:** Does the zero-valued `AuRg +0x8a` candidate behave as an unset sentinel, or as the first entry in a per-source region sequence?
+
+**Fixtures:** The two supplied logic-song payloads, inspected locally. Audio was not decoded or played.
+
+**Method:** For each same-source region group, compare all eight-byte `AuRg +0x8a` values, including zero, with audio-placement `+0x28` values. Compare region values with serialized source-local `AuRg` order, preserve one-to-one constraints, and verify the candidate placement fields through IDA MCP. Permit a zero pair only when unique nonzero equality pairs anchor it in that source group.
+
+**Observation:** In one source group, four region values matched their zero-based serialized order, and four distinct placement values formed a complete one-to-one equality set, including one zero-valued pair. Placement event order was not identical to region order. IDA MCP independently matched all four eight-byte placement fields against Python. In the second fixture, three multi-region source groups had repeated zero region fields and distinct placement values; none linked, even when zero equality was counted.
+
+**Result:** The candidate fields provide four per-instance region-to-placement links in the first fixture, including the first zero-valued slot. The all-zero groups in the second fixture do not produce links. The parser now exposes unique nonzero equalities and accepts a unique zero equality only when nonzero links anchor it, preventing repeated zero values from creating false associations. The byte-sized, zero-based-index interpretation remains a HYPOTHESIS; it is not generalized to every project or used for region duration, trim, or looping.
+
+**Confidence:** CONFIRMED for the four exact one-to-one field matches, their source-local region-order correspondence in this fixture, the second-fixture negative result, and IDA/Python agreement; HYPOTHESIS for the underlying field semantics and cross-project behavior.
+
+**Next:** Compare a controlled project after reordering and duplicating same-source regions to determine whether the field follows a region object or its current serialized order.
+
 ## BIN-004 — repeated Song payload prefix and marker position
 
 **Question:** Are the unexplained magic markers inside the `Song` payload positioned consistently across the two supplied projects, and does the payload begin with a stable prefix?

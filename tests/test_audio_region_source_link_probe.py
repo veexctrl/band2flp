@@ -112,6 +112,20 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertNotIn("payload", result)
         self.assertNotIn("bytes", result)
 
+    def test_region_link_field_order_candidates_emit_counts_only(self) -> None:
+        records = []
+        for index in range(4):
+            payload = bytearray(0x92)
+            payload[0x8A:0x92] = index.to_bytes(8, "little")
+            records.append((100 if index < 2 else 200, bytes(payload)))
+
+        result = profile_candidate_region_payloads(records)
+
+        self.assertEqual(result["source_region_order_field_candidate_count"], 4)
+        self.assertEqual(result["source_region_order_field_match_count"], 4)
+        self.assertNotIn("payload", result)
+        self.assertNotIn("bytes", result)
+
     def test_equal_duplicate_payloads_are_not_reported_as_distinct(self) -> None:
         result = profile_candidate_region_payloads(
             [(12, b"same"), (12, b"same")]
@@ -135,7 +149,21 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["nonzero_region_field_count"], 2)
         self.assertEqual(result["same_source_field_match_count"], 2)
         self.assertEqual(result["one_to_one_field_match_count"], 2)
+        self.assertEqual(result["anchored_zero_field_candidate_match_count"], 0)
         self.assertNotIn("AAAAGGGG", str(result))
+
+    def test_unique_zero_field_candidate_is_counted_with_nonzero_anchor(self) -> None:
+        zero = bytes(8)
+        values = [zero, *(value.to_bytes(8, "little") for value in (1, 2, 3))]
+        result = profile_region_placement_field_links(
+            [bytes(0x8A) + field for field in values],
+            [bytes(0x28) + field for field in (values[2], zero, values[3], values[1])],
+        )
+
+        self.assertEqual(result["same_source_field_match_count"], 3)
+        self.assertEqual(result["one_to_one_field_match_count"], 3)
+        self.assertEqual(result["anchored_zero_field_candidate_match_count"], 1)
+        self.assertEqual(result["candidate_field_match_count_including_anchored_zero"], 4)
 
     def test_repeated_placement_field_cannot_claim_one_to_one_link(self) -> None:
         candidate = bytes(0x8A) + b"AAAAGGGG"

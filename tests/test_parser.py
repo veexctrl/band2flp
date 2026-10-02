@@ -72,6 +72,7 @@ from band2flp.parser import (
     _event_record,
     _parse_midi_note_candidates,
     _parse_midi_region_placement_candidates,
+    _unique_candidate_region_field_pairs,
     parse_band,
 )
 
@@ -170,6 +171,23 @@ def make_meter_event(numerator: int, denominator_power: int, position: int = 0) 
 
 
 class ParserTests(unittest.TestCase):
+    def test_audio_region_field_links_include_unique_zero_slot_with_nonzero_anchor(self) -> None:
+        zero = bytes(8)
+        fields = [zero, *(value.to_bytes(8, "little") for value in (1, 2, 3))]
+        placements = [fields[2], zero, fields[3], fields[1]]
+
+        self.assertEqual(
+            _unique_candidate_region_field_pairs(fields, placements),
+            [(0, 1), (1, 3), (2, 0), (3, 2)],
+        )
+
+    def test_audio_region_field_links_reject_zero_only_ambiguity(self) -> None:
+        zero = bytes(8)
+        self.assertEqual(
+            _unique_candidate_region_field_pairs([zero, zero], [zero, zero]),
+            [],
+        )
+
     def test_flp_playlist_tail_probe_changes_only_opaque_80_byte_tails(self) -> None:
         def varint(value: int) -> bytes:
             result = bytearray()
