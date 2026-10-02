@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import struct
 from typing import Any
 
 from band2flp.parser import (
@@ -15,6 +16,38 @@ from band2flp.parser import (
 
 
 FAMILY_TYPES = tuple(range(0x91, 0x9F))
+PPQ_CANDIDATE = 960
+
+
+def profile_note_field_shapes(records: list[dict[str, Any]]) -> dict[str, int]:
+    """Count MIDI-domain matches at unconfirmed Logic-derived byte offsets."""
+    selected: list[bytes] = []
+    for record in records:
+        event_type = record.get("type_byte")
+        if event_type not in FAMILY_TYPES:
+            continue
+        raw_hex = record.get("raw_hex")
+        if not isinstance(raw_hex, str):
+            raise BandFormatError("MIDI-family event has no raw bytes")
+        try:
+            raw = bytes.fromhex(raw_hex)
+        except ValueError as exc:
+            raise BandFormatError("MIDI-family event has invalid raw bytes") from exc
+        if len(raw) != record.get("length") or not raw or raw[0] != event_type:
+            raise BandFormatError("MIDI-family event bytes do not match their record metadata")
+        if len(raw) >= 0x20 and raw[0x17] == 0x89:
+            selected.append(raw)
+
+    durations = [struct.unpack_from("<I", raw, 0x1C)[0] for raw in selected]
+    return {
+        "candidate_record_count": len(selected),
+        "candidate_pitch_byte_in_midi_range_count": sum(raw[0x0C] <= 127 for raw in selected),
+        "candidate_velocity_byte_in_nonzero_midi_range_count": sum(1 <= raw[0x0B] <= 127 for raw in selected),
+        "candidate_duration_word_nonzero_count": sum(value != 0 for value in durations),
+        "candidate_duration_word_on_960_tick_grid_count": sum(
+            value != 0 and value % PPQ_CANDIDATE == 0 for value in durations
+        ),
+    }
 
 
 def profile_midi_event_families(
@@ -118,12 +151,16 @@ def profile_midi_event_families(
 
     return {
         "event_families": families,
+        "note_field_shape_candidates": profile_note_field_shapes(records),
         "placed_mseq_clusters": {
             "placement_count_with_unique_mseq_link": unique_link_count,
             "placement_count_with_ambiguous_or_missing_mseq_link": ambiguous_link_count,
             "payload_size_counts_by_event_presence": size_profiles,
         },
-        "semantics": "UNKNOWN; group links and MSeq payload-size correlations do not establish field meaning",
+        "semantics": (
+            "UNKNOWN; MIDI-domain byte ranges and group links are candidate evidence only; "
+            "Logic-derived offsets and duration units are not confirmed"
+        ),
         "privacy_note": "Counts only; group values, event bytes, paths, names, and media are omitted.",
     }
 

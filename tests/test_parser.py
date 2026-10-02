@@ -905,11 +905,28 @@ class ParserTests(unittest.TestCase):
             inventory_records([{**records[0], "length": 63}])
 
     def test_midi_event_family_probe_reports_unique_candidate_links_only(self) -> None:
+        def status_record(status, length, velocity, pitch, duration):
+            raw = bytearray(length)
+            raw[0] = status
+            raw[0x0B] = velocity
+            raw[0x0C] = pitch
+            raw[0x17] = 0x89
+            struct.pack_into("<I", raw, 0x1C, duration)
+            return {
+                "type_byte": status,
+                "length": length,
+                "group_id_candidate": status,
+                "raw_hex": raw.hex(),
+            }
+
         records = [
-            {"type_byte": 0x91, "length": 64, "group_id_candidate": 0x10000},
-            {"type_byte": 0x91, "length": 80, "group_id_candidate": 0x20000},
-            {"type_byte": 0x92, "length": 64, "group_id_candidate": 0x30000},
+            status_record(0x91, 64, 70, 60, 961),
+            status_record(0x91, 80, 0, 128, 1920),
+            status_record(0x92, 64, 100, 63, 0),
         ]
+        records[0]["group_id_candidate"] = 0x10000
+        records[1]["group_id_candidate"] = 0x20000
+        records[2]["group_id_candidate"] = 0x30000
         chunks = [
             {"type": "MSeq", "index": 4, "group_id_candidate": 0x10000, "payload_size": 307},
             {"type": "MSeq", "index": 5, "group_id_candidate": 0x20000, "payload_size": 311},
@@ -933,6 +950,13 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(
             report["event_families"]["0x92"]["groups_with_one_MSeq_and_one_placement"], 0
         )
+        self.assertEqual(report["note_field_shape_candidates"], {
+            "candidate_record_count": 3,
+            "candidate_pitch_byte_in_midi_range_count": 2,
+            "candidate_velocity_byte_in_nonzero_midi_range_count": 2,
+            "candidate_duration_word_nonzero_count": 2,
+            "candidate_duration_word_on_960_tick_grid_count": 1,
+        })
         self.assertEqual(
             report["placed_mseq_clusters"]["payload_size_counts_by_event_presence"],
             {
@@ -943,6 +967,7 @@ class ParserTests(unittest.TestCase):
         serialized = json.dumps(report)
         self.assertNotIn("65536", serialized)
         self.assertNotIn("group_id_candidate", serialized)
+        self.assertNotIn("raw_hex", serialized)
 
     def test_midi_timing_probe_removes_chunk_header_from_logic_offsets(self) -> None:
         payload = bytearray(600)

@@ -1077,6 +1077,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** Use controlled GarageBand one-note edits to separate actual note records from other members of the status-shaped family and validate each field before converting them to normalized notes.
 
+## EVT-010 — profile MIDI-domain field candidates in channelized event records
+
+**Question:** Do the Logic-derived candidate pitch and velocity byte offsets remain in MIDI value ranges across the opaque `0x91`–`0x9e` record types, and does the candidate duration word use the 960-tick grid?
+
+**Fixture:** The locally inspected audio-bearing logic-song payload. No event values, group identifiers, project labels, or audio are reported.
+
+**Method:** Extend `research/scripts/midi_event_family_probe.py` to profile bytes at candidate event offsets `+0x0b` and `+0x0c`, and the little-endian word at `+0x1c`, across records with the validated length and marker filters. Report only aggregate counts. IDA/Python complete-record agreement for the selected event family was established in EVT-009. The candidate offsets and 960 PPQ are Logic-derived hypotheses, not GarageBand field definitions.
+
+**Observation:** All 129 filtered `0x91`–`0x9e` records have a `+0x0b` byte in the nonzero MIDI velocity range and a `+0x0c` byte in the MIDI pitch range. Every `+0x1c` candidate word is nonzero, but none is divisible by 960.
+
+**Result:** The first-byte channel-voice pattern and MIDI-domain values are consistent with note-like records, but the field meanings remain HYPOTHESIS without controlled note edits. The candidate duration word does not support a direct integer-960-tick interpretation in this fixture, so the Logic-derived duration conversion is not applied to these opaque records.
+
+**Confidence:** CONFIRMED for the aggregate byte-range and divisibility profile in this fixture; HYPOTHESIS for note-on, velocity, and pitch semantics; UNKNOWN for duration units and generality.
+
+**Next:** Change pitch, velocity, and duration separately in minimal GarageBand projects, then compare the same status-shaped record offsets and candidate duration scaling.
+
 
 ## AUD-003 — retain CAF packet-table timing metadata
 
