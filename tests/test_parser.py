@@ -22,7 +22,7 @@ from research.scripts.arrange_ui_probe import profile_arrange_ui
 from research.scripts.audio_track_index_probe import profile_audio_track_indices
 from research.scripts.audio_placement_timing_probe import profile_candidates as profile_audio_timing_candidates
 from research.scripts.binary_diff import compare, load_component
-from research.scripts.event_inventory import inventory_records
+from research.scripts.event_inventory import inventory_records, profile_tempo_group_associations
 from research.scripts.midi_event_family_probe import profile_midi_event_families
 from research.scripts.midi_event_variation_probe import profile_records as profile_midi_event_variation
 from research.scripts.flp_playlist_state_probe import parse_events as parse_flp_event_spans
@@ -954,6 +954,35 @@ class ParserTests(unittest.TestCase):
         self.assertNotIn("12340000", rendered)
         with self.assertRaises(BandFormatError):
             inventory_records([{**records[0], "length": 63}])
+
+    def test_tempo_group_association_probe_links_only_source_events_and_counts(self) -> None:
+        records = [
+            {"type_byte": 0x60, "group_id_candidate": 7, "chunk_index": 1, "event_index": 0, "position_raw": 20},
+            {"type_byte": 0x20, "group_id_candidate": 7, "chunk_index": 1, "event_index": 1, "position_raw": 20},
+            {"type_byte": 0x24, "group_id_candidate": 7, "chunk_index": 1, "event_index": 2, "position_raw": 20},
+        ]
+        report = profile_tempo_group_associations(
+            [{"source_group_id_candidate": 7, "bpm": 120.0, "position_raw": 20}],
+            records,
+            [{"source_chunk_index": 1, "source_event_index": 2, "position_raw": 20}],
+            [{"source_chunk_index": 1, "source_event_index": 1, "position_raw": 20}],
+            [
+                {"type": "MSeq", "group_id_candidate": 7, "payload_size": 64},
+                {"type": "Trak", "group_id_candidate": 7, "payload_size": 0},
+            ],
+            160.0,
+        )
+
+        nonzero = report["nonzero_group"]
+        self.assertEqual(nonzero["tempo_candidate_count"], 1)
+        self.assertEqual(nonzero["tempo_candidates_matching_summary_count"], 0)
+        self.assertEqual(nonzero["source_type20_record_count"], 1)
+        self.assertEqual(nonzero["source_type24_record_count"], 1)
+        self.assertEqual(nonzero["linked_midi_placement_count"], 1)
+        self.assertEqual(nonzero["linked_audio_placement_count"], 1)
+        self.assertEqual(nonzero["tempo_position_matches_audio_start_count"], 1)
+        self.assertEqual(nonzero["tempo_position_matches_midi_start_count"], 1)
+        self.assertNotIn("120", json.dumps(report))
 
     def test_midi_event_family_probe_reports_unique_candidate_links_only(self) -> None:
         def status_record(status, length, velocity, pitch, duration):

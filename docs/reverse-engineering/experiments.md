@@ -302,6 +302,22 @@
 
 **Next:** Create a controlled tempo-change project and compare the change value and position against the serialized candidates and GarageBand display. Vary a meter independently to establish value and timeline behavior.
 
+## EVT-009 — test nonzero tempo candidate scope against placement streams and CAF metadata
+
+**Question:** Does the nonzero-group tempo candidate belong to the audio/MIDI placement stream, and does it match a CAF source-tempo candidate?
+
+**Fixtures:** Both supplied projects. CAF metadata was read in memory only; no audio was decoded, extracted, or played.
+
+**Method:** Added aggregate source-group association counts to `event_inventory.py`. For each tempo candidate, compare its enclosing event-group records to recognized audio/MIDI placements and same-group `MSeq` and empty `Trak` chunks. Compare the tempo event position to same-group placement starts. For embedded CAF sources, use the existing bounded metadata parser to compare any beat-count-derived source-tempo candidate against the nonzero tempo and summary tempo. IDA MCP independently read the nonzero candidate's position and scaled-tempo words in one payload.
+
+**Observation:** Each project has one group-zero tempo candidate matching summary metadata and one nonzero candidate that does not. In the first project, the nonzero source event group contains 11 type `0x24` and 5 type `0x20` records; the parser uniquely recognizes 10 audio and 5 MIDI placements there. In the second, the group contains 9 type `0x24` records and no type `0x20`; all 9 audio placements are recognized. Both groups contain three `MSeq` and three empty `Trak` chunks. No candidate position equals any parsed placement start. One embedded CAF has a beat-count-derived tempo candidate; it matches neither the nonzero tempo candidate nor the summary tempo. IDA's position and scaled-tempo bytes match Python.
+
+**Result:** The nonzero tempo candidate is co-located with the serialized placement stream in both fixtures, but its position does not coincide with a placement start and its value does not match the available CAF-derived tempo. This narrows the possible scope without identifying it. The parser continues to use only the summary-matching group-zero candidate in the project tempo map and preserves the nonzero candidate separately.
+
+**Confidence:** CONFIRMED for the group/placement counts, tested position comparisons, CAF metadata comparison, and IDA/Python byte agreement; HYPOTHESIS/UNKNOWN for the nonzero event's role and whether it represents any timeline tempo change.
+
+**Next:** Compare controlled GarageBand saves with project tempo changes and audio/MIDI placement edits independently. Determine whether the nonzero candidate changes with project tempo, source loop tempo, or another event-group property.
+
 ## EVT-002 — repeated short event-sequence chunks
 
 **Question:** Do short `EvSq` chunks in audio-resource groups contain event data or a common marker?
