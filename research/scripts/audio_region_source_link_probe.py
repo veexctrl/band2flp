@@ -65,8 +65,8 @@ def profile_candidate_region_payloads(
 ) -> dict[str, Any]:
     """Count whether equal frame candidates have identical full payloads.
 
-    The report contains counts only. It does not return candidate values,
-    payload bytes, identifiers, or filenames.
+    The report contains counts and relative payload offsets only. It does not
+    return candidate field values, payload bytes, identifiers, or filenames.
     """
     buckets: dict[int, list[bytes]] = {}
     for frame_candidate, payload in candidate_payloads:
@@ -85,6 +85,20 @@ def profile_candidate_region_payloads(
                 for offset, (left_byte, right_byte) in enumerate(zip(left, right))
                 if left_byte != right_byte
             )
+    repeated_region_link_fields = [
+        [payload[0x8A:0x92] for payload in values if len(payload) >= 0x92]
+        for values in repeated_buckets
+    ]
+    repeated_region_link_fields = [fields for fields in repeated_region_link_fields if fields]
+    varying_link_field_positions: collections.Counter[str] = collections.Counter()
+    for fields in repeated_region_link_fields:
+        for offset in range(8):
+            if len({field[offset] for field in fields}) > 1:
+                varying_link_field_positions[str(offset)] += 1
+    link_field_nonzero_byte_counts = collections.Counter(
+        str(sum(byte != 0 for byte in field))
+        for fields in repeated_region_link_fields for field in fields
+    )
     differing_bytes = [
         sum(a != b for a, b in zip(left, right)) + abs(len(left) - len(right))
         for left, right in pairs
@@ -100,6 +114,13 @@ def profile_candidate_region_payloads(
         )),
         "changed_payload_offset_pair_counts": dict(sorted(
             changed_offset_counts.items(), key=lambda item: int(item[0])
+        )),
+        "repeated_candidate_0x8a_field_count": sum(map(len, repeated_region_link_fields)),
+        "repeated_candidate_0x8a_varying_byte_position_bucket_counts": dict(sorted(
+            varying_link_field_positions.items(), key=lambda item: int(item[0])
+        )),
+        "repeated_candidate_0x8a_nonzero_byte_count_histogram": dict(sorted(
+            link_field_nonzero_byte_counts.items(), key=lambda item: int(item[0])
         )),
         "interpretation": "UNKNOWN; equal frame candidates need not be identical region records.",
     }

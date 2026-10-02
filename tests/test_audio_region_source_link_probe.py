@@ -73,7 +73,10 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["distinct_payload_pair_count"], 1)
         self.assertEqual(result["unequal_payload_size_pair_count"], 0)
         self.assertEqual(result["pair_byte_difference_counts"], {"4": 1})
-        self.assertEqual(result["changed_payload_offset_pair_counts"], {str(i): 1 for i in range(4)})
+        self.assertEqual(
+            result["changed_payload_offset_pair_counts"],
+            {str(i): 1 for i in range(4)},
+        )
         self.assertNotIn("payload", result)
         self.assertNotIn("bytes", result)
 
@@ -86,6 +89,26 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["changed_payload_offset_pair_counts"], {
             "0": 2, "1": 2, "2": 2, "3": 2,
         })
+        self.assertNotIn("payload", result)
+        self.assertNotIn("bytes", result)
+
+    def test_repeated_region_link_field_reports_shape_without_values(self) -> None:
+        first = bytearray(0x92)
+        second = bytearray(first)
+        second[0x8A] = 1
+        result = profile_candidate_region_payloads(
+            [(12, bytes(first)), (12, bytes(second))],
+        )
+
+        self.assertEqual(result["repeated_candidate_0x8a_field_count"], 2)
+        self.assertEqual(
+            result["repeated_candidate_0x8a_varying_byte_position_bucket_counts"],
+            {"0": 1},
+        )
+        self.assertEqual(
+            result["repeated_candidate_0x8a_nonzero_byte_count_histogram"],
+            {"0": 1, "1": 1},
+        )
         self.assertNotIn("payload", result)
         self.assertNotIn("bytes", result)
 

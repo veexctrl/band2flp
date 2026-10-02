@@ -1142,6 +1142,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** Use a controlled same-source copy/reorder/trim fixture and track these offsets independently to see whether they follow a region instance or a specific edit.
 
+## ARR-035 — profile the repeated region-link field shape
+
+**Question:** Does the eight-byte `AuRg +0x8a` field candidate contain a wider identifier, or a small value stored in a padded slot, and does a byte-level placement scan find another link?
+
+**Fixtures:** The two supplied logic-song payloads, inspected locally. Audio was not decoded or played.
+
+**Method:** Extend `research/scripts/audio_region_source_link_probe.py` to report byte-position variation and nonzero-byte counts for the `+0x8a` field only within repeated `+0x16` candidate buckets. Run `research.scripts.audio_window_link_probe` at widths one and two with every-byte alignment, then compare its results with the existing eight-byte equality profile. The reports emit offsets and counts only.
+
+**Observation:** The two repeated same-source buckets each contain two records; within each bucket, the eight-byte field has two distinct values and only its first byte varies. Across all four records, three fields have one nonzero byte and one field is all zero; the other seven bytes are zero throughout. The one- and two-byte scans returned only the already-known `AuRg +0x8a` to placement `+0x28` candidate, with three one-to-one nonzero matches in the audio-bearing fixture; the second fixture had no matches.
+
+**Result:** The field behaves like a byte-sized candidate carried in an eight-byte slot for these records, and exact equality links three nonzero values to placement candidates. That is consistent with a compact region-instance key, but it does not prove the field's data type or identity semantics. The all-zero record may be unset or may participate in another relation.
+
+**Confidence:** CONFIRMED for observed byte variation, zero padding, and candidate equality counts in these fixtures; HYPOTHESIS for an instance-key interpretation.
+
+**Next:** A controlled duplicate/reorder fixture is needed to determine whether the candidate follows one region instance and whether the zero field represents an unset relationship.
+
 ## BIN-004 — repeated Song payload prefix and marker position
 
 **Question:** Are the unexplained magic markers inside the `Song` payload positioned consistently across the two supplied projects, and does the payload begin with a stable prefix?
