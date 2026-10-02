@@ -57,7 +57,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "early"
+      "state": "early: FL Studio preview notes are editable; GarageBand note and track semantics remain unresolved",
+      "display_label": "EDITABLE PREVIEW · FORMAT OPEN"
     },
     {
       "name": "Region boundaries and track state",
