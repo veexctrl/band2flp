@@ -1254,6 +1254,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** Compare controlled ordinary-audio and Live Loops uses of one source, including a trim-only change, before assigning the source beat count to region length or repetition.
 
+## AUD-006 — classify external CAF references by their stored path components
+
+**Question:** Do unresolved `AudioFiles` references preserve path information that identifies an Apple Loops source, and does that identify Live Loops cell usage?
+
+**Fixture:** One supplied project with six unresolved `AudioFiles` references. Project name, usernames, full reference strings, and audio content are omitted.
+
+**Method:** Count referenced filename suffixes and path components from the already parsed asset list, then compare reference basenames against package-member basenames. No referenced audio member was found, and no audio was extracted, decoded, or played.
+
+**Observation:** All six references are path-like CAF references and include an `Apple Loops` component. None uniquely matches a member in the `.band` package.
+
+**Result:** The serialized paths strongly suggest that these external sources are from an Apple Loops library location. The path alone does not prove whether a source was placed as ordinary audio or used in a Live Loops cell; no cell/grid structure or playback behavior was observed.
+
+**Confidence:** CONFIRMED that the six stored references contain the observed path component and do not resolve to package members in this fixture; HIGH CONFIDENCE that the references point into an Apple Loops-named location; UNKNOWN whether they represent Live Loops cells or ordinary audio regions.
+
+**Next:** Determine whether the referenced library assets are available locally, without publishing their paths or contents. Compare an ordinary audio placement and a Live Loops cell using the same source in controlled GarageBand fixtures before assigning cell semantics.
+
 ## MIDI-020 — audit note-candidate coverage in the neutral model
 
 **Question:** Does the parser's unique `MSeq`/placement join preserve every MIDI-status-shaped note candidate in the neutral unplaced-region view, or does it silently drop candidates?
