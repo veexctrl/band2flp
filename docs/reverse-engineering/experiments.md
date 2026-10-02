@@ -1083,7 +1083,7 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Fixture:** The locally inspected audio-bearing logic-song payload. No event values, group identifiers, project labels, or audio are reported.
 
-**Method:** Extend `research/scripts/midi_event_family_probe.py` to profile bytes at candidate event offsets `+0x0b` and `+0x0c`, and the little-endian word at `+0x1c`, across records with the validated length and marker filters. Report only aggregate counts. IDA/Python complete-record agreement for the selected event family was established in EVT-009. The candidate offsets and 960 PPQ are Logic-derived hypotheses, not GarageBand field definitions.
+**Method:** Extend `research/scripts/midi_event_family_probe.py` to profile bytes at candidate event offsets `+0x0b` and `+0x0c`, and the little-endian word at `+0x1c`, across records with the validated length and marker filters. Report only aggregate counts. IDA MCP independently read both candidate spans for one representative record of each of the 14 event types; all 28 reads matched Python, and all 14 record offsets matched the extracted stream. EVT-009 separately confirmed complete-record agreement for the selected event family. The candidate offsets and 960 PPQ are Logic-derived hypotheses, not GarageBand field definitions.
 
 **Observation:** All 129 filtered `0x91`–`0x9e` records have a `+0x0b` byte in the nonzero MIDI velocity range and a `+0x0c` byte in the MIDI pitch range. Every `+0x1c` candidate word is nonzero, but none is divisible by 960.
 
