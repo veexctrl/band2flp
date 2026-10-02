@@ -33,3 +33,22 @@
 **Alternatives:** The values could identify another shared object or relationship and happen to be unique among these records. The fixtures are uncontrolled, and exact equality in one source group is not enough to generalize the field semantics.
 
 **Next:** Use same-source controlled projects with one, two, and three placed copies; reorder the copies, then change one trim at a time. A stable identity that follows the same region through reordering would support the instance-link interpretation.
+
+## ARR-032 — intersect per-placement region-link candidates
+
+**Question:** Do the candidate `AuRg +0x8a` / placement `+0x28` equality and the placement-suffix / `AuRg +0x16` candidate independently select the same region records?
+
+**Fixtures:** The same two supplied projects as ARR-030/031. The report contains aggregate counts only. No source names, field values, media, or project paths are emitted.
+
+**Method:** Extended `research/scripts/audio_region_source_link_probe.py` to compare the per-placement candidate `AuRg` chunk-index sets already built by the parser. One set comes from the nonzero eight-byte `AuRg +0x8a` / placement `+0x28` equality; the other comes from matching an extended placement's trailing 32-bit candidate to same-source `AuRg +0x16` frame candidates. The probe counts set intersections and ambiguity but never prints candidate indices or values.
+
+**Observation:** In the project with nine audio placements, none has the fixed-field candidate, while two have a suffix-to-frame candidate. In the project with ten placements, three have a one-to-one fixed-field candidate and two have suffix-to-frame candidates; those same two placements have an intersecting candidate region, but each suffix maps to two same-source region candidates. The third fixed-field candidate has no suffix match.
+
+**Result:** Two of the three fixed-field matches are independently included in the candidate sets selected by the placement suffix. This adds converging evidence for those two per-placement links, but the suffix candidate remains ambiguous and cannot choose one region. The third fixed-field match is not explained by the suffix field. Neither comparison proves region duration, trim, loop behavior, or universal object identity.
+
+**Confidence:** CONFIRMED for the reported candidate counts and intersections in these two projects; HYPOTHESIS that the intersecting fields point to the same region instance; UNKNOWN for the suffix field's purpose and the unmatched third fixed-field link.
+
+**Alternative considered:** Duplicate `AuRg +0x16` candidates can make a suffix appear to support multiple regions even when the actual link is unrelated. Both fields may reference another object or cached property rather than an arrangement region.
+
+**Next:** In controlled same-source projects, create one, two, and three placed copies and change only the trim or order. Check whether the fixed field remains unique and whether the suffix candidate follows one instance without duplicate frame candidates.
+
