@@ -1015,13 +1015,13 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Method:** Extended `research/scripts/f1_group_probe.py` to compare the ordered group-candidate sequence for parsed F1 event records with the chunk-order sequences for all `MSeq` chunks and zero-payload `Trak` chunks. The existing multiset comparisons remain separate so an ordering mismatch is distinguishable from a multiplicity mismatch. A synthetic regression test reverses the related group order while preserving multiplicities. IDA MCP also read the little-endian 32-bit group candidate at chunk-header `+0x08` for every F1 source `EvSq` chunk, `MSeq` chunk, and empty `Trak` chunk in both fixtures. All 204 fields (99 in the 33-record fixture and 105 in the 35-record fixture) matched the Python parser.
 
-**Observation:** In both fixtures, the F1 event count equals the number of `MSeq` chunks and empty-payload `Trak` chunks (33 or 35). The F1 group sequence matches both chunk sequences exactly, including repeated groups and group zero. In both fixtures, each F1 record comes from a distinct `EvSq` chunk.
+**Observation:** In both fixtures, the F1 event count equals the number of `MSeq` chunks and empty-payload `Trak` chunks (33 or 35). The F1 group sequence matches both chunk sequences exactly, including repeated groups and group zero. In both fixtures, each F1 record comes from a distinct `EvSq` chunk. Each matching sequence has three adjacent decreases, so the exact alignment is not explained by simple numeric sorting of group values.
 
-**Result:** CONFIRMED ordinal group-candidate correspondence among these three record families in the two inspected payloads. The equality supports a parallel serialized inventory/order, but does not establish that each ordinal represents the same musical object or give the `F1` record, empty `Trak`, or group field a semantic name.
+**Result:** CONFIRMED ordinal group-candidate correspondence among these three record families in the two inspected payloads, independently checked at the group fields through IDA MCP. Because the aligned sequences are not numerically sorted, the result is not a trivial consequence of a shared sorted group list. It supports a parallel serialized inventory/order, but does not establish that each ordinal represents the same musical object or give the `F1` record, empty `Trak`, or group field a semantic name.
 
 **Confidence:** CONFIRMED for exact sequence equality in both fixtures and IDA/Python agreement on the underlying F1 event bytes and group fields; HYPOTHESIS for an intentional ordinal/parallel-table relationship; UNKNOWN for object identity and event meaning.
 
-**Alternative considered:** All three families may be emitted from a common serializer traversal or sorted by a shared key, without denoting the same object. Repeated groups mean ordinal equality alone is not a unique-object key.
+**Alternative considered:** All three families may be emitted from a common serializer traversal or sorted by another shared key, without denoting the same object. Repeated groups mean ordinal equality alone is not a unique-object key.
 
 **Next:** Compare a controlled track-add, MIDI-region-add, or reorder edit and check whether insertions/reordering remain synchronized across all three sequences. Until then, keep the ordinal relationship as a structural observation only.
 
