@@ -73,6 +73,19 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["distinct_payload_pair_count"], 1)
         self.assertEqual(result["unequal_payload_size_pair_count"], 0)
         self.assertEqual(result["pair_byte_difference_counts"], {"4": 1})
+        self.assertEqual(result["changed_payload_offset_pair_counts"], {str(i): 1 for i in range(4)})
+        self.assertNotIn("payload", result)
+        self.assertNotIn("bytes", result)
+
+    def test_repeated_payload_pairs_report_only_aggregate_changed_offsets(self) -> None:
+        result = profile_candidate_region_payloads(
+            [(12, b"AAAA"), (12, b"BABA"), (12, b"ABAB")],
+        )
+
+        self.assertEqual(result["repeated_frame_candidate_pair_count"], 3)
+        self.assertEqual(result["changed_payload_offset_pair_counts"], {
+            "0": 2, "1": 2, "2": 2, "3": 2,
+        })
         self.assertNotIn("payload", result)
         self.assertNotIn("bytes", result)
 

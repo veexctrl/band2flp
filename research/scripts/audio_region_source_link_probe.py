@@ -77,6 +77,14 @@ def profile_candidate_region_payloads(
     pairs = [pair for values in repeated_buckets for pair in combinations(values, 2)]
     identical_pairs = sum(left == right for left, right in pairs)
     unequal_size_pairs = sum(len(left) != len(right) for left, right in pairs)
+    changed_offset_counts: collections.Counter[str] = collections.Counter()
+    for left, right in pairs:
+        if len(left) == len(right):
+            changed_offset_counts.update(
+                str(offset)
+                for offset, (left_byte, right_byte) in enumerate(zip(left, right))
+                if left_byte != right_byte
+            )
     differing_bytes = [
         sum(a != b for a, b in zip(left, right)) + abs(len(left) - len(right))
         for left, right in pairs
@@ -89,6 +97,9 @@ def profile_candidate_region_payloads(
         "unequal_payload_size_pair_count": unequal_size_pairs,
         "pair_byte_difference_counts": dict(sorted(
             collections.Counter(str(count) for count in differing_bytes).items()
+        )),
+        "changed_payload_offset_pair_counts": dict(sorted(
+            changed_offset_counts.items(), key=lambda item: int(item[0])
         )),
         "interpretation": "UNKNOWN; equal frame candidates need not be identical region records.",
     }

@@ -1126,6 +1126,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** Use a controlled same-source, same-start region-length or trim edit, then test whether the placement word or selected source-window candidate changes predictably.
 
+## ARR-034 — compare equal-frame candidate region payloads by byte offset
+
+**Question:** Do `AuRg` payloads with the same `+0x16` frame-count candidate remain byte-identical, or do their differences concentrate at repeatable payload offsets?
+
+**Fixture:** The audio-bearing supplied project, analyzed locally. Only the logic-song metadata stream was inspected; audio samples were not decoded.
+
+**Method:** Extend `research/scripts/audio_region_source_link_probe.py` to count pairwise changed payload offsets among same-source `AuRg` records sharing a frame-count candidate. The report emits offset/count aggregates only, not payload values or identifiers. Compare the four candidate payloads against the byte stream already open in IDA MCP.
+
+**Observation:** Two equal-sized same-source pairs differed at 27 and 28 byte offsets. Twenty-six offsets changed in both pairs (`+0x02`, `+0x2A–+0x2E`, `+0x8A`, `+0xA6–+0xAB`, `+0xB0–+0xB3`, `+0xB5`, and `+0xB8–+0xBF`); three other offsets changed in only one pair. Each payload is 216 bytes. IDA MCP reads matched Python byte-for-byte for all four payloads (864 bytes total).
+
+**Result:** Equal frame-count candidates do not imply identical `AuRg` records. The common offset pattern may reflect instance identifiers or other per-region fields, but the uncontrolled fixture cannot establish the role of any changed byte or associate it with trim, looping, or placement identity.
+
+**Confidence:** CONFIRMED for the pair counts, payload lengths, changed-offset counts, and IDA/Python byte agreement; UNKNOWN for the semantics of the changed offsets.
+
+**Next:** Use a controlled same-source copy/reorder/trim fixture and track these offsets independently to see whether they follow a region instance or a specific edit.
+
 ## BIN-004 — repeated Song payload prefix and marker position
 
 **Question:** Are the unexplained magic markers inside the `Song` payload positioned consistently across the two supplied projects, and does the payload begin with a stable prefix?
