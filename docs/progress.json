@@ -19,7 +19,7 @@
       "name": "Audio references and placement starts",
       "weight": 18,
       "recovered": 67,
-      "basis": "Sources and starts recovered; four region/placement links in one fixture. A second has six external CAF references under an Apple Loops-named path; Live Loops cell use is unknown."
+      "basis": "Audio starts and four region links recovered. Six external CAF paths include Apple Loops; four source names recur in SngO/GenM with length-like prefixes. Track/cell roles and duration remain open."
     },
     {
       "name": "Region lengths, trims, loops, and offsets",
@@ -53,8 +53,8 @@
     },
     {
       "name": "Audio source and start recovery",
-      "state": "partial: Apple Loops source-path clue; cell use unknown",
-      "display_label": "APPLE LOOPS PATH · CELL UNKNOWN"
+      "state": "partial: Apple Loops paths and length-prefixed source-name candidates; track/cell roles unknown",
+      "display_label": "NAME CANDIDATES · ROLE OPEN"
     },
     {
       "name": "MIDI interpretation",
