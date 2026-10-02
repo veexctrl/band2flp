@@ -67,7 +67,12 @@ def scan_window_links(
     return result
 
 
-def probe_project(path: str | Path) -> dict[str, Any]:
+def probe_project(
+    path: str | Path,
+    *,
+    widths: tuple[int, ...] = (4, 8),
+    step: int = 2,
+) -> dict[str, Any]:
     project = parse_band(path)
     song_index = project.project_data.get("logic_song_object_index")
     blob = next(
@@ -106,7 +111,7 @@ def probe_project(path: str | Path) -> dict[str, Any]:
             groups.append((regions, source_placements))
     return {
         "multi_region_source_groups": len(groups),
-        "window_links": scan_window_links(groups),
+        "window_links": scan_window_links(groups, widths=widths, step=step),
         "interpretation": "Candidate exact byte equalities only; absence of a match does not disprove a structural link.",
         "privacy_note": "Only offsets and aggregate counts are reported.",
     }
@@ -115,10 +120,12 @@ def probe_project(path: str | Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("projects", nargs="+", type=Path)
+    parser.add_argument("--widths", nargs="+", type=int, default=(4, 8))
+    parser.add_argument("--step", type=int, default=2)
     args = parser.parse_args(argv)
     for index, path in enumerate(args.projects, 1):
         try:
-            result = probe_project(path)
+            result = probe_project(path, widths=tuple(args.widths), step=args.step)
         except (BandFormatError, OSError, ValueError, KeyError, IndexError) as exc:
             parser.error(f"fixture_{index} could not be inspected: {type(exc).__name__}")
         print(f"fixture_{index}: {json.dumps(result, sort_keys=True)}")
