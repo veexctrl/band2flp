@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import lzma
 import math
 import plistlib
 import struct
 import zipfile
+import zlib
 from datetime import date, datetime
 from fractions import Fraction
 from pathlib import Path
@@ -61,7 +63,10 @@ def _read_member(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes:
                 if total > MAX_MEMBER_SIZE or total > info.file_size:
                     raise BandFormatError(f"decompressed member exceeds its declared size: {info.filename!r}")
                 chunks.append(chunk)
-    except (OSError, EOFError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as exc:
+    except (
+        OSError, EOFError, zipfile.BadZipFile, RuntimeError,
+        NotImplementedError, lzma.LZMAError, zlib.error,
+    ) as exc:
         raise BandFormatError(f"cannot decompress package member {info.filename!r}: {exc}") from exc
     if total != info.file_size:
         raise BandFormatError(f"decompressed size does not match ZIP header: {info.filename!r}")
@@ -828,7 +833,10 @@ def parse_band(path: str | Path) -> Project:
             try:
                 with archive.open(item) as stream:
                     prefix = stream.read(8)
-            except (OSError, EOFError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as exc:
+            except (
+                OSError, EOFError, zipfile.BadZipFile, RuntimeError,
+                NotImplementedError, lzma.LZMAError, zlib.error,
+            ) as exc:
                 raise BandFormatError(f"cannot read package member {item.filename!r}: {exc}") from exc
             project.package_members.append({
                 "path": item.filename,
@@ -949,7 +957,10 @@ def parse_band(path: str | Path) -> Project:
                         try:
                             with archive.open(info_by_name[member]) as source:
                                 loop_metadata_by_member[member] = inspect_caf_loop_metadata(source)
-                        except (OSError, EOFError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as exc:
+                        except (
+                            OSError, EOFError, zipfile.BadZipFile, RuntimeError,
+                            NotImplementedError, lzma.LZMAError, zlib.error,
+                        ) as exc:
                             project.warnings.append(f"Could not inspect CAF metadata in {member!r}: {exc}")
                             loop_metadata_by_member[member] = None
                     reference.source_loop_metadata = loop_metadata_by_member[member]
