@@ -746,6 +746,24 @@
 
 **Next:** Use matched projects with one MIDI region moved between known tracks. Test `+0x14` against visible track identities and any `AuCO` changes, without assuming either a group join or an ordinal mapping.
 
+## TRK-010 — test MIDI placement byte against AuCO strip ordinals
+
+**Question:** Does the MIDI placement byte at `+0x14` identify a validated `AuCO` candidate through its sequential strip-index field?
+
+**Fixtures:** The two locally supplied projects, summarized anonymously. No media was extracted or decoded.
+
+**Method:** Compared each recognized MIDI placement's uninterpreted `+0x14` byte with the validated `AuCO` candidate strip-index set. Also checked equality and distance-one matches as descriptive comparisons, not as independent evidence.
+
+**Observation:** One payload has 12 placements and 23 validated strip candidates; the other has 19 placements and 27 candidates. Every placement byte falls within the corresponding strip-index range, and all placements therefore have an exact candidate by value. A distance-one comparison also covers every placement.
+
+**Result:** INCONCLUSIVE. The strip indices are contiguous ranges beginning at zero and are wider than the observed placement-byte ranges, so range coverage is expected and does not identify which strip, if any, corresponds to a MIDI placement. Exact and distance-one coverage cannot distinguish a true join from coincidental ordinal overlap. Do not map MIDI placements to `AuCO` records from this result.
+
+**Confidence:** CONFIRMED for the range overlap in these two fixtures; UNKNOWN for any semantic relationship.
+
+**Alternative considered:** `+0x14` may be a scoped ID, another table index, or unrelated to the `AuCO` strip ordinal. An uncontrolled comparison of unrelated projects cannot choose among these explanations.
+
+**Next:** A controlled project with one MIDI region moved between known tracks, or a serializer/parser implementation that exposes the referenced object, is required to test identity.
+
 ## ARR-023 - repeat placement suffix and source-region candidate comparison
 
 **Question:** Does the extra data on longer `0x24` placement records consistently identify a same-source `AuRg` record?
@@ -911,6 +929,60 @@
 **Alternative considered:** The `MSeq` chunk may be a distinct GarageBand structure despite sharing a tag and broadly similar size with Logic MIDISeq records. A different offset, enclosing record, or external region object may carry length and start.
 
 **Next:** A controlled one-note project with an independently moved and resized region is still required. Compare the full changed records rather than probing additional Logic-derived offsets in isolation.
+
+## META-002 — compare song-duration summary with recovered audio extent candidates
+
+**Question:** Does `com_apple_garageband_metadata_songDuration` equal the last recovered audio start, or the latest end estimated from finite audio-placement `+0x1c` candidates after converting candidate ticks to seconds?
+
+**Fixtures:** The two supplied `.band` archives, summarized anonymously. No audio samples or source names were read for this comparison.
+
+**Method:** For each project, use the parser's existing audio-placement start candidate and project tempo to estimate the final recovered audio start in seconds. Where `+0x1c` has a finite, nonzero value rather than the observed sentinel, also estimate a candidate end assuming the existing 960-tick-per-beat hypothesis. Compare these quantities with the numeric `songDuration` summary, allowing 1% relative difference and 0.05 seconds. This is a falsification check of simple equality only; neither the timing conversion nor completeness of recovered placements is assumed.
+
+**Observation:** Both archives have a `songDuration` value and recovered audio placements. One has 10 placements with one finite duration candidate; the other has 9 placements with four. In neither archive does the summary match the last recovered start in seconds, a finite-candidate end in seconds, or that candidate end interpreted as milliseconds.
+
+**Result:** The comparison does not support treating `songDuration` as a direct copy of the last recovered audio boundary under these candidate conversions. It does not establish another unit or refute a time-based interpretation: audio durations are incomplete, MIDI and unrecognized regions may extend farther, and the `+0x1c` timing conversion remains a hypothesis. The parser continues to preserve the summary without assigning a unit.
+
+**Confidence:** CONFIRMED for the tested comparisons and aggregate placement counts in these two archives; UNKNOWN for the summary's unit and completeness semantics.
+
+**Alternative considered:** The summary may include MIDI, count-in or tail time, project-level padding, or a different duration origin. Placement starts and finite `+0x1c` values may also use different units or represent properties other than timeline boundaries.
+
+**Next:** Compare projects with known exported song durations and controlled audio-only, MIDI-only, and trailing-silence edits. Until then, keep `songDuration` as an uninterpreted numeric summary.
+
+## MIDI-016 — compare `MSeq` label candidates with the cached arrangement image
+
+**Question:** Do the length-framed strings in `MSeq` match labels visible on MIDI tracks in the project's own cached arrangement image?
+
+**Fixture:** One supplied project with a local arrangement screenshot. Track labels and the screenshot are not included in the repository.
+
+**Method:** Compare five manually observed visible track labels to the parser's `MSeq +0x12` string candidates without printing or saving the names. For each exact match, check whether the candidate belongs to one unique `MSeq` chunk, whether a recognized MIDI placement links to that chunk, and whether note-shaped events link to it. The screenshot shows MIDI note-pattern blocks on two of the five compared rows. The `MSeq` string framing and representative bytes were separately verified with IDA/Python in MIDI-011.
+
+**Observation:** Three of the five visible labels exactly match candidate strings. Each matched string occurs on one `MSeq` chunk; each chunk is linked to one recognized MIDI placement and to note-shaped event candidates. Both rows with visible MIDI note-pattern blocks are among the exact matches.
+
+**Result:** The co-occurrence provides fixture-specific evidence that these `MSeq` strings preserve labels associated with MIDI arrangement content, and it strengthens the hypothesis that some are displayed track or sequence names. It does not show whether the string is a track name, region name, or instrument/preset label; nor does it establish that every `MSeq` label has the same role. The parser continues to expose the text as a candidate and does not populate `Track.name` from it.
+
+**Confidence:** CONFIRMED for the three exact string matches and their chunk/placement/note-candidate links in this fixture; HIGH CONFIDENCE that the two visible MIDI rows have corresponding `MSeq` label candidates; HYPOTHESIS for the general track-name interpretation.
+
+**Alternative considered:** A MIDI track name may be duplicated as an instrument or sequence label. Screenshot state could also be stale relative to other project components. Exact co-occurrence alone cannot distinguish these roles.
+
+**Next:** Compare multiple cached screenshots and controlled rename/copy variants. Check whether renaming only a track changes the same `MSeq` string while leaving instrument state and region placement unchanged.
+
+## MIDI-017 — compare MIDI placement track-byte order with visible row order
+
+**Question:** For MIDI rows whose displayed labels match `MSeq` labels, does the placement byte at `+0x14` preserve their visible vertical order?
+
+**Fixture:** The same private cached arrangement image and logic-song payload used in MIDI-016. No track labels or byte values are published.
+
+**Method:** Select the three visible rows whose labels exactly match unique `MSeq` candidates and whose chunks link to one MIDI placement each. In screenshot top-to-bottom order, compare each placement's `+0x14` candidate with the next row's candidate. Also compare the fixture-wide candidate values with its declared arrange-track count, as MIDI-009 requires.
+
+**Observation:** The three matched rows' candidate byte values increase by exactly one at both adjacent row transitions. Across all 19 recognized MIDI placements in this fixture, four candidate values exceed the declared arrange-track count.
+
+**Result:** The consecutive values support a fixture-specific hypothesis that `+0x14` preserves relative order for these three visible MIDI rows. Because it does not hold as a direct in-range arrange-track index for all recognized placements, and only three labeled rows are available, do not promote the byte to a track index or use it to place MIDI regions on FL playlist rows.
+
+**Confidence:** CONFIRMED for the two adjacent-value comparisons and the fixture-wide out-of-range count; HYPOTHESIS for a relative track-order role; UNKNOWN for the field's global identity, base, and scope.
+
+**Alternative considered:** Three consecutive values may be coincidental, or may index a MIDI-specific ordered list rather than all arrange tracks. Cached screenshot state may not fully reflect the serialized project.
+
+**Next:** Check another project's cached arrangement image for at least three exact label/MSeq/placement matches, then compare after a controlled track reorder if such a fixture becomes available. Keep this byte uninterpreted in the neutral model meanwhile.
 
 
 ## ARR-027 — audio placement `+0x1c` tick-grid and preview-length candidate
