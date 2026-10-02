@@ -150,7 +150,24 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["same_source_field_match_count"], 2)
         self.assertEqual(result["one_to_one_field_match_count"], 2)
         self.assertEqual(result["anchored_zero_field_candidate_match_count"], 0)
+        self.assertEqual(result["singleton_zero_region_nonzero_placement_group_count"], 0)
+        self.assertEqual(result["zero_only_multi_region_nonzero_placement_group_count"], 0)
         self.assertNotIn("AAAAGGGG", str(result))
+
+    def test_zero_only_group_shapes_are_counted_without_linking(self) -> None:
+        zero = bytes(8)
+        singleton = profile_region_placement_field_links(
+            [bytes(0x8A) + zero], [bytes(0x28) + (1).to_bytes(8, "little")]
+        )
+        repeated = profile_region_placement_field_links(
+            [bytes(0x8A) + zero, bytes(0x8A) + zero],
+            [bytes(0x28) + (1).to_bytes(8, "little"), bytes(0x28) + (2).to_bytes(8, "little")],
+        )
+
+        self.assertEqual(singleton["singleton_zero_region_nonzero_placement_group_count"], 1)
+        self.assertEqual(singleton["candidate_field_match_count_including_anchored_zero"], 0)
+        self.assertEqual(repeated["zero_only_multi_region_nonzero_placement_group_count"], 1)
+        self.assertEqual(repeated["candidate_field_match_count_including_anchored_zero"], 0)
 
     def test_unique_zero_field_candidate_is_counted_with_nonzero_anchor(self) -> None:
         zero = bytes(8)

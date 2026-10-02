@@ -200,6 +200,19 @@ def profile_region_placement_field_links(
         region_fields[region_index] == bytes(8)
         for region_index, _ in anchored_pairs
     )
+    singleton_zero_to_nonzero_group = int(
+        len(region_fields) == 1
+        and region_fields[0] == bytes(8)
+        and len(placement_fields) == 1
+        and placement_fields[0] is not None
+        and placement_fields[0] != bytes(8)
+    )
+    zero_only_multi_region_group_with_nonzero_placements = int(
+        len(region_fields) > 1
+        and all(field == bytes(8) for field in region_fields)
+        and len(placement_fields) == len(region_fields)
+        and all(field is not None and field != bytes(8) for field in placement_fields)
+    )
     return {
         "region_field_count": sum(field is not None for field in region_fields),
         "zero_region_field_count": sum(field == bytes(8) for field in region_fields),
@@ -213,6 +226,10 @@ def profile_region_placement_field_links(
         ),
         "anchored_zero_field_candidate_match_count": anchored_zero_matches,
         "candidate_field_match_count_including_anchored_zero": len(anchored_pairs),
+        "singleton_zero_region_nonzero_placement_group_count": singleton_zero_to_nonzero_group,
+        "zero_only_multi_region_nonzero_placement_group_count": (
+            zero_only_multi_region_group_with_nonzero_placements
+        ),
         "interpretation": (
             "HYPOTHESIS; exact field equality is a candidate region-to-placement link, "
             "not a confirmed object identity or duration."
