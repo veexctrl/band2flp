@@ -13,7 +13,7 @@
       "name": "Logic payload framing and event inventory",
       "weight": 13,
       "recovered": 75,
-      "basis": "Chunk boundaries/events are decoded; IDA checked F1 bytes and all related group fields in one project, and Python found matching ordered F1/MSeq/empty-Trak sequences in two projects. Event meanings remain unknown."
+      "basis": "Chunk boundaries/events are decoded; IDA matched all 68 F1 event ranges and 204 group fields across two projects. Their ordered group sequences match; event meanings remain unknown."
     },
     {
       "name": "Audio references and placement starts",
