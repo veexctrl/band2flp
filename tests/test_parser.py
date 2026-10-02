@@ -55,6 +55,7 @@ from band2flp.flp_export import (
     AudioInfo,
     FLPExportError,
     _beats_to_ticks,
+    _midi_candidate_display_name,
     _pack_midi_note_candidate,
     _select_base_playlist_record_layout,
     _validate_clock_roundtrip,
@@ -610,6 +611,18 @@ class ParserTests(unittest.TestCase):
         decoded = struct.unpack("<IHHIHH8B", record)
         self.assertEqual(decoded[:6], (96, 0x4000, 7, 48, 65, 0))
         self.assertEqual(decoded[11], 100)
+
+    def test_midi_preview_name_uses_bounded_candidate_label(self) -> None:
+        labeled = SimpleNamespace(label_candidate="  Synth\nKeys  ")
+        unlabeled = SimpleNamespace(label_candidate=None)
+        long_label = SimpleNamespace(label_candidate="x" * 100)
+
+        self.assertEqual(_midi_candidate_display_name(labeled, 0), "MIDI candidate 01 - Synth Keys")
+        self.assertEqual(_midi_candidate_display_name(unlabeled, 1), "MIDI candidate 02")
+        self.assertEqual(
+            len(_midi_candidate_display_name(long_label, 2)),
+            len("MIDI candidate 03 - ") + 80,
+        )
 
     def test_flp_audio_info_reads_wave_frame_rate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

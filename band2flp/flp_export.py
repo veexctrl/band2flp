@@ -128,6 +128,17 @@ def _pack_midi_note_candidate(
     )
 
 
+def _midi_candidate_display_name(region: Any, index: int) -> str:
+    """Use an MSeq label as a provisional display label, never a track identity."""
+    base = f"MIDI candidate {index + 1:02d}"
+    label = getattr(region, "label_candidate", None)
+    if not isinstance(label, str):
+        return base
+    label = " ".join(label.split())
+    label = "".join(character for character in label if character.isprintable())[:80]
+    return f"{base} - {label}" if label else base
+
+
 def audio_info(path: str | Path) -> AudioInfo:
     """Read bounded WAVE or CAF timing metadata without decoding audio."""
     path = Path(path)
@@ -461,7 +472,7 @@ def export_flp(
                 else next_channel_iid + index - (1 if not regions else 0)
             )
             pattern_iid = next_pattern_iid + index
-            midi_name = f"MIDI candidate {index + 1:02d}"
+            midi_name = _midi_candidate_display_name(region, index)
             if use_template_channel:
                 midi_channel = base_channel
             else:
@@ -545,6 +556,7 @@ def export_flp(
             midi_preview_items.append({
                 "pattern_iid": pattern_iid,
                 "channel_iid": channel_iid,
+                "display_name": midi_name,
                 "playlist_track_index": playlist_row,
                 "position_ticks": region_start,
                 "length_ticks": clip_length,
@@ -712,7 +724,9 @@ def export_flp(
                 "Full-source placeholder lengths do not represent GarageBand trims, loops, or playback stretching."
             ] if length_policy == "source-full" else []) + ([
                 "MIDI candidate placement and note data are provisional; track assignment, velocity meaning, and instrument are unconfirmed."
-            ] if midi_preview_items else []),
+            ] if midi_preview_items else []) + ([
+                "MSeq text candidates are used as preview labels only; their role as a track or region name is unconfirmed."
+            ] if any(" - " in item["display_name"] for item in midi_preview_items) else []),
         }
         report_tmp.write_text(json.dumps(report, indent=2), encoding="utf-8")
         _atomic_publish(flp_tmp, output)
