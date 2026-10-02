@@ -1013,9 +1013,9 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Fixtures:** The same two supplied projects as EVT-007. The probe emits aggregate counts and equality booleans only; group values, media, names, and paths are omitted.
 
-**Method:** Extended `research/scripts/f1_group_probe.py` to compare the ordered group-candidate sequence for parsed F1 event records with the chunk-order sequences for all `MSeq` chunks and zero-payload `Trak` chunks. The existing multiset comparisons remain separate so an ordering mismatch is distinguishable from a multiplicity mismatch. A synthetic regression test reverses the related group order while preserving multiplicities.
+**Method:** Extended `research/scripts/f1_group_probe.py` to compare the ordered group-candidate sequence for parsed F1 event records with the chunk-order sequences for all `MSeq` chunks and zero-payload `Trak` chunks. The existing multiset comparisons remain separate so an ordering mismatch is distinguishable from a multiplicity mismatch. A synthetic regression test reverses the related group order while preserving multiplicities. In the 35-record fixture, IDA MCP also read the four-byte group field at chunk-header `+0x08` for all 35 distinct F1 source chunks, 35 `MSeq` chunks, and 35 empty `Trak` chunks; all 105 values matched the Python parser.
 
-**Observation:** In both fixtures, the F1 event count equals the number of `MSeq` chunks and empty-payload `Trak` chunks (33 or 35). The F1 group sequence matches both chunk sequences exactly, including repeated groups and group zero.
+**Observation:** In both fixtures, the F1 event count equals the number of `MSeq` chunks and empty-payload `Trak` chunks (33 or 35). The F1 group sequence matches both chunk sequences exactly, including repeated groups and group zero. In the IDA-checked fixture, the 35 F1 records also come from 35 distinct `EvSq` chunks.
 
 **Result:** CONFIRMED ordinal group-candidate correspondence among these three record families in the two inspected payloads. The equality supports a parallel serialized inventory/order, but does not establish that each ordinal represents the same musical object or give the `F1` record, empty `Trak`, or group field a semantic name.
 
