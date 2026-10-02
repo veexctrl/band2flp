@@ -1112,6 +1112,22 @@ class ParserTests(unittest.TestCase):
             with self.assertRaises(BandFormatError):
                 parse_band(fixture)
 
+    def test_corrupt_deflate_stream_raises_band_format_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "corrupt-deflate.band"
+            make_fixture(fixture)
+            raw = bytearray(fixture.read_bytes())
+            with zipfile.ZipFile(fixture) as package:
+                info = package.getinfo("fixture.band/projectData")
+            filename_size, extra_size = struct.unpack_from("<HH", raw, info.header_offset + 26)
+            compressed_start = info.header_offset + 30 + filename_size + extra_size
+            # Deflate BTYPE=3 is reserved and forces the decompressor error path.
+            raw[compressed_start] = 0x06
+            fixture.write_bytes(raw)
+
+            with self.assertRaises(BandFormatError):
+                parse_band(fixture)
+
     def test_chunk_parser_rejects_truncation_and_out_of_bounds_lengths(self) -> None:
         with self.assertRaises(BandFormatError):
             _parse_chunk_stream(bytes.fromhex("2347c0ab") + bytes(20) + b"short")
