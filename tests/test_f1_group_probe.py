@@ -34,6 +34,8 @@ class F1GroupProbeTests(unittest.TestCase):
         self.assertTrue(profile["group_multiplicity_comparisons"]["empty_Trak"]["multiplicities_match"])
         self.assertTrue(profile["group_order_comparisons"]["MSeq"]["group_sequence_matches_in_order"])
         self.assertTrue(profile["group_order_comparisons"]["empty_Trak"]["group_sequence_matches_in_order"])
+        self.assertEqual(profile["group_order_comparisons"]["MSeq"]["f1_group_sequence_decrease_count"], 0)
+        self.assertEqual(profile["group_order_comparisons"]["MSeq"]["related_group_sequence_decrease_count"], 0)
         self.assertEqual(payloads, {bytes.fromhex(raw)})
         self.assertNotIn("65536", serialized)
         self.assertNotIn(raw, serialized)
@@ -61,6 +63,8 @@ class F1GroupProbeTests(unittest.TestCase):
 
         self.assertTrue(profile["group_multiplicity_comparisons"]["MSeq"]["multiplicities_match"])
         self.assertFalse(profile["group_order_comparisons"]["MSeq"]["group_sequence_matches_in_order"])
+        self.assertEqual(profile["group_order_comparisons"]["MSeq"]["f1_group_sequence_decrease_count"], 0)
+        self.assertEqual(profile["group_order_comparisons"]["MSeq"]["related_group_sequence_decrease_count"], 1)
 
     def test_rejects_malformed_f1_raw_record(self) -> None:
         record = {"type_byte": 0xF1, "group_id_candidate": 7, "length": 16, "raw_hex": "not-hex"}
