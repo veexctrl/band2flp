@@ -32,6 +32,7 @@ def profile_audio_name_chunks(
     group_candidates_by_type: dict[str, dict[bytes, set[Any]]] = defaultdict(
         lambda: defaultdict(set)
     )
+    family_pattern_counts_by_reference: dict[int, Counter[str]] = defaultdict(Counter)
 
     for reference_index, reference in enumerate(references):
         if getattr(reference, "category", None) != "AudioFiles":
@@ -98,10 +99,16 @@ def profile_audio_name_chunks(
                     b"\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10"
                     + bytes((len(needle),))
                 )
-                totals[chunk_type]["loop_metadata_record_pattern_match_count"] += int(
+                family_pattern_match = (
                     offset >= start + len(loop_metadata_prefix)
                     and payload[offset - len(loop_metadata_prefix):offset]
                     == loop_metadata_prefix
+                )
+                totals[chunk_type]["loop_metadata_record_pattern_match_count"] += int(
+                    family_pattern_match
+                )
+                family_pattern_counts_by_reference[reference_index][chunk_type] += int(
+                    family_pattern_match
                 )
                 totals[chunk_type]["same_source_group_occurrence_count"] += int(
                     source_group is not None
@@ -198,6 +205,28 @@ def profile_audio_name_chunks(
                 "stems_with_shared_group_candidate_count": shared_group_count,
             }
 
+    source_indices = [
+        index for index, reference in enumerate(references)
+        if getattr(reference, "category", None) == "AudioFiles"
+    ]
+    genm_counts = [family_pattern_counts_by_reference[index]["GenM"] for index in source_indices]
+    sngo_counts = [family_pattern_counts_by_reference[index]["SngO"] for index in source_indices]
+    family_join_counts = {
+        "audio_reference_count": len(source_indices),
+        "references_with_at_least_one_family_pattern_in_both_count": sum(
+            genm > 0 and sngo > 0 for genm, sngo in zip(genm_counts, sngo_counts)
+        ),
+        "references_with_exactly_one_family_pattern_in_both_count": sum(
+            genm == 1 and sngo == 1 for genm, sngo in zip(genm_counts, sngo_counts)
+        ),
+        "references_with_multiple_family_patterns_in_either_count": sum(
+            genm > 1 or sngo > 1 for genm, sngo in zip(genm_counts, sngo_counts)
+        ),
+        "references_missing_a_family_pattern_in_either_count": sum(
+            genm == 0 or sngo == 0 for genm, sngo in zip(genm_counts, sngo_counts)
+        ),
+    }
+
     return {
         "audio_reference_count": reference_count,
         "unique_filename_stem_count": len(filename_stems),
@@ -205,6 +234,7 @@ def profile_audio_name_chunks(
         "chunk_type_matches": per_type,
         "ordering_comparisons": ordering_comparisons,
         "group_candidate_intersections": group_intersections,
+        "loop_family_source_join_candidates": family_join_counts,
         "privacy_note": "Reference text, paths, group IDs, payload bytes, and media are omitted.",
     }
 
