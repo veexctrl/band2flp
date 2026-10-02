@@ -1347,7 +1347,7 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Observation:** Each archive contains two byte-identical 276-byte extensionless plist members. Both copies in one archive match the complete IDA-loaded component byte-for-byte; the two copies in the other archive match each other but not the IDA component. The IDA component's `cachesValidationUUID` does not occur in either archive's `projectData`, summary plist, or asset plist under the tested forms.
 
-**Result:** The IDA-loaded component is directly identified as a duplicated package member in one fixture. The data supports a cache-validation role for its UUID-named plist field, but does not establish what object or cache state it validates or whether the UUID is stable across saves/devices. It provides no join to arrangement, media, or track objects.
+**Result:** The IDA-loaded component is directly identified as a duplicated package member in one fixture. The data supports a cache-validation role for its UUID-named plist field, but does not establish what object or cache state it validates or whether the UUID is stable across saves/devices. It provides no demonstrated join to arrangement, media, or track objects.
 
 **Confidence:** CONFIRMED for the plist shape, duplicate-member equality, exact component match, and searched non-matches in these two archives; UNKNOWN for the field's semantics and lifecycle.
 
