@@ -1352,3 +1352,21 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the plist shape, duplicate-member equality, exact component match, and searched non-matches in these two archives; UNKNOWN for the field's semantics and lifecycle.
 
 **Next:** Compare this component across a controlled save/edit or a second save of the same project to determine whether the validation UUID is regenerated or retained.
+
+## CROSS-007 — distinguish GarageBand audio-source groups from Logic region links
+
+**Question:** Does Logic Pro's interpretation of audio-placement `+0x2c` as a per-region link transfer to GarageBand, or does the GarageBand field identify a shared audio source group?
+
+**Fixture:** The non-vocal, audio-only GarageBand project used in CROSS-002. No audio samples were read, extracted, or decoded.
+
+**Method:** Compare each parsed GarageBand audio-placement `+0x2c` candidate, after the parser's `<< 16` group conversion, with `AudioFiles` resource groups. Within each linked resource group, count placement events and filename-matched `AuRg` records. Compare this shape with the Logic Pro 11.2.2 specification, which documents the same event offset as a link to one `gRuA` region record. Report counts only.
+
+**Observation:** All nine GarageBand placement events link to one of six source groups. Three groups contain multiple placement events and multiple filename-matched `AuRg` records. Therefore the converted value is shared by more than one candidate placement and region record in this fixture; it cannot uniquely identify one placed region here.
+
+**Result:** The GarageBand `+0x2c` candidate has a fixture-specific source-group role in the current parser and should not inherit Logic's per-region-link interpretation. The separate eight-byte `+0x28` placement / `AuRg +0x8a` equality remains a partial region-instance candidate in another fixture; neither field is generalized across all projects.
+
+**Confidence:** CONFIRMED that the converted `+0x2c` value is non-unique across placements and region records in this fixture; HIGH CONFIDENCE that it identifies a shared audio-source group here; UNKNOWN whether that role is stable across GarageBand versions. Logic's offset semantics are documented in its [audio-region specification](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md#81-track-identity-for-multiple-tracks).
+
+**Alternative considered:** A shared region-family or parent-object identifier could also group several regions. The exact value's identity semantics remain unknown beyond its demonstrated source-group join.
+
+**Next:** In a controlled same-source project, duplicate and reorder a region, then compare `+0x2c`, `+0x28`, `AuRg +0x8a`, and the asset-group fields to determine which values follow the source and which follow a region instance.
