@@ -11,7 +11,7 @@ GarageBand parsing populates the neutral `Project`, `Track`, and `Region` model.
 | Summary tempo | `Project.tempo_bpm` | Exported when present; saved FLP is reparsed and the value is checked |
 | Summary time signature | `Project.time_signature` | Exported when present; saved FLP is reparsed and numerator/denominator are checked |
 | Audio placement start | `Region.start_beats` | Exported as playlist position in template PPQ ticks |
-| Audio track number | `Track.index` plus raw candidate in `Region.unknown` | High confidence for audio preview fixture; cross-fixture mapping needs validation |
+| Audio placement `+0x14` candidate | `Track.index` currently uses candidate minus one, while the original candidate remains in `Region.unknown` | Relative order is high confidence in one preview fixture; absolute one-based row semantics remain a hypothesis pending a controlled track reorder/add test |
 | Audio source | `Region.source` and `MediaReference` | Extracted into a user-selected media directory and referenced by a sampler channel |
 | Audio duration/source offset/trim/loop | Duration unknown; nonzero offset unsupported | Default export rejects unknown duration; explicit `source-full` uses complete source length as a placeholder. Trims, loops, and stretching are not reconstructed. Nonzero offsets are rejected. |
 | MIDI placement to `MSeq` | Candidate records in `Project.project_data` | Not transferred to neutral tracks yet; track and timing semantics remain unconfirmed |
