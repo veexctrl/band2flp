@@ -1336,3 +1336,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the bounded scan result in this fixture; UNKNOWN for any general relationship between region and placement objects.
 
 **Next:** Use a controlled same-source region move, copy, or trim edit to identify which structure changes and whether candidate links remain stable.
+
+## CROSS-006 — identify the archived CacheInfo component
+
+**Question:** Does the small `CacheInfo` component loaded in IDA match a component inside either supplied `.band` archive, and does its validation identifier join to the main project plists?
+
+**Fixtures:** Two supplied `.band` archives and the active IDA view of a `CacheInfo` component. Archive/project names, the UUID value, and local paths are omitted. No audio members were read or extracted.
+
+**Method:** Read the 276-byte IDA segment, identified its XML plist structure and one root dictionary key, then compared the complete bytes and parsed `cachesValidationUUID` against extensionless 276-byte plist members in both archives. Separately searched `projectData`, summary metadata, and asset metadata for the identifier as text, a 16-byte UUID, and its little-endian UUID form.
+
+**Observation:** Each archive contains two byte-identical 276-byte extensionless plist members. Both copies in one archive match the complete IDA-loaded component byte-for-byte; the two copies in the other archive match each other but not the IDA component. The IDA component's `cachesValidationUUID` does not occur in either archive's `projectData`, summary plist, or asset plist under the tested forms.
+
+**Result:** The IDA-loaded component is directly identified as a duplicated package member in one fixture. The data supports a cache-validation role for its UUID-named plist field, but does not establish what object or cache state it validates or whether the UUID is stable across saves/devices. It provides no join to arrangement, media, or track objects.
+
+**Confidence:** CONFIRMED for the plist shape, duplicate-member equality, exact component match, and searched non-matches in these two archives; UNKNOWN for the field's semantics and lifecycle.
+
+**Next:** Compare this component across a controlled save/edit or a second save of the same project to determine whether the validation UUID is regenerated or retained.
