@@ -50,11 +50,11 @@ class F1GroupProbeTests(unittest.TestCase):
     def test_distinguishes_order_mismatch_from_matching_multiplicities(self) -> None:
         records = [
             {"type_byte": 0xF1, "group_id_candidate": group, "length": 16, "raw_hex": "f1" * 16}
-            for group in (7, 8)
+            for group in (0, 7, 7)
         ]
         chunks = [
             {"type": "MSeq", "group_id_candidate": group}
-            for group in (8, 7)
+            for group in (7, 0, 7)
         ]
 
         profile, _ = profile_f1_groups(records, chunks)
