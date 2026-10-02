@@ -96,10 +96,27 @@ def profile_audio_name_chunks(
 
     ordering_comparisons: dict[str, dict[str, int]] = {}
     for chunk_type in sorted(matched_references):
+        context_counts = Counter()
+        for chunk_index in matched_chunks[chunk_type]:
+            chunk = by_index[chunk_index]
+            start = chunk["payload_offset"]
+            end = start + chunk["payload_size"]
+            chunk_payload = payload[start:end]
+            context_counts["matched_chunk_with_loop_family_name_key_count"] += int(
+                b"^LoopFamilyName" in chunk_payload
+            )
+            context_counts["matched_chunk_with_is_family_loop_key_count"] += int(
+                b"\\IsFamilyLoop" in chunk_payload
+            )
+            context_counts["matched_chunk_with_both_loop_keys_count"] += int(
+                b"^LoopFamilyName" in chunk_payload
+                and b"\\IsFamilyLoop" in chunk_payload
+            )
         per_type[chunk_type] = {
             "matched_reference_count": len(matched_references[chunk_type]),
             "matched_chunk_count": len(matched_chunks[chunk_type]),
             **dict(sorted(totals[chunk_type].items())),
+            **dict(sorted(context_counts.items())),
         }
         stems = list(match_order_by_type[chunk_type])
         source_agreements = reference_agreements = 0
