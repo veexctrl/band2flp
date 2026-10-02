@@ -125,10 +125,22 @@ def profile_f1_groups(
             "MSeq": {
                 "related_chunk_count": len(mseq_group_order),
                 "group_sequence_matches_in_order": f1_group_order == mseq_group_order,
+                "f1_group_sequence_decrease_count": sum(
+                    left > right for left, right in zip(f1_group_order, f1_group_order[1:])
+                ),
+                "related_group_sequence_decrease_count": sum(
+                    left > right for left, right in zip(mseq_group_order, mseq_group_order[1:])
+                ),
             },
             "empty_Trak": {
                 "related_chunk_count": len(empty_trak_group_order),
                 "group_sequence_matches_in_order": f1_group_order == empty_trak_group_order,
+                "f1_group_sequence_decrease_count": sum(
+                    left > right for left, right in zip(f1_group_order, f1_group_order[1:])
+                ),
+                "related_group_sequence_decrease_count": sum(
+                    left > right for left, right in zip(empty_trak_group_order, empty_trak_group_order[1:])
+                ),
             },
         },
         **({"payload_occurrence_scan": payload_scan} if payload_scan is not None else {}),
