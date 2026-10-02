@@ -36,6 +36,7 @@ def profile_f1_groups(
     """
     f1_records = [item for item in records if item.get("type_byte") == 0xF1]
     f1_groups: Counter[int] = Counter()
+    f1_group_order: list[int] = []
     raw_records: set[bytes] = set()
     lengths: Counter[int] = Counter()
     zero_group_count = 0
@@ -55,6 +56,7 @@ def profile_f1_groups(
         if len(raw) != length:
             raise BandFormatError("F1 event length differs from its raw record")
         f1_groups[group] += 1
+        f1_group_order.append(group)
         raw_records.add(raw)
         lengths[length] += 1
         zero_group_count += group == 0
@@ -93,6 +95,9 @@ def profile_f1_groups(
         }
 
     mseq_groups = _group_counts(chunks, "MSeq")
+    mseq_group_order = [
+        chunk["group_id_candidate"] for chunk in chunks if chunk.get("type") == "MSeq"
+    ]
     empty_trak_groups = Counter(
         chunk.get("group_id_candidate")
         for chunk in chunks
@@ -100,6 +105,10 @@ def profile_f1_groups(
     )
     if any(not isinstance(group, int) for group in empty_trak_groups):
         raise BandFormatError("empty Trak chunk has invalid group candidate")
+    empty_trak_group_order = [
+        chunk["group_id_candidate"] for chunk in chunks
+        if chunk.get("type") == "Trak" and chunk.get("payload_size") == 0
+    ]
     comparisons = {
         "MSeq": mseq_groups,
         "empty_Trak": empty_trak_groups,
@@ -112,6 +121,16 @@ def profile_f1_groups(
         "distinct_f1_raw_record_count": len(raw_records),
         "distinct_f1_group_count": len(f1_groups),
         "group_zero_record_count": zero_group_count,
+        "group_order_comparisons": {
+            "MSeq": {
+                "related_chunk_count": len(mseq_group_order),
+                "group_sequence_matches_in_order": f1_group_order == mseq_group_order,
+            },
+            "empty_Trak": {
+                "related_chunk_count": len(empty_trak_group_order),
+                "group_sequence_matches_in_order": f1_group_order == empty_trak_group_order,
+            },
+        },
         **({"payload_occurrence_scan": payload_scan} if payload_scan is not None else {}),
         "group_multiplicity_comparisons": {
             name: {
