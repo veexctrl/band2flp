@@ -1059,3 +1059,20 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the candidate count and failed framing checks in these two payloads; UNKNOWN whether the marker has another structural role.
 
 **Next:** Identify the `Song` payload's actual record boundaries from controlled project changes or a separately validated framing rule before interpreting its fields.
+
+
+## EVT-009 — complete IDA check of MIDI-status-shaped event records
+
+**Question:** Does IDA confirm the exact bytes of every event selected by the current `0x90`–`0x9e` MIDI-status-shaped candidate filter in the audio-bearing fixture?
+
+**Fixture:** One locally inspected logic-song payload. No audio bytes or note values are reported.
+
+**Method:** Selected event records whose first byte is in the `0x90`–`0x9e` range, whose record is at least 32 bytes, and whose byte at `+0x17` is `0x89`. Read every parser-reported event range through IDA MCP and compared the full bytes with Python. Reports retain only aggregate record counts by size.
+
+**Observation:** The filter selects 133 records: 108 are 64 bytes and 25 are 80 bytes. IDA MCP and Python agree on all 133 complete byte ranges.
+
+**Result:** Full-byte extraction and event-boundary offsets are independently validated for this selected family in this fixture. The result does not prove the records are all MIDI notes or confirm the Logic-derived pitch, velocity, onset, duration, or channel fields. Both sizes remain exposed as unconfirmed event candidates.
+
+**Confidence:** CONFIRMED for record counts, sizes, and exact IDA/Python byte agreement; UNKNOWN for musical field semantics and generality across projects.
+
+**Next:** Use controlled GarageBand one-note edits to separate actual note records from other members of the status-shaped family and validate each field before converting them to normalized notes.
