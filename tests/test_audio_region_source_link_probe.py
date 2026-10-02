@@ -4,6 +4,7 @@ import unittest
 
 from research.scripts.audio_region_source_link_probe import (
     profile_candidate_region_payloads,
+    profile_region_candidate_overlap,
     profile_region_placement_field_links,
     profile_source_frame_window_candidates,
     profile_source_link_candidates,
@@ -110,6 +111,29 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["same_source_field_match_count"], 2)
         self.assertEqual(result["one_to_one_field_match_count"], 0)
 
+    def test_candidate_overlap_keeps_ambiguous_suffixes_explicit_and_hides_indices(self) -> None:
+        result = profile_region_candidate_overlap(
+            [[17], [23], [29], []],
+            [[17, 31], [37], [29, 41], []],
+        )
+
+        self.assertEqual(result, {
+            "placement_count": 4,
+            "placements_with_fixed_field_candidates": 3,
+            "placements_with_suffix_candidates": 3,
+            "placements_with_both_candidate_types": 3,
+            "overlapping_region_candidate_count": 2,
+            "fixed_candidates_fully_covered_by_suffix_candidates": 2,
+            "placements_with_ambiguous_suffix_candidates": 2,
+            "placements_with_equal_nonempty_candidate_sets": 0,
+        })
+        self.assertNotIn("17", str(result))
+
+    def test_candidate_overlap_requires_same_placement_count(self) -> None:
+        with self.assertRaisesRegex(ValueError, "same placements"):
+            profile_region_candidate_overlap([[1]], [])
+
 
 if __name__ == "__main__":
     unittest.main()
+
