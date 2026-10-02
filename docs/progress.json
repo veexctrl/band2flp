@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-09-29",
+  "as_of": "2026-10-02",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 28,
-      "basis": "MSeq labels are length-framed in both fixtures; placement links exist, but note timing, pitch, and track roles remain unconfirmed."
+      "recovered": 30,
+      "basis": "MSeq labels are length-framed in both fixtures; one cached arrangement image confirms exact labels on two MIDI-pattern rows, each linked to placement and note candidates. Three label-matched rows have consecutive +0x14 values in visible order, but other values exceed the declared track count. Note fields and absolute track mapping remain unresolved."
     },
     {
       "name": "Tempo and meter timeline",
