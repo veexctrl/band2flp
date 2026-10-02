@@ -171,6 +171,35 @@ def profile_region_placement_field_links(
     }
 
 
+def profile_region_candidate_overlap(
+    fixed_field_candidates: list[list[int]],
+    suffix_candidates: list[list[int]],
+) -> dict[str, int]:
+    """Compare candidate region identities without returning chunk indices."""
+    if len(fixed_field_candidates) != len(suffix_candidates):
+        raise ValueError("fixed-field and suffix candidate lists must cover the same placements")
+    fixed_sets = [set(items) for items in fixed_field_candidates]
+    suffix_sets = [set(items) for items in suffix_candidates]
+    return {
+        "placement_count": len(fixed_sets),
+        "placements_with_fixed_field_candidates": sum(bool(items) for items in fixed_sets),
+        "placements_with_suffix_candidates": sum(bool(items) for items in suffix_sets),
+        "placements_with_both_candidate_types": sum(
+            bool(fixed) and bool(suffix) for fixed, suffix in zip(fixed_sets, suffix_sets)
+        ),
+        "overlapping_region_candidate_count": sum(
+            len(fixed & suffix) for fixed, suffix in zip(fixed_sets, suffix_sets)
+        ),
+        "fixed_candidates_fully_covered_by_suffix_candidates": sum(
+            bool(fixed) and fixed <= suffix for fixed, suffix in zip(fixed_sets, suffix_sets)
+        ),
+        "placements_with_ambiguous_suffix_candidates": sum(len(items) > 1 for items in suffix_sets),
+        "placements_with_equal_nonempty_candidate_sets": sum(
+            bool(fixed) and fixed == suffix for fixed, suffix in zip(fixed_sets, suffix_sets)
+        ),
+    }
+
+
 def _logic_song_payload(project_data: dict[str, Any]) -> bytes:
     object_index = project_data.get("logic_song_object_index")
     for item in project_data.get("opaque_data_objects", []):
@@ -295,6 +324,16 @@ def probe_project(path: str | Path) -> dict[str, Any]:
         "embedded_audio_sources": source_count,
         "sources_with_decoded_frame_counts": decoded_source_count,
         "audio_placement_count": len(placements),
+        "region_candidate_overlap": profile_region_candidate_overlap(
+            [
+                region.unknown["region_chunk_indices_matching_0x8a_to_0x28_candidate"]
+                for track in project.tracks for region in track.regions if region.kind == "audio"
+            ],
+            [
+                region.unknown["region_chunk_indices_matching_trailing_u32_candidate"]
+                for track in project.tracks for region in track.regions if region.kind == "audio"
+            ],
+        ),
         **dict(sorted(aggregates.items())),
         **dict(sorted(region_payload_aggregates.items())),
         "interpretation": (
@@ -320,3 +359,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
