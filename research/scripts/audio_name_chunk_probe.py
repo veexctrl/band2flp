@@ -73,8 +73,13 @@ def profile_audio_name_chunks(
                     break
                 found_in_chunk = True
                 totals[chunk_type]["string_occurrence_count"] += 1
-                totals[chunk_type]["one_byte_length_prefix_match_count"] += int(
+                totals[chunk_type]["preceding_byte_equals_utf8_length_count"] += int(
                     offset > start and payload[offset - 1] == len(needle)
+                )
+                totals[chunk_type]["bplist_extended_ascii_string_marker_match_count"] += int(
+                    offset >= start + 3
+                    and payload[offset - 3:offset]
+                    == b"\x5f\x10" + bytes((len(needle),))
                 )
                 totals[chunk_type]["same_source_group_occurrence_count"] += int(
                     source_group is not None
