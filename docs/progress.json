@@ -13,7 +13,7 @@
       "name": "Logic payload framing and event inventory",
       "weight": 13,
       "recovered": 75,
-      "basis": "Chunk boundaries/events are decoded; F1 records repeat and match MSeq/empty-Trak group counts, but most event meanings remain unknown."
+      "basis": "Chunk boundaries/events are decoded; IDA confirmed F1 event bytes and F1/MSeq/empty-Trak group sequences match in two projects. The event meanings remain unknown."
     },
     {
       "name": "Audio references and placement starts",
