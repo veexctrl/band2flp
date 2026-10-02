@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from collections import Counter
 import json
 from pathlib import Path
@@ -24,7 +25,9 @@ def _group_counts(chunks: list[dict[str, Any]], kind: str) -> Counter[int]:
 
 
 def profile_f1_groups(
-    records: list[dict[str, Any]], chunks: list[dict[str, Any]]
+    records: list[dict[str, Any]],
+    chunks: list[dict[str, Any]],
+    payload: bytes | None = None,
 ) -> tuple[dict[str, Any], frozenset[bytes]]:
     """Return aggregate F1/group relationships and an internal raw-byte set.
 
@@ -36,6 +39,7 @@ def profile_f1_groups(
     raw_records: set[bytes] = set()
     lengths: Counter[int] = Counter()
     zero_group_count = 0
+    f1_offsets: set[int] = set()
     for record in f1_records:
         group = record.get("group_id_candidate")
         length = record.get("length")
@@ -54,6 +58,39 @@ def profile_f1_groups(
         raw_records.add(raw)
         lengths[length] += 1
         zero_group_count += group == 0
+        offset = record.get("offset")
+        if offset is not None:
+            if not isinstance(offset, int) or offset < 0:
+                raise BandFormatError("F1 event has invalid payload offset")
+            f1_offsets.add(offset)
+
+    payload_scan: dict[str, Any] | None = None
+    if payload is not None:
+        if len(f1_offsets) != len(f1_records):
+            raise BandFormatError("F1 event payload offsets are missing or duplicated")
+        for item in f1_records:
+            offset = item.get("offset")
+            if not isinstance(offset, int) or offset < 0:
+                raise BandFormatError("F1 event has no valid payload offset")
+            record = bytes.fromhex(item["raw_hex"])
+            if offset + len(record) > len(payload):
+                raise BandFormatError("F1 event offset lies outside the logic-song payload")
+            if payload[offset:offset + len(record)] != record:
+                raise BandFormatError("F1 event bytes disagree with the logic-song payload")
+        occurrences: set[int] = set()
+        for record in raw_records:
+            if not record:
+                continue
+            offset = payload.find(record)
+            while offset >= 0:
+                occurrences.add(offset)
+                offset = payload.find(record, offset + 1)
+        matched_starts = occurrences & f1_offsets
+        payload_scan = {
+            "raw_record_occurrence_count": len(occurrences),
+            "occurrences_at_f1_event_starts": len(matched_starts),
+            "all_occurrences_at_f1_event_starts": occurrences == f1_offsets,
+        }
 
     mseq_groups = _group_counts(chunks, "MSeq")
     empty_trak_groups = Counter(
@@ -75,6 +112,7 @@ def profile_f1_groups(
         "distinct_f1_raw_record_count": len(raw_records),
         "distinct_f1_group_count": len(f1_groups),
         "group_zero_record_count": zero_group_count,
+        **({"payload_occurrence_scan": payload_scan} if payload_scan is not None else {}),
         "group_multiplicity_comparisons": {
             name: {
                 "related_chunk_count": sum(counts.values()),
@@ -102,7 +140,15 @@ def probe_project(path: str | Path) -> tuple[dict[str, Any], frozenset[bytes]]:
         raise BandFormatError("project has no validated event sequence records")
     if not isinstance(stream, dict) or not isinstance(stream.get("chunks"), list):
         raise BandFormatError("project has no validated logic-song chunk stream")
-    return profile_f1_groups(events["records"], stream["chunks"])
+    object_index = project.project_data.get("logic_song_object_index")
+    for blob in project.project_data.get("opaque_data_objects", []):
+        if blob.get("object_index") != object_index or not isinstance(blob.get("base64"), str):
+            continue
+        payload = base64.b64decode(blob["base64"], validate=True)
+        if len(payload) != blob.get("length") or len(payload) != stream.get("end_offset"):
+            raise BandFormatError("retained logic-song payload is inconsistent")
+        return profile_f1_groups(events["records"], stream["chunks"], payload)
+    raise BandFormatError("logic-song NSData payload was not retained")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -129,3 +175,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
