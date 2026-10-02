@@ -1093,3 +1093,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the CAF field layout and timing definitions from Apple's specification, the implementation's synthetic test, and IDA/Python header-byte agreement on the locally inspected files; UNKNOWN for how GarageBand maps CAF source metadata to arrangement regions.
 
 **Next:** Keep source duration separate from region timing. Test arrangement trim/loop behavior with controlled GarageBand projects before using any CAF field to set FL Studio playlist lengths.
+
+## ARR-033 — compare finite placement candidates with CAF frame windows
+
+**Question:** Can the finite audio-placement word at `+0x1c` be cross-checked against candidate source windows in the same source's `AuRg` records using CAF loop timing metadata?
+
+**Fixtures:** The two supplied projects, inspected locally. No audio samples were decoded, played, or included in the repository.
+
+**Method:** Match audio placements to package media references, then compare finite `+0x1c` candidates with same-source `AuRg +0x16` frame candidates. Test both elapsed-frame conversion at project tempo and proportional scaling from CAF valid frames to the tagged beat count. Do not accept ambiguous placement-to-region links as unique matches.
+
+**Observation:** The only finite placement candidate associated with a CAF source carrying beat metadata had an ambiguous source-region link. No candidate window could be uniquely attributed to that placement, and neither tested conversion produced a match.
+
+**Result:** INCONCLUSIVE. This does not falsify a duration interpretation for `+0x1c`; the fixture does not provide an unambiguous region link, and the tested conversions may not model GarageBand's source tempo, trims, or looping.
+
+**Confidence:** HIGH CONFIDENCE in this negative result for the inspected candidate set; UNKNOWN for the meaning of `+0x1c` and the `AuRg +0x16` values.
+
+**Next:** Use a controlled same-source, same-start region-length or trim edit, then test whether the placement word or selected source-window candidate changes predictably.
