@@ -29,6 +29,9 @@ def profile_audio_name_chunks(
     reference_order_by_stem: dict[bytes, int] = {}
     source_order_by_stem: dict[bytes, int] = {}
     match_order_by_type: dict[str, dict[bytes, tuple[int, int]]] = defaultdict(dict)
+    group_candidates_by_type: dict[str, dict[bytes, set[Any]]] = defaultdict(
+        lambda: defaultdict(set)
+    )
 
     for reference_index, reference in enumerate(references):
         if getattr(reference, "category", None) != "AudioFiles":
@@ -103,6 +106,9 @@ def profile_audio_name_chunks(
             if found_in_chunk:
                 matched_references[chunk_type].add(reference_index)
                 matched_chunks[chunk_type].add(chunk_index)
+                group_candidate = chunk.get("group_id_candidate")
+                if group_candidate is not None:
+                    group_candidates_by_type[chunk_type][needle].add(group_candidate)
 
     ordering_comparisons: dict[str, dict[str, int]] = {}
     for chunk_type in sorted(matched_references):
@@ -158,12 +164,38 @@ def profile_audio_name_chunks(
             "pairwise_order_agreements_with_source_chunks": source_agreements,
         }
 
+    group_intersections: dict[str, dict[str, int]] = {}
+    chunk_types = sorted(group_candidates_by_type)
+    for left_index, left_type in enumerate(chunk_types):
+        for right_type in chunk_types[left_index + 1:]:
+            common_stems = (
+                set(group_candidates_by_type[left_type])
+                & set(group_candidates_by_type[right_type])
+            )
+            comparable_stems = [
+                stem for stem in common_stems
+                if group_candidates_by_type[left_type][stem]
+                and group_candidates_by_type[right_type][stem]
+            ]
+            shared_group_count = sum(
+                bool(
+                    group_candidates_by_type[left_type][stem]
+                    & group_candidates_by_type[right_type][stem]
+                )
+                for stem in comparable_stems
+            )
+            group_intersections[f"{left_type}/{right_type}"] = {
+                "common_stem_count": len(comparable_stems),
+                "stems_with_shared_group_candidate_count": shared_group_count,
+            }
+
     return {
         "audio_reference_count": reference_count,
         "unique_filename_stem_count": len(filename_stems),
         "stems_skipped_for_length": ignored_stem_count,
         "chunk_type_matches": per_type,
         "ordering_comparisons": ordering_comparisons,
+        "group_candidate_intersections": group_intersections,
         "privacy_note": "Reference text, paths, group IDs, payload bytes, and media are omitted.",
     }
 
