@@ -94,6 +94,15 @@ def profile_audio_name_chunks(
                     totals[chunk_type]["name_after_bplist_false_marker_count"] += int(
                         payload[offset - 4] == 0x08
                     )
+                loop_metadata_prefix = (
+                    b"\\IsFamilyLoop^LoopFamilyName\x09\x5f\x10"
+                    + bytes((len(needle),))
+                )
+                totals[chunk_type]["loop_metadata_record_pattern_match_count"] += int(
+                    offset >= start + len(loop_metadata_prefix)
+                    and payload[offset - len(loop_metadata_prefix):offset]
+                    == loop_metadata_prefix
+                )
                 totals[chunk_type]["same_source_group_occurrence_count"] += int(
                     source_group is not None
                     and chunk.get("group_id_candidate") == source_group
