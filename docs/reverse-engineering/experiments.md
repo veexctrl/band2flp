@@ -78,6 +78,24 @@
 
 **Next:** Use a controlled track rename/reorder/add fixture to determine whether all of these identifiers enumerate arrange tracks and to map them to visible track order.
 
+## TRK-014 — compare selected-track UUID order with the cached arrangement preview
+
+**Question:** Does the saved `previousCurrentTrackUUID` identify a `Trak` record whose serialized order directly matches its visible arrangement-row order?
+
+**Fixture:** The audio-only fixture from TRK-009 and its local cached arrangement preview. The UUID, track labels, and image are not published; no audio samples were read.
+
+**Method:** Resolve the saved UUID through the keyed archive, find the matching 58-byte `Trak +0x18` field, and compare its ordinal among all such `Trak` records with the visually highlighted track header in the cached arrangement preview. Verify the selected UUID field bytes independently in IDA and Python; report no identifier value.
+
+**Observation:** The UUID matches one `Trak +0x18` field at logic-song offset 210,618, chunk index 294. It is the eighth of 26 58-byte `Trak` records in serialized order; IDA and Python agree on the 16 field bytes. The cached preview shows six visible rows, with a distinct highlighted header background on row 2.
+
+**Result:** The saved UUID and visible highlighted row cannot be equated by direct `Trak` ordinal in this fixture. The archive key is specifically `previousCurrentTrackUUID`, and the cached preview may not represent the same selection state. This does not establish which track UUID belongs to row 2, or whether `Trak` order maps to arrangement order at all.
+
+**Confidence:** CONFIRMED for the UUID-to-field match, its serialized ordinal, the IDA/Python byte agreement, and the visible row-background difference; UNKNOWN whether the background encodes selection and whether the archive field and preview share a save state.
+
+**Alternative considered:** The preview highlight may be focus/scroll styling rather than track selection, or the stored UUID may be stale by design. Either would break the proposed selection-to-row join without disproving that `Trak +0x18` is a track-related identifier.
+
+**Next:** Compare multiple saves of one project after selecting different tracks, and verify whether the highlighted row moves with `previousCurrentTrackUUID` while UUIDs remain attached to the same `Trak` records.
+
 ## PD-004 - inspect the saved track-inspector UI state shape
 
 **Question:** Does `CbTrackInspectorInternalState` in the arrange-model `CBData` branch contain track identities or an arrange-track collection?
