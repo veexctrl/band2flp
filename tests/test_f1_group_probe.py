@@ -32,6 +32,8 @@ class F1GroupProbeTests(unittest.TestCase):
         self.assertEqual(profile["distinct_f1_group_count"], 2)
         self.assertTrue(profile["group_multiplicity_comparisons"]["MSeq"]["multiplicities_match"])
         self.assertTrue(profile["group_multiplicity_comparisons"]["empty_Trak"]["multiplicities_match"])
+        self.assertTrue(profile["group_order_comparisons"]["MSeq"]["group_sequence_matches_in_order"])
+        self.assertTrue(profile["group_order_comparisons"]["empty_Trak"]["group_sequence_matches_in_order"])
         self.assertEqual(payloads, {bytes.fromhex(raw)})
         self.assertNotIn("65536", serialized)
         self.assertNotIn(raw, serialized)
@@ -44,6 +46,21 @@ class F1GroupProbeTests(unittest.TestCase):
 
         self.assertFalse(profile["group_multiplicity_comparisons"]["MSeq"]["multiplicities_match"])
         self.assertEqual(profile["group_multiplicity_comparisons"]["MSeq"]["groups_in_both_families"], 0)
+
+    def test_distinguishes_order_mismatch_from_matching_multiplicities(self) -> None:
+        records = [
+            {"type_byte": 0xF1, "group_id_candidate": group, "length": 16, "raw_hex": "f1" * 16}
+            for group in (7, 8)
+        ]
+        chunks = [
+            {"type": "MSeq", "group_id_candidate": group}
+            for group in (8, 7)
+        ]
+
+        profile, _ = profile_f1_groups(records, chunks)
+
+        self.assertTrue(profile["group_multiplicity_comparisons"]["MSeq"]["multiplicities_match"])
+        self.assertFalse(profile["group_order_comparisons"]["MSeq"]["group_sequence_matches_in_order"])
 
     def test_rejects_malformed_f1_raw_record(self) -> None:
         record = {"type_byte": 0xF1, "group_id_candidate": 7, "length": 16, "raw_hex": "not-hex"}
