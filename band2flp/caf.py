@@ -60,8 +60,13 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
         if len(header) != 12:
             return None
         tag, size = header[:4], int.from_bytes(header[4:], "big", signed=True)
+        if size == -1:
+            if tag != b"data":
+                return None
+            # CAF permits an unknown-sized data chunk only as the final chunk.
+            break
         if size < 0:
-            break  # CAF permits an indefinite final data chunk.
+            return None
         if tag in (b"desc", b"pakt", b"uuid") and size <= MAX_METADATA_CHUNK:
             payload = stream.read(size)
             if len(payload) != size:
@@ -123,3 +128,4 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
             )
             result["tempo_confidence"] = "HYPOTHESIS: valid CAF frames may include edits or codec padding"
     return result
+

@@ -70,6 +70,26 @@ class CafMetadataTests(unittest.TestCase):
         data = b"caff\0\x01\0\0" + b"uuid" + (30).to_bytes(8, "big") + b"short"
         self.assertIsNone(inspect_caf_loop_metadata(BytesIO(data)))
 
+    def test_unknown_size_is_only_accepted_for_final_data_chunk(self) -> None:
+        header = b"caff\0\x01\0\0"
+        metadata = chunk(b"uuid", LOOP_METADATA_UUID + (1).to_bytes(4, "big") + b"beat count\0" + b"4\0")
+        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(header + metadata + b"free" + (-1).to_bytes(8, "big", signed=True))))
+
+    def test_data_chunk_rejects_negative_size_other_than_minus_one(self) -> None:
+        header = b"caff\0\x01\0\0"
+        metadata = chunk(b"uuid", LOOP_METADATA_UUID + (1).to_bytes(4, "big") + b"beat count\0" + b"4\0")
+        malformed_data_header = b"data" + (-2).to_bytes(8, "big", signed=True)
+        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(header + metadata + malformed_data_header)))
+
+    def test_unknown_size_final_data_chunk_keeps_prior_metadata(self) -> None:
+        header = b"caff\0\x01\0\0"
+        metadata = chunk(b"uuid", LOOP_METADATA_UUID + (1).to_bytes(4, "big") + b"beat count\0" + b"4\0")
+        data_header = b"data" + (-1).to_bytes(8, "big", signed=True)
+        result = inspect_caf_loop_metadata(BytesIO(header + metadata + data_header))
+        self.assertIsNotNone(result)
+        self.assertEqual(result["beat_count"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()
+
