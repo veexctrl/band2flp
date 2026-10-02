@@ -37,6 +37,7 @@
 - MIDI-004's raw `Trak` chunk-order comparison did not establish a direct mapping for `0x20 +0x14`; repeated chunk groups make ordinal equality insufficient.
 - Where the referenced live-loop audio is stored/resolved for this project; the supplied `.band` archive itself contains no audio payload members.
 - Whether an `AudioFiles` reference originated as imported audio, an Apple Loop, or audio used by a Live Loops cell. Successfully resolving a file reference and placing its audio does not preserve the library classification or prove cell/grid semantics; CAF metadata may also omit this information.
+- Whether CAF beat-count metadata controls source tempo, region duration, or repeat spacing. AUD-005 linked one beat-tagged source to four placement candidates, but only one of the three adjacent candidate-start intervals was an exact integer multiple of that tag under the unvalidated placement timing conversion; neither ordinary audio versus Live Loops use nor trim behavior is controlled.
 - Audio source references and region-to-media mapping.
 - Tempo and time-signature changes, sections, automation, fades, and region gain.
 - Whether output metadata and asset lists are complete, stale, or derived caches.

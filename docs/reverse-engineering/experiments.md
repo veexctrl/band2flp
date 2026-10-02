@@ -1141,3 +1141,19 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED against the CAF specification and synthetic regression cases; real-world generality is limited to the specified CAF v1 rule.
 
 **Next:** Keep the CAF scanner bounded and validate malformed chunk lengths without decoding or retaining audio payloads.
+
+## AUD-005 — compare beat-tagged CAF metadata with placement spacing
+
+**Question:** Does a source's CAF beat-count tag match the spacing of its placed audio instances, providing evidence that the source beat count is the arrangement clip length or repeat interval?
+
+**Fixture:** The locally inspected project containing one beat-tagged CAF source. The audio payload, source labels, tag values, identifiers, and exact placement times are not reported.
+
+**Method:** Join the beat-tagged `AudioFiles` reference to audio placement candidates using the parser's candidate source-group relation. Sort linked placement start candidates under the existing 34,560-origin/960-PPQ hypothesis and compare each adjacent interval with integer multiples of the source beat-count tag. No audio samples are read or decoded.
+
+**Observation:** Four placement candidates link to the tagged source group, producing three adjacent start intervals. Only one interval is an exact integer multiple of the source beat-count tag under the candidate timing conversion.
+
+**Result:** The source metadata belongs to a used source candidate, but the beat-count tag does not consistently explain the spacing between these placement starts. This does not identify region duration, trimming, looping, stretching, or Live Loops behavior; either the timing hypothesis or a direct phrase-length interpretation may be wrong.
+
+**Confidence:** CONFIRMED for the aggregate group-link and interval comparison under the stated parser candidates; UNKNOWN for the placement timing units and the role of source beat metadata in GarageBand playback.
+
+**Next:** Compare controlled ordinary-audio and Live Loops uses of one source, including a trim-only change, before assigning the source beat count to region length or repetition.
