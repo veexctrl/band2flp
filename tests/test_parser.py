@@ -39,7 +39,10 @@ from research.scripts.track_uuid_probe import (
 )
 from research.scripts.trak_uuid_archive_probe import profile_archive_references
 from research.scripts.trak_uuid_logic_probe import additional_uuid_occurrences
-from research.scripts.trak_group_probe import summarize_trak_groups
+from research.scripts.trak_group_probe import (
+    profile_midi_track_value_ordinals,
+    summarize_trak_groups,
+)
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
@@ -376,6 +379,36 @@ class ParserTests(unittest.TestCase):
             "MSeq_chunk_count": 0,
         }])
         self.assertNotIn("10", json.dumps(report))
+
+    def test_midi_track_value_ordinal_probe_checks_zero_and_one_based_orders(self) -> None:
+        chunks = [
+            {"type": "MSeq", "index": 0, "group_id_candidate": 10, "payload_size": 100},
+            {"type": "Trak", "index": 1, "group_id_candidate": 10, "payload_size": 0},
+            {"type": "MSeq", "index": 2, "group_id_candidate": 20, "payload_size": 100},
+            {"type": "Trak", "index": 3, "group_id_candidate": 20, "payload_size": 0},
+        ]
+        placements = [
+            {
+                "track_value_candidate": 0,
+                "candidate_mseq_chunk_indices": [0],
+                "same_group_trak_chunk_indices_candidate": [1],
+            },
+            {
+                "track_value_candidate": 2,
+                "candidate_mseq_chunk_indices": [2],
+                "same_group_trak_chunk_indices_candidate": [3],
+            },
+        ]
+
+        report = profile_midi_track_value_ordinals(chunks, placements)
+
+        self.assertEqual(report["mseq_chunk_eligible_count"], 2)
+        self.assertEqual(report["mseq_chunk_zero_based_exact_match_count"], 1)
+        self.assertEqual(report["mseq_chunk_one_based_exact_match_count"], 1)
+        self.assertEqual(report["empty_trak_chunk_zero_based_exact_match_count"], 1)
+        self.assertEqual(report["empty_trak_chunk_one_based_exact_match_count"], 1)
+        self.assertEqual(report["unique_mseq_group_zero_based_exact_match_count"], 1)
+        self.assertEqual(report["unique_mseq_group_one_based_exact_match_count"], 1)
 
     def test_audio_track_index_probe_reports_bounds_without_project_values(self) -> None:
         project = SimpleNamespace(

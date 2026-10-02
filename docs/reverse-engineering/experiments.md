@@ -184,6 +184,22 @@
 
 **Next:** Use controlled track creation/deletion/reordering fixtures to determine whether these UUID values are regenerated with records or whether arrangement relationships use another field.
 
+## TRK-013 — test MIDI placement track-byte ordinals against linked chunks
+
+**Question:** Does the MIDI placement `+0x14` candidate equal the serialized ordinal of its unique linked `MSeq`, same-group empty `Trak`, or unique `MSeq` group?
+
+**Fixtures:** Both supplied projects, summarized anonymously. No media was read or decoded.
+
+**Method:** Extended `trak_group_probe.py` to compare each recognized placement's candidate byte with zero-based and one-based ordinals for the linked `MSeq` chunk, the unique same-group empty `Trak` chunk, and first-seen unique `MSeq` groups. The report exposes eligible/match counts only and never prints the candidate byte or group values. IDA MCP independently read the `+0x14` byte for all 19 placements in one fixture; each matched Python.
+
+**Observation:** All 31 placements had unique `MSeq` and empty-`Trak` links. The byte matched neither the zero-based nor one-based chunk ordinal in any case. A zero-based unique-group ordinal matched once in the first project; a one-based ordinal matched once in the second.
+
+**Result:** These serialized ordinals do not provide a repeatable mapping for the `+0x14` byte. The isolated unique-group matches use opposite index bases across projects and are not evidence of identity. The parser continues to preserve the field without transferring it to a track index.
+
+**Confidence:** CONFIRMED for these ordinal comparisons, match counts, and all 19 IDA/Python byte reads; UNKNOWN for the field's actual meaning.
+
+**Next:** A controlled project with a MIDI region moved between known tracks, or application serializer/parser evidence, is still needed to identify this byte.
+
 ## META-001 — summary metadata keys
 
 **Question:** Which summary fields can be read without decoding the logic payload?
