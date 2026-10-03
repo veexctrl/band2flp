@@ -13,3 +13,7 @@ Use IDA MCP to inspect raw bytes and related binary components when useful. Repr
 `python -m research.scripts.trak_probe project.band` reports `Trak` payload-size, header-field, and prefix-shape counts, plus candidate group-multiplicity comparisons with `MSeq` and empty-payload `Trak` records. It does not emit group IDs or payload bytes and does not assign track or region semantics.
 
 Do not infer region or note timing from summary duration, cache images, or resource lists. Preserve unknown payload bytes and report unsupported structures.
+
+# IDA cross-check experiment
+
+Use IDA's raw byte search to independently verify parser-reported chunk boundaries in the extracted logic-song payload. The procedure and current evidence are recorded in [EXP-001](EXP-001-ida-chunk-tags.md).
