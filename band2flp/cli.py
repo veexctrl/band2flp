@@ -11,6 +11,7 @@ import sys
 from .parser import BandFormatError, parse_band
 from .media import MediaExtractionError, extract_referenced_audio
 from .flp_export import FLPExportError, export_flp
+from .model import MediaReference
 
 
 def _print_json(value: object) -> None:
@@ -144,6 +145,12 @@ def main(argv: list[str] | None = None) -> int:
         if project.media_references:
             embedded = sum(reference.package_member is not None for reference in project.media_references)
             print(f"Media references: {len(project.media_references)} ({embedded} matched to package members)")
+            by_category: dict[str, list[MediaReference]] = defaultdict(list)
+            for reference in project.media_references:
+                by_category[reference.category].append(reference)
+            for category, references in sorted(by_category.items()):
+                matched = sum(reference.package_member is not None for reference in references)
+                print(f"  {category}: {len(references)} ({matched} matched)")
             beat_tagged = sum(reference.source_loop_metadata is not None for reference in project.media_references)
             if beat_tagged:
                 print(f"Beat-tagged CAF sources: {beat_tagged} (source metadata; arrangement looping unknown)")
