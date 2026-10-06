@@ -63,6 +63,10 @@ def main(argv: list[str] | None = None) -> int:
         "--include-midi-candidates", action="store_true",
         help="add provisional silent MIDI patterns on separate tracks for inspection",
     )
+    export.add_argument(
+        "--midi-only", action="store_true",
+        help="export only provisional MIDI previews; do not extract or link audio media",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -77,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         project = parse_band(args.project)
         if args.command == "export-flp":
+            if args.midi_only:
+                if args.media_dir or args.to_wav or args.length_policy != "reject-unknown":
+                    raise FLPExportError(
+                        "--midi-only cannot be combined with audio export options"
+                    )
+                project.tracks = []
             if args.length_policy == "reject-unknown" and any(
                 region.kind == "audio" and region.duration_beats is None
                 for track in project.tracks for region in track.regions
@@ -108,9 +118,10 @@ def main(argv: list[str] | None = None) -> int:
                 output_path=args.output,
                 media_by_reference=media_by_reference,
                 length_policy=args.length_policy,
-                include_midi_candidates=args.include_midi_candidates,
+                include_midi_candidates=args.include_midi_candidates or args.midi_only,
             )
             report["media_extraction"] = {
+                "skipped": args.midi_only,
                 "file_count": len(extraction.get("extracted", [])),
                 "unresolved_reference_count": extraction.get("unresolved_audio_reference_count", 0),
             }
