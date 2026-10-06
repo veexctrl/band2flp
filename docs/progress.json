@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-02",
+  "as_of": "2026-10-06",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 30,
-      "basis": "Visible MSeq labels match some MIDI rows; synthetic FL notes are editable. GarageBand note fields, timing, and track mapping remain unconfirmed."
+      "recovered": 32,
+      "basis": "Visible MSeq labels match some MIDI rows; synthetic and one project-derived MIDI-only FLP have editable notes in FL Studio 25. GarageBand note fields, timing, and track mapping remain unconfirmed."
     },
     {
       "name": "Tempo and meter timeline",
@@ -58,8 +58,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "early: FL Studio preview notes are editable; GarageBand note and track semantics remain unresolved",
-      "display_label": "EDITABLE PREVIEW · FORMAT OPEN"
+      "state": "early: project-derived MIDI-only preview is editable in FL Studio 25; GarageBand note and track semantics remain unresolved",
+      "display_label": "PROJECT MIDI EDITABLE · FORMAT OPEN"
     },
     {
       "name": "Region boundaries and track state",
