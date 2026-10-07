@@ -1420,3 +1420,8 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 **Confidence:** CONFIRMED for the nine IDA/Python byte matches, six source-group/value consistency, visible six-row order, and declared track count; HIGH CONFIDENCE that the byte preserves relative order in this fixture; HYPOTHESIS for direct one-based index semantics.
 
 **Next:** Use a controlled GarageBand project that adds or reorders exactly one audio track, then compare the byte values, displayed rows, and declared track count. Track UUID mapping remains a separate question.
+
+
+## MIDI-022 - compare end-relative MSeq timing words
+
+See [the detailed experiment](mseq-tail-timing.md). Across two fixtures, all 31 uniquely linked placements match the signed little-endian word at MSeq payload end minus 55, including two nonzero matches. All 68 IDA reads match Python. The end-minus-219 word contains candidate integer note extents in five groups but equals neither their final note ends nor the two nonsentinel placement words. Field meanings and fractional-position scaling remain unconfirmed; production timing is unchanged.

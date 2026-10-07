@@ -97,3 +97,5 @@
 - The large `NS.data` payload contains the serialized logic/song arrangement. Its reference path, chunk types, and exact chunk framing make it the primary candidate, but internal semantics have not yet been decoded.
 - An independent Logic Pro 11.2.2 format write-up identifies `AuRg +0x16` as a region frame-count field in controlled Logic projects. This is a cross-format lead for GarageBand only: ARR-020 found that it does not consistently equal complete source-file frame counts, and ARR-024 found no match to preview-measured durations under an un-stretched playback assumption.
 - The four linked GarageBand note-position candidates may be region-relative, consistent with controlled Logic Pro note-region behavior. Their timing origins and placement interpretation remain cross-format candidates requiring controlled GarageBand validation.
+
+- [MIDI-022](mseq-tail-timing.md) confirms 31 end-relative MSeq/placement word equalities in two fixtures, including two nonzero positions, and 68 IDA/Python byte matches. The position relationship is HIGH CONFIDENCE for these fixtures; GarageBand timing units, authority and duration semantics remain unconfirmed.
