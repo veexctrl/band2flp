@@ -616,6 +616,52 @@ def _parse_mseq_tail_word_candidates(
     return candidates
 
 
+def _midi_region_extent_candidates(
+    placement: dict[str, Any], tail_record: dict[str, Any] | None, notes: list[MidiNoteCandidate]
+) -> dict[str, Any]:
+    """Carry MIDI-024's extent leads without deciding placed duration or edits."""
+    fields = {item["offset_from_payload_end"]: item for item in (tail_record or {}).get("fields", [])}
+    source_field, shift_field = fields.get(-219), fields.get(-55)
+    source_word = source_field.get("raw_value") if source_field else None
+    shift_word = shift_field.get("raw_value") if shift_field else None
+    placement_word = placement.get("u32_at_0x1c_candidate")
+    ppq = placement.get("ppq_candidate")
+    source_duration = None
+    placement_extent = None
+    shift_matches = None
+    note_bounds_match = None
+    if type(ppq) is int and ppq > 0:
+        if type(source_word) is int and source_word > 0:
+            extent = Fraction(source_word, ppq)
+            note_bounds_match = bool(notes) and all(
+                0 <= Fraction(note.onset_beats_candidate)
+                <= Fraction(note.onset_beats_candidate) + Fraction(note.duration_beats_candidate) <= extent
+                for note in notes
+            )
+            if type(shift_word) is int and type(placement.get("position_ticks_from_origin_candidate")) is int:
+                shift_matches = shift_word == placement["position_ticks_from_origin_candidate"]
+            if note_bounds_match and shift_matches:
+                source_duration = str(extent)
+        if type(placement_word) is int and 0 < placement_word <= 0xFFFFFFFF and placement_word != 0x3FFFFFFF:
+            placement_extent = str(Fraction(placement_word, ppq))
+    return {
+        "source_duration_beats_candidate": source_duration,
+        "placement_extent_beats_candidate": placement_extent,
+        "source_mseq_chunk_index": tail_record.get("source_chunk_index") if tail_record else None,
+        "source_word": dict(source_field) if source_field else None,
+        "shift_word": dict(shift_field) if shift_field else None,
+        "placement_word_raw": placement_word,
+        "placement_word_logic_song_offset": placement.get("extent_word_logic_song_offset"),
+        "ppq_candidate": ppq,
+        "integer_note_bounds_within_source_candidate": note_bounds_match,
+        "shift_equals_placement_start_candidate": shift_matches,
+        "source_normalization_status": "candidate" if source_duration is not None else "unavailable_or_inconsistent",
+        "placement_extent_semantics": "UNKNOWN: duration or end; repeat, stretch and sentinel meaning unresolved",
+        "precision_note": "Source bounds use integer-word note onsets; fractional-word scaling remains UNKNOWN",
+        "confidence": "HYPOTHESIS: Logic-derived source/placement extent words and PPQ; GarageBand duration unconfirmed",
+    }
+
+
 def _parse_midi_note_candidates(
     event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -723,6 +769,9 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
         (item["source_chunk_index"], item["source_event_index"]): item
         for item in placements
     }
+    tail_by_mseq = {
+        item["source_chunk_index"]: item for item in project.project_data.get("mseq_tail_word_candidates", [])
+    }
     grouped: dict[tuple[int, int, int], list[MidiNoteCandidate]] = {}
     for note in project.project_data.get("midi_note_event_candidates", []):
         mseq_links = note["candidate_mseq_chunk_indices_for_group"]
@@ -763,6 +812,7 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
         labels = placement.get("candidate_mseq_labels", [])
         label = labels[0]["text_candidate"] if len(labels) == 1 and labels[0]["status"] == "candidate" else None
         notes.sort(key=lambda item: (Fraction(item.onset_beats_candidate), item.source_chunk_index, item.source_event_index))
+        extents = _midi_region_extent_candidates(placement, tail_by_mseq.get(mseq_index), notes)
         regions.append(UnplacedMidiRegionCandidate(
             start_beats_candidate=placement["start_beats_candidate"],
             label_candidate=label,
@@ -770,10 +820,13 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
             source_mseq_chunk_index=mseq_index,
             source_placement_chunk_index=chunk_index,
             source_placement_event_index=event_index,
+            source_duration_beats_candidate=extents["source_duration_beats_candidate"],
+            placement_extent_beats_candidate=extents["placement_extent_beats_candidate"],
             unknown={
                 "track_value_candidate": placement["track_value_candidate"],
                 "candidate_trak_word_links": placement.get("candidate_trak_word_links", []),
                 "candidate_track_binding": _candidate_midi_track_binding(placement, project.declared_track_count),
+                "extent_candidates": extents,
                 "confidence": "HYPOTHESIS for note timing, fields, label role, and placement track identity",
             },
         ))
@@ -826,6 +879,9 @@ def _parse_midi_region_placement_candidates(
             "position_ticks_from_origin_candidate": position_raw - 34_560,
             "ppq_candidate": 960,
             "start_beats_candidate": str(Fraction(position_raw - 34_560, 960)),
+            "u32_at_0x1c_candidate": struct.unpack_from("<I", raw, 0x1C)[0],
+            "extent_word_logic_song_offset": record["offset"] + 0x1C if isinstance(record.get("offset"), int) else None,
+            "extent_word_interpretation": "UNKNOWN: placement extent candidate; duration/end, repeat/stretch and special values unresolved",
             "track_value_candidate": raw[0x14],
             "region_cluster_candidate": region_cluster_candidate,
             "region_group_id_candidate": region_group_candidate,

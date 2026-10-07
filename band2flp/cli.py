@@ -225,6 +225,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"Unplaced MIDI region candidates: {len(project.unplaced_midi_regions)} "
                 f"({note_count} note candidates; track identity unconfirmed)"
             )
+            source_extents = sum(getattr(region, "source_duration_beats_candidate", None) is not None
+                                 for region in project.unplaced_midi_regions)
+            placement_extents = sum(getattr(region, "placement_extent_beats_candidate", None) is not None
+                                    for region in project.unplaced_midi_regions)
+            print(f"MIDI extent candidates: source={source_extents}, placement={placement_extents} (semantics unconfirmed)")
         if project.tempo_map:
             values = ", ".join(f"{item['bpm']:g} BPM @ raw {item['position_raw']}" for item in project.tempo_map)
             print(f"Group-zero tempo candidates: {values}")

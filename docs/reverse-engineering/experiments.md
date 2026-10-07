@@ -1481,3 +1481,16 @@ The same-input separate/grouped policy comparison preserves all 133 note positio
 ## MIDI-024 - correct shifted bounds and compare source/placed extents
 
 See [the detailed experiment](midi-source-extent-relations.md). MIDI-022's shifted comparison mixed placed positions with an origin-zero end; the consistent placed-frame comparison contains all five note-bearing groups. Two finite placement words are three halves of their source-word candidates, and one adjacent same-reference start gap equals the preceding source word rather than its last note end. IDA confirms 286 relevant words. A byte-matched cached image is too cropped to establish complete extents or repeats. These are source/placement-extent leads; loops, stretch, units and duration semantics remain unresolved. No export timing rule changes.
+
+
+## MIDI-025 - preserve distinct source and placement extent candidates in the IR
+
+**Question:** Can MIDI-024's extent leads be represented without choosing repeat/stretch behavior or silently replacing note-bounded preview lengths?
+
+**Implementation:** Expose MIDI placement +0x1c and its source offset. Join MSeq tail fields into each note-bearing neutral region. Separate optional exact source-duration and placement-extent strings carry HYPOTHESIS confidence, raw source/shift/placement words, offsets and consistency diagnostics. Source normalization requires positive length, integer-note containment and shift/start agreement. Zero/special placement words remain raw. Other positive u32 words are scalar candidates, not instructions to expand notes.
+
+**Validation:** Synthetic tests cover exact fractional beats, special/zero words, missing metadata, bound/shift failures, invalid PPQ, maximum-width scalar input and full archive-to-neutral JSON provenance. The note-bearing archive retains five source-duration candidates, two placement-extent candidates and all 133 original note candidates. No actual duration is assigned and no repeat/stretch edit is applied. Supporting raw-word validation is recorded in MIDI-024. Text inspection reports candidate counts without printing raw extent words. All 172 tests pass with local optional FLP integration enabled; no package is installed.
+
+**Confidence:** CONFIRMED for field retention, bounds/shift checks and JSON serialization. Source/placement meanings, PPQ, original duration and editing behavior remain HYPOTHESIS/UNKNOWN. The exporter still uses note bounds.
+
+**Next:** Develop an explicitly labeled extent preview only after defining how it should represent unknown longer extents without choosing unverified repeats or stretch. Seek a controlled region-length/loop edit or independent full timeline view for semantic validation.

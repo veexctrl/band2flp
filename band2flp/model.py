@@ -48,6 +48,8 @@ class UnplacedMidiRegionCandidate:
     source_placement_chunk_index: int
     source_placement_event_index: int
     unknown: dict[str, Any] = field(default_factory=dict)
+    source_duration_beats_candidate: str | None = None
+    placement_extent_beats_candidate: str | None = None
 
 
 @dataclass

@@ -65,3 +65,7 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 ## Latest track-binding implementation
 
 TRK-016/TRK-017 identify scoped numeric placement/Trak joins and ordinal agreement for all 24 audio/note-bearing MIDI placements in two fixtures. TRK-018 now preserves source links and provisional bindings for five MIDI regions on four candidate tracks in the neutral JSON. Track identity remains a hypothesis. A grouped preview now consumes these bindings and preserves unresolved regions separately. Its output has static round-trip checks; independent GUI comparison and original track identity remain open.
+
+## MIDI extent candidates in the neutral model
+
+MIDI-025 separates source-duration and placement-extent candidates with exact arithmetic and source provenance. Five source candidates and two placement candidates are retained alongside the original notes. They do not yet replace FLP note-bounded clip lengths or resolve repeats, stretch, trims or the special placement value. Full timeline validation and controlled edit fixtures remain open.

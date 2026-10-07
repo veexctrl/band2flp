@@ -25,7 +25,7 @@
       "name": "Region lengths, trims, loops, and offsets",
       "weight": 17,
       "recovered": 15,
-      "basis": "AuRg source-window candidates agree with embedded frames and two external groups; timeline duration, repeats, and stretch remain unknown."
+      "basis": "Neutral MIDI source/placed extent candidates and AuRg source-window leads are retained; actual duration, trims, repeats and stretch remain open."
     },
     {
       "name": "MIDI placement and note semantics",
@@ -63,8 +63,8 @@
     },
     {
       "name": "Region boundaries and track state",
-      "state": "partial: four candidate region-instance links in one source group; timeline duration and track state unconfirmed",
-      "display_label": "REGION LINK CANDIDATE"
+      "state": "partial: neutral source/placement MIDI extent candidates; duration, repeat/stretch and track state unconfirmed",
+      "display_label": "MIDI EXTENT CANDIDATES"
     },
     {
       "name": "FL Studio audio clip loading",
