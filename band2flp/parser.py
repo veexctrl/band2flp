@@ -499,6 +499,88 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
     return placements
 
 
+def _parse_trak_reference_candidates(
+    data: bytes, chunk_stream: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Retain 58-byte Trak reference words and scoped record order."""
+    records = []
+    group_ordinals: dict[int, int] = {}
+    for chunk in chunk_stream.get("chunks", []):
+        if chunk.get("type") != "Trak" or chunk.get("payload_size") != 58:
+            continue
+        start = chunk.get("payload_offset")
+        if not isinstance(start, int) or not 0 <= start <= len(data) - 58:
+            raise BandFormatError("Trak payload bounds are invalid")
+        group = chunk["group_id_candidate"]
+        group_ordinals[group] = group_ordinals.get(group, 0) + 1
+        records.append({
+            "source_chunk_index": chunk["index"],
+            "source_group_id_candidate": group,
+            "record_order_within_group_1_based": group_ordinals[group],
+            "word_at_payload_0x08_raw": struct.unpack_from("<I", data, start + 8)[0],
+            "word_logic_song_offset": start + 8,
+            "word_size": 4,
+            "word_encoding": "u32le",
+            "confidence": "UNKNOWN semantics; numeric placement association observed in TRK-016",
+        })
+    return records
+
+
+_MAX_TRAK_WORD_LINKS_PER_PLACEMENT = 128
+
+
+def _link_trak_word_candidates(
+    placements: list[dict[str, Any]], records: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Expose bounded nonzero matches; complete source records stay retained."""
+    by_word: dict[int, list[dict[str, Any]]] = {}
+    for record in records:
+        word = record["word_at_payload_0x08_raw"]
+        if word != 0:
+            by_word.setdefault(word, []).append(record)
+    result = []
+    for placement in placements:
+        item = dict(placement)
+        matches = by_word.get(placement.get("event_id_candidate"), [])
+        item["candidate_trak_word_links"] = [
+            dict(record) for record in matches[:_MAX_TRAK_WORD_LINKS_PER_PLACEMENT]
+        ]
+        item["candidate_trak_word_link_count"] = len(matches)
+        item["candidate_trak_word_links_truncated"] = len(matches) > _MAX_TRAK_WORD_LINKS_PER_PLACEMENT
+        result.append(item)
+    return result
+
+
+def _candidate_midi_track_binding(
+    placement: dict[str, Any], declared_track_count: int | None
+) -> dict[str, Any]:
+    """Scope TRK-017's ordinal hypothesis to a note-bearing MIDI candidate."""
+    if placement.get("candidate_trak_word_links_truncated"):
+        return {"status": "unavailable", "reason": "link_fanout_exceeds_inspection_limit"}
+    links = [link for link in placement.get("candidate_trak_word_links", [])
+             if link["source_group_id_candidate"] == 0x00040000]
+    if not links:
+        return {"status": "unavailable", "reason": "no_smaller_family_link"}
+    if len(links) != 1:
+        return {"status": "ambiguous", "reason": "duplicate_smaller_family_word"}
+    link = links[0]
+    ordinal = link["record_order_within_group_1_based"]
+    if ordinal != placement["track_value_candidate"]:
+        return {"status": "conflicting", "reason": "ordinal_disagrees_with_track_byte"}
+    if declared_track_count is not None and ordinal > declared_track_count:
+        return {"status": "conflicting", "reason": "ordinal_exceeds_declared_track_count"}
+    return {
+        "status": "candidate",
+        "track_index_candidate": ordinal - 1,
+        "source_trak_chunk_index": link["source_chunk_index"],
+        "source_group_id_candidate": link["source_group_id_candidate"],
+        "reference_word_raw": link["word_at_payload_0x08_raw"],
+        "source_word_logic_song_offset": link["word_logic_song_offset"],
+        "declared_track_range_checked": declared_track_count is not None,
+        "confidence": "HYPOTHESIS: unique smaller-family Trak link and track byte agree; arrangement identity unconfirmed",
+    }
+
+
 def _parse_mseq_tail_word_candidates(
     data: bytes, chunk_stream: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -690,6 +772,8 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
             source_placement_event_index=event_index,
             unknown={
                 "track_value_candidate": placement["track_value_candidate"],
+                "candidate_trak_word_links": placement.get("candidate_trak_word_links", []),
+                "candidate_track_binding": _candidate_midi_track_binding(placement, project.declared_track_count),
                 "confidence": "HYPOTHESIS for note timing, fields, label role, and placement track identity",
             },
         ))
@@ -984,6 +1068,9 @@ def parse_band(path: str | Path) -> Project:
                     except BandFormatError as exc:
                         project.warnings.append(f"Logic-song chunk stream was not decoded: {exc}")
                     else:
+                        project.project_data["trak_reference_candidates"] = _parse_trak_reference_candidates(
+                            logic_payload, project.project_data["logic_song_chunk_stream"]
+                        )
                         project.project_data["mseq_tail_word_candidates"] = _parse_mseq_tail_word_candidates(
                             logic_payload, project.project_data["logic_song_chunk_stream"]
                         )
@@ -1006,6 +1093,14 @@ def parse_band(path: str | Path) -> Project:
                                 ),
                                 project.project_data["mseq_label_candidates"],
                             )
+                            for key in ("audio_placements", "midi_region_placement_candidates"):
+                                project.project_data[key] = _link_trak_word_candidates(
+                                    project.project_data[key], project.project_data["trak_reference_candidates"]
+                                )
+                                if any(item["candidate_trak_word_links_truncated"] for item in project.project_data[key]):
+                                    project.warnings.append(
+                                        "Trak word-link inspection was capped; complete Trak source records are retained."
+                                    )
                         project.warnings.append(
                             "Chunk boundaries are validated for this logic-song payload; most chunk and event meanings remain unverified."
                         )

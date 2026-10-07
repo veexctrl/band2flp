@@ -61,3 +61,7 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 1. Run the optional FFmpeg conversion with an available FFmpeg build and validate generated WAVs in FL Studio; do not use WAV frame counts as GarageBand region durations.
 2. Create one single-source GarageBand project and change only its region length twice to test the `+0x1c` hypothesis; keep duration inference independent from AAC decoder padding before replacing full-source placeholders.
 3. Prepare minimal GarageBand fixtures for track-count/order changes, audio trim/loop edits, and one-note MIDI differences. Continue to label fixture-dependent and cross-format observations as hypotheses.
+
+## Latest track-binding implementation
+
+TRK-016/TRK-017 identify scoped numeric placement/Trak joins and ordinal agreement for all 24 audio/note-bearing MIDI placements in two fixtures. TRK-018 now preserves source links and provisional bindings for five MIDI regions on four candidate tracks in the neutral JSON. Track identity remains a hypothesis. The next exporter step is a clearly labeled grouped preview consuming these bindings, while keeping unresolved regions visible and preserving every unclassified record.

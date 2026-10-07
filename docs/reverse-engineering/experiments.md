@@ -1448,3 +1448,16 @@ See [the detailed experiment](trak-placement-word-links.md). In two fixtures, al
 ## TRK-017 - test Trak ordering in the note-bearing MIDI subset
 
 See [the detailed experiment](trak-note-subset-order.md). The existing note-shape/MSeq classifier selects five MIDI placements independently of track order. All five and all 19 audio placements agree with their unique smaller-family Trak one-based ordinal. The five MIDI placements reference four distinct words. Restricting conflict checks to audio plus note-bearing MIDI removes the nine conflicting shared-word groups, while all other records remain counted and preserved. IDA confirms 61 header group words and 50 placement track bytes. Arrangement-order semantics remain a HYPOTHESIS pending controlled or independent visual validation; 143 tests pass.
+
+
+## TRK-018 - retain provisional MIDI track bindings in the neutral model
+
+**Question:** Can TRK-017's subset association survive the parser/model boundary without discarding other record families or inventing confirmed track identity?
+
+**Implementation:** Retain all 58-byte Trak reference words, family-scoped record order and source offsets. Both audio/MIDI placement lists carry nonzero numeric joins to all matching families. Only note-bearing neutral MIDI regions receive a provisional zero-based track binding, requiring one smaller-family match, track-byte/ordinal agreement and declared-range consistency. Unavailable, ambiguous and conflicting states carry reasons. Link fanout is bounded at 128 per placement; complete source records remain retained and incomplete lists cannot establish bindings.
+
+**Validation:** Synthetic tests cover shared-track regions through archive parsing and JSON serialization, duplicates, zero, other-family-only matches, ordinal/range conflicts, scoped order, invalid bounds and excessive fanout. The supplied archives retain all 35 and 26 source records without truncation. All five note-bearing regions bind provisionally to four distinct candidate tracks, with declared-range checks. Existing audio and MIDI data remain retained; actual neutral track assignment and FLP row policy are unchanged. All 151 tests pass.
+
+**Confidence:** CONFIRMED for preservation, source joins and candidate serialization; HYPOTHESIS for original arrangement-track semantics. TRK-016/TRK-017 contain the supporting IDA checks. No audio is opened or extracted for this validation.
+
+**Next:** Export a separately labeled preview that groups MIDI regions by these neutral candidate bindings, with fallback diagnostics for unbound regions. Validate the emitted FLP structures statically; independent GarageBand/FL Studio visual comparison remains required.

@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-06",
+  "as_of": "2026-10-07",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 32,
-      "basis": "Visible MSeq labels match some MIDI rows; synthetic and project-derived previews, including the audio-free CLI mode, have editable notes in FL Studio 25. GarageBand note fields, timing, and track mapping remain unconfirmed."
+      "recovered": 34,
+      "basis": "Editable FL25 previews; five MIDI regions now retain four candidate track bindings. Note fields, fine timing and track semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",
@@ -42,8 +42,8 @@
     {
       "name": "Tracks, mixer, sections, and automation",
       "weight": 14,
-      "recovered": 17,
-      "basis": "TRK-015 supports relative audio-row order in one fixture; absolute indices, UUID mapping, names, mixer state, sections, and automation remain unresolved."
+      "recovered": 22,
+      "basis": "Trak links and ordinal agreement support provisional MIDI bindings; identity, names, mixer state and automation remain unresolved."
     }
   ],
   "milestones": [
@@ -58,8 +58,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "early: project-derived MIDI-only CLI preview is editable in FL Studio 25; GarageBand note and track semantics remain unresolved",
-      "display_label": "CLI MIDI EDITABLE · FORMAT OPEN"
+      "state": "early: editable MIDI previews and neutral candidate track bindings; GarageBand timing and identity remain unconfirmed",
+      "display_label": "EDITABLE MIDI + TRACK CANDIDATES"
     },
     {
       "name": "Region boundaries and track state",
