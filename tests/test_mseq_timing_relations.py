@@ -54,6 +54,8 @@ class MSeqTimingRelationsTests(unittest.TestCase):
         self.assertEqual(report["tail_offset_equals_nonzero_placement_integer_ticks"], 1)
         self.assertEqual(report["tail_length_contains_all_integer_note_ends"], 1)
         self.assertEqual(report["tail_length_contains_all_offset_integer_note_ends"], 0)
+        self.assertEqual(report["placed_integer_note_bounds_with_tail_shift_contained"], 1)
+        self.assertIn("not a placed-region containment test", report["legacy_shifted_containment_scope_note"])
 
     def test_zero_match_and_sentinel_are_not_counted_as_nonzero_or_finite(self):
         report = profile_relations(*fixture(offset=0, placement_word=0x3FFFFFFF))
@@ -76,6 +78,35 @@ class MSeqTimingRelationsTests(unittest.TestCase):
         stream["chunks"][0]["payload_offset"] = -1
         with self.assertRaises(BandFormatError):
             profile_relations(raw, stream)
+
+    def test_finite_word_ratio_is_descriptive_without_assigning_repeat_semantics(self):
+        report = profile_relations(*fixture(tail_length=40, placement_word=60))
+        self.assertEqual(report["note_bearing_nonsentinel_word_three_halves_source_word"], 1)
+        self.assertEqual(report["note_bearing_nonsentinel_word_greater_than_source_word"], 1)
+        self.assertEqual(report["note_bearing_tail_length_word_multiple_of_960_count"], 0)
+        self.assertEqual(report["note_bearing_source_word_below_placement_integer_start_count"], 1)
+        self.assertTrue(report["confidence"].startswith("UNKNOWN"))
+
+    def test_adjacent_same_reference_gap_uses_source_word_not_last_note_end(self):
+        first, first_stream = fixture(tail_length=40, offset=0, placement_word=0x3FFFFFFF)
+        second, second_stream = fixture(tail_length=40, offset=40, placement_word=0x3FFFFFFF)
+        first, second = bytearray(first), bytearray(second)
+        struct.pack_into("<I", first, first_stream["chunks"][-1]["payload_offset"] + 16, 100)
+        struct.pack_into("<I", second, second_stream["chunks"][-1]["payload_offset"] + 16, 100)
+        struct.pack_into("<I", second, second_stream["chunks"][-1]["payload_offset"] + 32, 2)
+        for chunk in second_stream["chunks"]:
+            if chunk["type"] in ("MSeq", "EvSq") and chunk["group_id_candidate"] == 65536:
+                chunk["group_id_candidate"] = 131072
+            chunk["index"] += len(first_stream["chunks"])
+            chunk["payload_offset"] += len(first)
+            chunk["offset"] += len(first)
+        report = profile_relations(bytes(first + second), {
+            "chunks": first_stream["chunks"] + second_stream["chunks"],
+        })
+        self.assertEqual(report["same_reference_consecutive_note_region_pair_count"], 1)
+        self.assertEqual(report["same_reference_start_gap_equals_source_word_count"], 1)
+        self.assertEqual(report["same_reference_start_gap_exceeds_note_end_count"], 1)
+        self.assertEqual(report["placed_integer_note_bounds_with_tail_shift_contained"], 2)
 
 
 if __name__ == "__main__":

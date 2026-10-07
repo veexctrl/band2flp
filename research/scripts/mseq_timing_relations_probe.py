@@ -46,6 +46,7 @@ def profile_relations(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
             ambiguous_notes += 1
 
     counts: Counter[str] = Counter()
+    placed_note_rows: dict[int, list[tuple[int, int, int]]] = {}
     for chunk in chunks:
         if chunk.get("type") != "MSeq":
             continue
@@ -61,11 +62,14 @@ def profile_relations(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         group_notes = linked_notes.get(chunk["index"], [])
         if group_notes:
             counts["note_bearing_unique_mseq_count"] += 1
+            counts["note_bearing_tail_length_word_nonzero_count"] += length_word != 0
+            counts["note_bearing_tail_length_word_multiple_of_960_count"] += length_word != 0 and length_word % 960 == 0
             # Deliberately use integer words only: +2 fraction scaling remains
             # unknown, so this is an integer-bound comparison, not exact time.
             ends = [n["position_ticks_from_38400_candidate"]
                     + n["duration_ticks_candidate"] for n in group_notes]
             counts["tail_length_equals_max_integer_note_end"] += length_word == max(ends)
+            counts["tail_length_greater_than_max_integer_note_end"] += length_word > max(ends)
             counts["tail_length_contains_all_integer_note_ends"] += all(
                 0 <= n["position_ticks_from_38400_candidate"] <= end <= length_word
                 for n, end in zip(group_notes, ends)
@@ -89,6 +93,34 @@ def profile_relations(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
             if word != 0x3FFFFFFF:
                 counts["nonsentinel_placement_word_count"] += 1
                 counts["tail_length_equals_nonsentinel_placement_word"] += length_word == word
+            if group_notes:
+                counts["note_bearing_source_word_below_placement_integer_start_count"] += length_word < ticks
+                counts["placed_integer_note_bounds_with_tail_shift_contained"] += all(
+                    ticks <= n["position_ticks_from_38400_candidate"] + offset_word
+                    <= end + offset_word <= ticks + length_word
+                    for n, end in zip(group_notes, ends)
+                )
+                counts["note_bearing_sentinel_placement_count"] += word == 0x3FFFFFFF
+                if word != 0x3FFFFFFF:
+                    counts["note_bearing_nonsentinel_placement_count"] += 1
+                    counts["note_bearing_nonsentinel_word_greater_than_source_word"] += word > length_word
+                    counts["note_bearing_nonsentinel_word_smaller_than_source_word"] += word < length_word
+                    counts["note_bearing_nonsentinel_word_equals_source_word"] += word == length_word
+                    counts["note_bearing_nonsentinel_word_three_halves_source_word"] += (
+                        length_word != 0 and 2 * word == 3 * length_word
+                    )
+                    counts["note_bearing_nonsentinel_nonzero_start_count"] += ticks != 0
+                reference = placement["event_id_candidate"]
+                if reference != 0:
+                    placed_note_rows.setdefault(reference, []).append((ticks, length_word, max(ends)))
+
+    for rows in placed_note_rows.values():
+        rows.sort()
+        for previous, following in zip(rows, rows[1:]):
+            gap = following[0] - previous[0]
+            counts["same_reference_consecutive_note_region_pair_count"] += 1
+            counts["same_reference_start_gap_equals_source_word_count"] += gap == previous[1]
+            counts["same_reference_start_gap_exceeds_note_end_count"] += gap > previous[2]
 
     keys = (
         "mseq_count", "mseq_too_short_for_tail_words", "tail_length_word_zero_count",
@@ -98,6 +130,17 @@ def profile_relations(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         "unique_placement_tail_comparison_count", "tail_offset_equals_placement_integer_ticks",
         "nonzero_placement_integer_ticks_count", "tail_offset_equals_nonzero_placement_integer_ticks",
         "nonsentinel_placement_word_count", "tail_length_equals_nonsentinel_placement_word",
+        "note_bearing_tail_length_word_nonzero_count", "note_bearing_tail_length_word_multiple_of_960_count",
+        "tail_length_greater_than_max_integer_note_end", "placed_integer_note_bounds_with_tail_shift_contained",
+        "note_bearing_sentinel_placement_count", "note_bearing_nonsentinel_placement_count",
+        "note_bearing_nonsentinel_word_greater_than_source_word",
+        "note_bearing_nonsentinel_word_smaller_than_source_word",
+        "note_bearing_nonsentinel_word_equals_source_word",
+        "note_bearing_nonsentinel_word_three_halves_source_word",
+        "note_bearing_nonsentinel_nonzero_start_count",
+        "note_bearing_source_word_below_placement_integer_start_count",
+        "same_reference_consecutive_note_region_pair_count",
+        "same_reference_start_gap_equals_source_word_count", "same_reference_start_gap_exceeds_note_end_count",
     )
     return {
         **{key: counts[key] for key in keys},
@@ -106,6 +149,10 @@ def profile_relations(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         "note_fraction_word_nonzero_count": sum(n["position_fraction_raw"] != 0 for n in notes),
         "note_fraction_word_distinct_count": len({n["position_fraction_raw"] for n in notes}),
         "confidence": "UNKNOWN: tail meanings, fraction scaling, origins and units are unverified",
+        "legacy_shifted_containment_scope_note": (
+            "tail_length_contains_all_offset_integer_note_ends compares shifted positions with an origin-zero end; "
+            "it is not a placed-region containment test when the candidate placement start is nonzero"
+        ),
         "privacy_note": "Aggregate counts only; no music, labels, identifiers or raw values.",
     }
 

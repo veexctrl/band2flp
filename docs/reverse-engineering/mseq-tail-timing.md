@@ -19,7 +19,7 @@ The two supplied, uncontrolled fixtures contain 35 and 33 MSeq payloads. Both ha
 
 All 19 and 12 uniquely linked MIDI placements have an end-minus-55 word equal to the candidate placement integer position. These comprise **29 zero matches and two nonzero matches**. Both nonzero matches occur in the note-bearing fixture. Thus the equality is stronger than the zero-only result of the earlier fixed-offset probe, although the fixtures do not establish its behavior under a controlled region move.
 
-The five uniquely linked note-bearing MSeq groups contain all 133 note-shaped candidates. Their end-minus-219 words contain all candidate integer note ends, but none equals the maximum note end. Adding the signed end-minus-55 word to each note position preserves containment in only three of five groups. The two nonsentinel placement words do not equal the linked end-minus-219 words.
+The five uniquely linked note-bearing MSeq groups contain all 133 note-shaped candidates. Their end-minus-219 words contain all candidate integer note ends, but none equals the maximum note end. The original shifted comparison counted three of five groups against an origin-zero end; MIDI-024 identifies that comparison as mixing coordinate systems. Comparing both bounds in the placed frame contains all five groups. The two nonsentinel placement words do not equal the linked end-minus-219 words.
 
 117 of the 133 note candidates have a nonzero 16-bit word at note-record `+0x02`; three distinct values occur. The parser retains these raw words. Its current candidate onset in beats uses only the integer position, while its scope comparison also tests a hypothetical fractional-tick interpretation. This inconsistency needs investigation; the denominator and musical meaning are not established by these counts.
 
@@ -35,7 +35,7 @@ The two raw logic-song files opened in headless IDA were first compared byte for
 
 **HYPOTHESIS:** the signed word represents a GarageBand region position under the existing origin and unit assumptions. No parser timing field is promoted on this evidence.
 
-**UNKNOWN:** end-minus-219 semantics and fractional-word scaling. A length could exceed its last note because of silence or padding; simple containment also fits unrelated sufficiently large values. Trimmed regions could differ from their source extent. The failed offset-adjusted containment warns against applying Logic's source-offset materialization behavior directly to GarageBand.
+**UNKNOWN:** end-minus-219 semantics and fractional-word scaling. A length could exceed its last note because of silence or padding; simple containment also fits unrelated sufficiently large values. Trimmed regions could differ from their source extent. Withdraw the earlier inference that the shifted comparison warned against Logic-style materialization: it compared shifted positions with an unshifted end. MIDI-024 corrects the arithmetic and leaves the GarageBand interpretation unconfirmed.
 
 ## Next evidence
 

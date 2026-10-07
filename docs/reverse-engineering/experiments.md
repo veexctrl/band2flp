@@ -1476,3 +1476,8 @@ See [the detailed experiment](trak-note-subset-order.md). The existing note-shap
 **Next:** Compare the grouped output in FL Studio when interactive validation becomes available. Continue static research on region extents, fine timing and unclassified placement-shaped records meanwhile.
 
 The same-input separate/grouped policy comparison preserves all 133 note positions, lengths, pitches, velocities and flags, plus all five clip starts and extents. Only grouping/channel routing changes: five rows/channels become four.
+
+
+## MIDI-024 - correct shifted bounds and compare source/placed extents
+
+See [the detailed experiment](midi-source-extent-relations.md). MIDI-022's shifted comparison mixed placed positions with an origin-zero end; the consistent placed-frame comparison contains all five note-bearing groups. Two finite placement words are three halves of their source-word candidates, and one adjacent same-reference start gap equals the preceding source word rather than its last note end. IDA confirms 286 relevant words. A byte-matched cached image is too cropped to establish complete extents or repeats. These are source/placement-extent leads; loops, stretch, units and duration semantics remain unresolved. No export timing rule changes.
