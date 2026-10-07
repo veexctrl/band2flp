@@ -309,6 +309,59 @@ def _place_audio_channels_before_playlist(data: bytes, expected_channels: int) -
     return result
 
 
+def _plan_midi_candidate_tracks(
+    regions: list[Any], audio_rows: list[int], max_tracks: int, policy: str
+) -> list[dict[str, Any]]:
+    """Plan preview rows/channels from neutral bindings, retaining fallbacks."""
+    if policy not in {"separate", "candidate-bindings"}:
+        raise FLPExportError("MIDI track policy must be 'separate' or 'candidate-bindings'")
+    bindings = []
+    reserved_rows = set(audio_rows)
+    provenance_by_index: dict[int, Any] = {}
+    for region in regions:
+        unknown = getattr(region, "unknown", {})
+        binding = unknown.get("candidate_track_binding") if isinstance(unknown, dict) else None
+        index = binding.get("track_index_candidate") if isinstance(binding, dict) else None
+        usable = (policy == "candidate-bindings" and isinstance(binding, dict)
+                  and binding.get("status") == "candidate" and type(index) is int and index >= 0)
+        if usable:
+            row = _fl_playlist_track_index(index, max_tracks)
+            _fl_track_event_storage_index(row, max_tracks)
+            source = binding.get("source_trak_chunk_index")
+            if index in provenance_by_index and provenance_by_index[index] != source:
+                raise FLPExportError("MIDI candidate bindings disagree about a shared track's source identity")
+            provenance_by_index[index] = source
+            reserved_rows.add(row)
+            bindings.append((row, dict(binding)))
+        else:
+            bindings.append((None, binding))
+    next_row = max(reserved_rows, default=0) + 1
+    slots: dict[tuple[str, int], int] = {}
+    plans = []
+    for index, (row, binding) in enumerate(bindings):
+        bound = row is not None
+        if not bound:
+            row = next_row
+            next_row += 1
+        _fl_track_event_storage_index(row, max_tracks)
+        key = ("bound-row", row) if bound else ("region", index)
+        slot = slots.setdefault(key, len(slots))
+        plans.append({
+            "playlist_track_index": row,
+            "channel_slot": slot,
+            "track_policy_applied": "candidate-binding" if bound else (
+                "separate" if policy == "separate" else "separate-fallback"
+            ),
+            "track_binding": binding if bound else None,
+            "fallback_reason": None if bound or policy == "separate" else (
+                binding.get("reason", "unusable_candidate_binding") if isinstance(binding, dict)
+                else "missing_candidate_binding"
+            ),
+            "shared_name": f"MIDI candidate track {binding['track_index_candidate'] + 1:02d}" if bound else None,
+        })
+    return plans
+
+
 def export_flp(
     project: Project,
     *,
@@ -317,6 +370,7 @@ def export_flp(
     media_by_reference: dict[str, str | Path],
     length_policy: str = "reject-unknown",
     include_midi_candidates: bool = False,
+    midi_track_policy: str = "separate",
 ) -> dict[str, Any]:
     """Export recovered audio starts using a user-supplied blank FLP template.
 
@@ -326,6 +380,10 @@ def export_flp(
     """
     if length_policy not in {"reject-unknown", "source-full"}:
         raise FLPExportError("length policy must be 'reject-unknown' or 'source-full'")
+    if midi_track_policy not in {"separate", "candidate-bindings"}:
+        raise FLPExportError("MIDI track policy must be 'separate' or 'candidate-bindings'")
+    if midi_track_policy != "separate" and not include_midi_candidates:
+        raise FLPExportError("candidate MIDI track grouping requires MIDI candidate export")
     template = Path(template_path).expanduser().resolve()
     output = Path(output_path).expanduser().absolute()
     report_path = output.with_suffix(output.suffix + ".band2flp.json")
@@ -457,6 +515,7 @@ def export_flp(
 
     ppq = fl_project.ppq
     midi_preview_items: list[dict[str, Any]] = []
+    midi_channel_iids: set[int] = set()
     if midi_regions:
         next_channel_iid = len(source_iid) if source_iid else max(channel.iid for channel in channels) + 1
         next_pattern_iid = max((pattern.iid for pattern in fl_project.patterns), default=0) + 1
@@ -464,16 +523,22 @@ def export_flp(
             _fl_playlist_track_index(track.index, max_tracks)
             for track in project.tracks if any(region.kind == "audio" for region in track.regions)
         ]
-        first_midi_row = max(audio_rows, default=0) + 1
+        midi_plans = _plan_midi_candidate_tracks(midi_regions, audio_rows, max_tracks, midi_track_policy)
+        created_midi_channels: dict[int, Any] = {}
+        named_rows = set(audio_rows)
         for index, region in enumerate(midi_regions):
-            use_template_channel = not regions and index == 0
+            plan = midi_plans[index]
+            slot = plan["channel_slot"]
+            use_template_channel = not regions and slot == 0
             channel_iid = (
                 0 if use_template_channel
-                else next_channel_iid + index - (1 if not regions else 0)
+                else next_channel_iid + slot - (1 if not regions else 0)
             )
             pattern_iid = next_pattern_iid + index
             midi_name = _midi_candidate_display_name(region, index)
-            if use_template_channel:
+            if slot in created_midi_channels:
+                midi_channel = created_midi_channels[slot]
+            elif use_template_channel:
                 midi_channel = base_channel
             else:
                 channel_events = [
@@ -494,7 +559,9 @@ def export_flp(
                 )
             if midi_channel is None:
                 raise FLPExportError("PyFLP did not create the provisional MIDI channel")
-            midi_channel.name = midi_name
+            midi_channel.name = plan["shared_name"] or midi_name
+            created_midi_channels[slot] = midi_channel
+            midi_channel_iids.add(channel_iid)
 
             note_records: list[bytes] = []
             note_positions: list[int] = []
@@ -527,14 +594,16 @@ def export_flp(
             for event in pattern_events:
                 fl_project.events.insert(len(fl_project.events) - 1, event)
 
-            playlist_row = first_midi_row + index
+            playlist_row = plan["playlist_track_index"]
             if playlist_row >= max_tracks:
                 raise FLPExportError("not enough empty FL Studio playlist tracks remain for MIDI candidates")
             storage_index = _fl_track_event_storage_index(playlist_row, max_tracks)
-            fl_tracks[storage_index].events.insert(
-                len(fl_tracks[storage_index].events) - 1,
-                UnicodeEvent(TrackID.Name, midi_name.encode("utf-16-le") + b"\0\0"),
-            )
+            if playlist_row not in named_rows:
+                fl_tracks[storage_index].events.insert(
+                    len(fl_tracks[storage_index].events) - 1,
+                    UnicodeEvent(TrackID.Name, (plan["shared_name"] or midi_name).encode("utf-16-le") + b"\0\0"),
+                )
+                named_rows.add(playlist_row)
             region_start = _beats_to_ticks(region.start_beats_candidate, ppq, "MIDI region start")
             if region_start < 0:
                 raise FLPExportError("negative MIDI region starts are not supported")
@@ -558,6 +627,9 @@ def export_flp(
                 "channel_iid": channel_iid,
                 "display_name": midi_name,
                 "playlist_track_index": playlist_row,
+                "track_policy_applied": plan["track_policy_applied"],
+                "track_binding": plan["track_binding"],
+                "fallback_reason": plan["fallback_reason"],
                 "position_ticks": region_start,
                 "length_ticks": clip_length,
                 "note_count": len(note_records),
@@ -567,8 +639,8 @@ def export_flp(
                 "source_placement_event_index": region.source_placement_event_index,
             })
         fl_project.channel_count = (
-            len(source_iid) + len(midi_preview_items)
-            if source_iid else len(channels) + max(0, len(midi_preview_items) - 1)
+            len(source_iid) + len(midi_channel_iids)
+            if source_iid else len(channels) + max(0, len(midi_channel_iids) - 1)
         )
 
     exported_items: list[dict[str, Any]] = []
@@ -633,8 +705,8 @@ def export_flp(
             report_tmp = Path(temp.name)
         pyflp.save(fl_project, str(flp_tmp))
         expected_channel_count = (
-            len(source_iid) + len(midi_preview_items)
-            if source_iid else len(channels) + max(0, len(midi_preview_items) - 1)
+            len(source_iid) + len(midi_channel_iids)
+            if source_iid else len(channels) + max(0, len(midi_channel_iids) - 1)
         )
         flp_tmp.write_bytes(_place_audio_channels_before_playlist(flp_tmp.read_bytes(), expected_channel_count))
         roundtrip = pyflp.parse(str(flp_tmp))
@@ -680,6 +752,7 @@ def export_flp(
             actual = actual_playlist_by_index[20480 + expected["pattern_iid"]]
             if (
                 actual["position"] != expected["position_ticks"]
+                or actual["track_rvidx"] != (max_tracks - 1) - expected["playlist_track_index"]
                 or actual["length"] != expected["length_ticks"]
                 or actual["item_index"] != 20480 + expected["pattern_iid"]
             ):
@@ -710,6 +783,10 @@ def export_flp(
             "audio_channels": len(source_iid),
             "channel_count": roundtrip.channel_count,
             "midi_candidate_patterns": len(midi_preview_items),
+            "midi_candidate_channels": len(midi_channel_iids),
+            "midi_track_policy": midi_track_policy,
+            "midi_candidate_track_rows": len({item["playlist_track_index"] for item in midi_preview_items}),
+            "midi_track_fallback_count": sum(item["track_policy_applied"] == "separate-fallback" for item in midi_preview_items),
             "playlist_items": expected_playlist_count,
             "playlist_record_size": roundtrip_playlist._struct_size,
             "duration_policy": length_policy,
@@ -728,6 +805,10 @@ def export_flp(
                 "MSeq text candidates are used as preview labels only; their role as a track or region name is unconfirmed."
             ] if any(" - " in item["display_name"] for item in midi_preview_items) else []),
         }
+        if midi_preview_items and midi_track_policy == "candidate-bindings":
+            report["warnings"].append("MIDI track grouping uses provisional neutral bindings; GarageBand arrangement identity remains unconfirmed.")
+            if report["midi_track_fallback_count"]:
+                report["warnings"].append("MIDI regions without usable bindings are preserved on separate preview rows.")
         report_tmp.write_text(json.dumps(report, indent=2), encoding="utf-8")
         _atomic_publish(flp_tmp, output)
         flp_tmp = None

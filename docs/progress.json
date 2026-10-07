@@ -31,7 +31,7 @@
       "name": "MIDI placement and note semantics",
       "weight": 18,
       "recovered": 34,
-      "basis": "Editable FL25 previews; five MIDI regions now retain four candidate track bindings. Note fields, fine timing and track semantics remain open."
+      "basis": "Opt-in grouped preview retains five MIDI regions on four rows/channels; static checks pass. Note, timing and track semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",
@@ -58,8 +58,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "early: editable MIDI previews and neutral candidate track bindings; GarageBand timing and identity remain unconfirmed",
-      "display_label": "EDITABLE MIDI + TRACK CANDIDATES"
+      "state": "early: grouped candidate-track preview passes static checks; GUI acceptance and GarageBand semantics remain unverified",
+      "display_label": "GROUPED MIDI · GUI OPEN"
     },
     {
       "name": "Region boundaries and track state",

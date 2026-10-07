@@ -64,4 +64,4 @@ See [progress.json](progress.json) and [progress.svg](progress.svg) for the curr
 
 ## Latest track-binding implementation
 
-TRK-016/TRK-017 identify scoped numeric placement/Trak joins and ordinal agreement for all 24 audio/note-bearing MIDI placements in two fixtures. TRK-018 now preserves source links and provisional bindings for five MIDI regions on four candidate tracks in the neutral JSON. Track identity remains a hypothesis. The next exporter step is a clearly labeled grouped preview consuming these bindings, while keeping unresolved regions visible and preserving every unclassified record.
+TRK-016/TRK-017 identify scoped numeric placement/Trak joins and ordinal agreement for all 24 audio/note-bearing MIDI placements in two fixtures. TRK-018 now preserves source links and provisional bindings for five MIDI regions on four candidate tracks in the neutral JSON. Track identity remains a hypothesis. A grouped preview now consumes these bindings and preserves unresolved regions separately. Its output has static round-trip checks; independent GUI comparison and original track identity remain open.

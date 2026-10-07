@@ -1461,3 +1461,18 @@ See [the detailed experiment](trak-note-subset-order.md). The existing note-shap
 **Confidence:** CONFIRMED for preservation, source joins and candidate serialization; HYPOTHESIS for original arrangement-track semantics. TRK-016/TRK-017 contain the supporting IDA checks. No audio is opened or extracted for this validation.
 
 **Next:** Export a separately labeled preview that groups MIDI regions by these neutral candidate bindings, with fallback diagnostics for unbound regions. Validate the emitted FLP structures statically; independent GarageBand/FL Studio visual comparison remains required.
+
+
+## FLP-035 - group provisional MIDI regions using neutral track bindings
+
+**Question:** Can the exporter preserve separate MIDI clips while grouping regions that share a neutral candidate track binding?
+
+**Implementation:** An opt-in candidate-bindings policy plans rows and reusable channel slots from neutral metadata. All bound rows are reserved before fallback allocation. Shared bindings reuse sampler channels; every region keeps its own pattern and start. Unusable bindings retain separate fallback rows and reasons. Source-identity conflicts and row-range failures are rejected. Save/reparse validation now checks MIDI playlist rows as well as existing clip/note/channel fields. The CLI requires MIDI export to be enabled when grouping is requested.
+
+**Validation:** The audio-free local CLI output retains all five project-derived patterns on four rows/channels, with no fallbacks. Static event inspection finds no nonempty sample path. A synthetic full exporter test groups two patterns on one channel/row and preserves an unbound third region separately. Tests also cover ordinal row gaps, later-bound row reservations, default separate behavior, malformed bindings, source conflicts, bounds and CLI propagation. All 161 tests pass with the local optional PyFLP/template integration enabled. Existing dependencies were reused; no package was installed. No song audio is extracted or decoded, and no source MIDI or generated FLP is committed.
+
+**Confidence:** CONFIRMED for static round-trip consistency and synthetic policy behavior. Original GarageBand track identity and timing remain HYPOTHESIS. GUI acceptance and audible playback of the grouped output remain unverified; the user cannot perform GUI checks today.
+
+**Next:** Compare the grouped output in FL Studio when interactive validation becomes available. Continue static research on region extents, fine timing and unclassified placement-shaped records meanwhile.
+
+The same-input separate/grouped policy comparison preserves all 133 note positions, lengths, pitches, velocities and flags, plus all five clip starts and extents. Only grouping/channel routing changes: five rows/channels become four.

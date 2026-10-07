@@ -67,6 +67,10 @@ def main(argv: list[str] | None = None) -> int:
         "--midi-only", action="store_true",
         help="export only provisional MIDI previews; do not extract or link audio media",
     )
+    export.add_argument(
+        "--midi-track-policy", choices=("separate", "candidate-bindings"), default="separate",
+        help="use separate MIDI preview rows, or group by provisional neutral track bindings",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -81,6 +85,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         project = parse_band(args.project)
         if args.command == "export-flp":
+            if args.midi_track_policy != "separate" and not (args.include_midi_candidates or args.midi_only):
+                raise FLPExportError("--midi-track-policy requires --midi-only or --include-midi-candidates")
             if args.midi_only:
                 if args.media_dir or args.to_wav or args.length_policy != "reject-unknown":
                     raise FLPExportError(
@@ -119,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
                 media_by_reference=media_by_reference,
                 length_policy=args.length_policy,
                 include_midi_candidates=args.include_midi_candidates or args.midi_only,
+                midi_track_policy=args.midi_track_policy,
             )
             report["media_extraction"] = {
                 "skipped": args.midi_only,

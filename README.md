@@ -68,6 +68,16 @@ The command extracts uniquely matched audio into the new media folder, writes th
 
 Keep the FLP and its referenced media together, or make sure the paths stored in the FLP still resolve on the target computer. `--to-wav` creates local PCM WAV media and updates the FLP links to those files. It requires FFmpeg and does not reconstruct GarageBand trims, loops, or durations; source-full lengths use the decoded WAV frame count as a placeholder. A source-matched WAV relinked probe loaded in FL Studio 25, but audible playback has not been verified.
 
+## Preview MIDI without audio
+
+    band2flp export-flp path/to/project.band path/to/new-midi-preview.flp --template path/to/blank.flp --midi-only
+
+To group regions by their provisional original-track bindings:
+
+    band2flp export-flp path/to/project.band path/to/new-grouped-preview.flp --template path/to/blank.flp --midi-only --midi-track-policy candidate-bindings
+
+Regions sharing a usable binding share a playlist row and sampler channel, with separate patterns. Unresolved bindings use separate fallback rows and are counted in the JSON report. This mode skips audio extraction. Note timing, track identity and instrument reconstruction remain experimental; the grouped output has static round-trip validation but awaits an independent FL Studio GUI check. The default `separate` policy keeps one preview row per region.
+
 ## Research and tests
 
 Compare projectData structures without assuming fixed offsets:
