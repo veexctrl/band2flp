@@ -1443,3 +1443,8 @@ See [the detailed experiment](mseq-tail-timing.md). Across two fixtures, all 31 
 ## TRK-016 - compare Trak numeric references with placements
 
 See [the detailed experiment](trak-placement-word-links.md). In two fixtures, all 50 recognized audio/MIDI placement words at event +0x10 match unique larger-family Trak payload +0x08 words; 47 also match the smaller family. The families share 14 and nine unique nonzero word pairs. All 111 IDA reads match Python. Nine combined placement-word groups in one fixture have conflicting +0x14 track-byte candidates, so the association is not promoted to arrangement-track identity. The reusable count-only probe and four synthetic tests retain this evidence without publishing music or identifiers.
+
+
+## TRK-017 - test Trak ordering in the note-bearing MIDI subset
+
+See [the detailed experiment](trak-note-subset-order.md). The existing note-shape/MSeq classifier selects five MIDI placements independently of track order. All five and all 19 audio placements agree with their unique smaller-family Trak one-based ordinal. The five MIDI placements reference four distinct words. Restricting conflict checks to audio plus note-bearing MIDI removes the nine conflicting shared-word groups, while all other records remain counted and preserved. IDA confirms 61 header group words and 50 placement track bytes. Arrangement-order semantics remain a HYPOTHESIS pending controlled or independent visual validation; 143 tests pass.

@@ -5,7 +5,7 @@ from band2flp.parser import BandFormatError
 from research.scripts.trak_placement_link_probe import profile_links
 
 
-def fixture(traks, placements):
+def fixture(traks, placements, *, mseq_groups=(), note_groups=()):
     raw = bytearray()
     chunks = []
     for group, word in traks:
@@ -14,12 +14,25 @@ def fixture(traks, placements):
         chunks.append({"type": "Trak", "index": len(chunks), "payload_offset": len(raw),
                        "payload_size": 58, "group_id_candidate": group, "offset": len(raw)})
         raw.extend(payload)
-    for kind, word, track_byte in placements:
+    for group in mseq_groups:
+        chunks.append({"type": "MSeq", "index": len(chunks), "payload_offset": len(raw),
+                       "payload_size": 0, "group_id_candidate": group, "offset": len(raw)})
+    for group in note_groups:
+        payload = bytearray(32)
+        payload[0] = 0x90
+        payload[23] = 0x89
+        struct.pack_into("<I", payload, 4, 38400)
+        struct.pack_into("<I", payload, 28, 1)
+        chunks.append({"type": "EvSq", "index": len(chunks), "payload_offset": len(raw),
+                       "payload_size": 32, "group_id_candidate": group, "offset": len(raw)})
+        raw.extend(payload)
+    for kind, word, track_byte, *cluster in placements:
         payload = bytearray(80)
         payload[0] = kind
         struct.pack_into("<I", payload, 4, 34560)
         struct.pack_into("<I", payload, 16, word)
         payload[20] = track_byte
+        struct.pack_into("<I", payload, 32, cluster[0] if cluster else 0)
         for index, value in ((23, 0x89), (39, 0xBC if kind == 0x24 else 0x88),
                              (55, 0x8A), (71, 0x89 if kind == 0x24 else 0x88)):
             payload[index] = value
@@ -62,6 +75,33 @@ class TrakPlacementLinkTests(unittest.TestCase):
         stream["chunks"][0]["payload_size"] += 1
         with self.assertRaises(BandFormatError):
             profile_links(raw, stream)
+
+    def test_note_subset_separates_conflicts_without_discarding_other_records(self):
+        report = profile_links(*fixture(
+            [(0x40000, 100)],
+            [(0x24, 100, 1), (0x20, 100, 1, 1), (0x20, 100, 9, 2)],
+            mseq_groups=(65536, 131072), note_groups=(65536,),
+        ))
+        counts = report["trak_families"]["0x00040000"]["placement_comparisons"]
+        self.assertEqual(counts["midi"]["placement_count"], 2)
+        self.assertEqual(counts["midi_with_note_candidates"]["placement_count"], 1)
+        self.assertEqual(counts["midi_without_note_candidates"]["placement_count"], 1)
+        self.assertEqual(counts["midi_with_note_candidates"]
+                         ["unique_word_file_order_1_based_equals_track_byte_count"], 1)
+        self.assertEqual(counts["midi_without_note_candidates"]
+                         ["unique_word_file_order_1_based_equals_track_byte_count"], 0)
+        self.assertEqual(report["combined_placement_word_groups_with_conflicting_track_bytes"], 1)
+        self.assertEqual(report["audio_and_note_bearing_midi_word_groups_with_conflicting_track_bytes"], 0)
+        self.assertEqual(report["note_bearing_midi_nonzero_word_group_count"], 1)
+
+    def test_ambiguous_mseq_link_is_not_classified_as_note_bearing(self):
+        report = profile_links(*fixture(
+            [(0x40000, 100)], [(0x20, 100, 1, 1)],
+            mseq_groups=(65536, 65536), note_groups=(65536,),
+        ))
+        counts = report["trak_families"]["0x00040000"]["placement_comparisons"]
+        self.assertEqual(counts["midi_with_ambiguous_mseq_link"]["placement_count"], 1)
+        self.assertEqual(counts["midi_with_note_candidates"]["placement_count"], 0)
 
 
 if __name__ == "__main__":
