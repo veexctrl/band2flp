@@ -499,6 +499,41 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
     return placements
 
 
+def _parse_mseq_tail_word_candidates(
+    data: bytes, chunk_stream: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Expose bounded end-relative words; do not assign timing semantics."""
+    candidates = []
+    for chunk in chunk_stream.get("chunks", []):
+        if chunk.get("type") != "MSeq":
+            continue
+        start, size = chunk.get("payload_offset"), chunk.get("payload_size")
+        if (not isinstance(start, int) or not isinstance(size, int)
+                or size < 0 or not 0 <= start <= len(data) - size):
+            raise BandFormatError("MSeq payload bounds are invalid")
+        fields = []
+        for tail, encoding in ((219, "<I"), (55, "<i")):
+            if size < tail:
+                continue
+            offset = start + size - tail
+            fields.append({
+                "offset_from_payload_end": -tail,
+                "logic_song_offset": offset,
+                "size": 4,
+                "encoding": "u32le" if encoding == "<I" else "i32le",
+                "raw_value": struct.unpack_from(encoding, data, offset)[0],
+                "confidence": "UNKNOWN; possible Logic-derived timing field, not normalized",
+            })
+        candidates.append({
+            "source_chunk_index": chunk["index"],
+            "source_group_id_candidate": chunk.get("group_id_candidate"),
+            "payload_size": size,
+            "status": "candidate" if len(fields) == 2 else "partial",
+            "fields": fields,
+        })
+    return candidates
+
+
 def _parse_midi_note_candidates(
     event_sequences: dict[str, Any], chunk_stream: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -628,6 +663,17 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
             channel_1_based_candidate=note["midi_channel_1_based_candidate"],
             source_chunk_index=note["source_chunk_index"],
             source_event_index=note["source_event_index"],
+            unknown={
+                key: note[key] for key in (
+                    "position_raw", "position_fraction_raw", "event_type_byte",
+                    "ppq_candidate", "field_interpretation_confidence",
+                ) if key in note
+            } | {
+                "onset_precision_note": (
+                    "Candidate beat onset uses the integer position word; "
+                    "the raw fractional word's scaling is UNKNOWN"
+                ),
+            },
         ))
     regions: list[UnplacedMidiRegionCandidate] = []
     for (mseq_index, chunk_index, event_index), notes in grouped.items():
@@ -653,6 +699,13 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
         item.source_placement_event_index,
     ))
     project.unplaced_midi_regions = regions
+    if any(note.unknown.get("position_fraction_raw", 0) != 0 for region in regions for note in region.notes):
+        warning = (
+            "MIDI candidate onsets use only integer position words; "
+            "nonzero fractional words are retained with UNKNOWN scaling."
+        )
+        if warning not in project.warnings:
+            project.warnings.append(warning)
 
 
 def _parse_midi_region_placement_candidates(
@@ -931,6 +984,9 @@ def parse_band(path: str | Path) -> Project:
                     except BandFormatError as exc:
                         project.warnings.append(f"Logic-song chunk stream was not decoded: {exc}")
                     else:
+                        project.project_data["mseq_tail_word_candidates"] = _parse_mseq_tail_word_candidates(
+                            logic_payload, project.project_data["logic_song_chunk_stream"]
+                        )
                         project.project_data["mseq_label_candidates"] = _mseq_label_candidates(
                             logic_payload, project.project_data["logic_song_chunk_stream"]
                         )

@@ -36,6 +36,7 @@ class MidiNoteCandidate:
     channel_1_based_candidate: int
     source_chunk_index: int
     source_event_index: int
+    unknown: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

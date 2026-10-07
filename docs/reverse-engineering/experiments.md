@@ -1425,3 +1425,16 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 ## MIDI-022 - compare end-relative MSeq timing words
 
 See [the detailed experiment](mseq-tail-timing.md). Across two fixtures, all 31 uniquely linked placements match the signed little-endian word at MSeq payload end minus 55, including two nonzero matches. All 68 IDA reads match Python. The end-minus-219 word contains candidate integer note extents in five groups but equals neither their final note ends nor the two nonsentinel placement words. Field meanings and fractional-position scaling remain unconfirmed; production timing is unchanged.
+
+
+## MIDI-023 - preserve unassigned timing words through inspection and the IR
+
+**Question:** Can the MIDI-022 raw fields be exposed without assigning unverified timing semantics or losing note provenance at the neutral-model boundary?
+
+**Implementation:** Bounded MSeq tail-word reads retain source chunk, absolute logic-song offset, width, signedness, raw value and UNKNOWN confidence. Short payloads are partial. Neutral candidate notes retain the raw position, 16-bit fractional word, event type, candidate PPQ and confidence. Their existing integer-only onset stays unchanged; a project warning identifies nonzero fractions with unknown scaling.
+
+**Validation:** A synthetic archive round trip covers a nonzero fractional word, a signed negative tail word and JSON serialization. Boundary tests cover both minimum spans, partial records and invalid ranges. Both supplied archives expose all 35 and 33 MSeq records; all 133 neutral note candidates in the note-bearing archive preserve their raw fractional word. No audio was opened or extracted. All 137 tests pass.
+
+**Confidence:** CONFIRMED for byte retention, bounds and model serialization. Field meanings, timing origins, fraction scaling and MSeq duration semantics remain unconfirmed; this change does not promote them.
+
+**Next:** Resolve fractional scaling with controlled note moves, then update candidate onsets using exact arithmetic only if the evidence supports that interpretation.
