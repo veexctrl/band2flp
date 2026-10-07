@@ -1438,3 +1438,8 @@ See [the detailed experiment](mseq-tail-timing.md). Across two fixtures, all 31 
 **Confidence:** CONFIRMED for byte retention, bounds and model serialization. Field meanings, timing origins, fraction scaling and MSeq duration semantics remain unconfirmed; this change does not promote them.
 
 **Next:** Resolve fractional scaling with controlled note moves, then update candidate onsets using exact arithmetic only if the evidence supports that interpretation.
+
+
+## TRK-016 - compare Trak numeric references with placements
+
+See [the detailed experiment](trak-placement-word-links.md). In two fixtures, all 50 recognized audio/MIDI placement words at event +0x10 match unique larger-family Trak payload +0x08 words; 47 also match the smaller family. The families share 14 and nine unique nonzero word pairs. All 111 IDA reads match Python. Nine combined placement-word groups in one fixture have conflicting +0x14 track-byte candidates, so the association is not promoted to arrangement-track identity. The reusable count-only probe and four synthetic tests retain this evidence without publishing music or identifiers.

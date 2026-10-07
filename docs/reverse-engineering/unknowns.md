@@ -54,3 +54,5 @@
 The next useful inputs are sanitized or private local fixtures created by changing one property at a time: empty project, one track, one note, note pitch/duration/start changes, region position/length changes, tempo/meter changes, and a simple audio region. Do not add private song content to the public source repository.
 
 - MIDI-022 finds the MSeq end-minus-55 word equal to all 31 linked candidate placement positions, including two nonzero matches. Controlled moves must distinguish authoritative position from duplicated or cached state. End-minus-219 length semantics and note +0x02 fractional scaling remain UNKNOWN; see [the tail timing experiment](mseq-tail-timing.md).
+
+- [TRK-016](trak-placement-word-links.md) finds unique nonzero placement +0x10 / 58-byte Trak +0x08 word joins in two families. All 50 placements join the larger family and 47 the smaller. Nine shared-word groups in one fixture conflict with the existing +0x14 track-byte candidates. The shared numeric association is HIGH CONFIDENCE for these fixtures; object/channel identity, family roles and arrangement mapping remain UNKNOWN.
