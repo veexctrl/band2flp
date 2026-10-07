@@ -1176,6 +1176,9 @@ class ParserTests(unittest.TestCase):
             "candidate_velocity_byte_in_nonzero_midi_range_count": 2,
             "candidate_duration_word_nonzero_count": 2,
             "candidate_duration_word_on_960_tick_grid_count": 1,
+            "duration_ppq_divisibility_note": (
+                "descriptive only; an integer tick duration need not be divisible by PPQ"
+            ),
         })
         self.assertEqual(
             report["placed_mseq_clusters"]["payload_size_counts_by_event_presence"],

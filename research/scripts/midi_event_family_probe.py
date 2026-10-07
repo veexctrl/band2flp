@@ -19,8 +19,13 @@ FAMILY_TYPES = tuple(range(0x91, 0x9F))
 PPQ_CANDIDATE = 960
 
 
-def profile_note_field_shapes(records: list[dict[str, Any]]) -> dict[str, int]:
-    """Count MIDI-domain matches at unconfirmed Logic-derived byte offsets."""
+def profile_note_field_shapes(records: list[dict[str, Any]]) -> dict[str, int | str]:
+    """Count MIDI-domain matches at unconfirmed Logic-derived byte offsets.
+
+    The PPQ-divisibility count is descriptive only. A note duration expressed
+    in ticks need not be an integer number of beats (and thus need not be a
+    multiple of PPQ).
+    """
     selected: list[bytes] = []
     for record in records:
         event_type = record.get("type_byte")
@@ -46,6 +51,9 @@ def profile_note_field_shapes(records: list[dict[str, Any]]) -> dict[str, int]:
         "candidate_duration_word_nonzero_count": sum(value != 0 for value in durations),
         "candidate_duration_word_on_960_tick_grid_count": sum(
             value != 0 and value % PPQ_CANDIDATE == 0 for value in durations
+        ),
+        "duration_ppq_divisibility_note": (
+            "descriptive only; an integer tick duration need not be divisible by PPQ"
         ),
     }
 

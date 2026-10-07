@@ -1137,11 +1137,27 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Observation:** All 129 filtered `0x91`–`0x9e` records have a `+0x0b` byte in the nonzero MIDI velocity range and a `+0x0c` byte in the MIDI pitch range. Every `+0x1c` candidate word is nonzero, but none is divisible by 960.
 
-**Result:** The first-byte channel-voice pattern and MIDI-domain values are consistent with note-like records, but the field meanings remain HYPOTHESIS without controlled note edits. The candidate duration word does not support a direct integer-960-tick interpretation in this fixture, so the Logic-derived duration conversion is not applied to these opaque records.
+**Result:** The first-byte channel-voice pattern and MIDI-domain values are consistent with note-like records, but the field meanings remain HYPOTHESIS without controlled note edits. None of the candidate `+0x1c` words is divisible by 960. This divisibility result does not reject integer tick units: PPQ is ticks per beat, and a note duration need not be a whole number of beats. The Logic-derived duration conversion therefore remains unvalidated, rather than disproved, and is not applied to these opaque records.
 
-**Confidence:** CONFIRMED for the aggregate byte-range and divisibility profile in this fixture; HYPOTHESIS for note-on, velocity, and pitch semantics; UNKNOWN for duration units and generality.
+**Confidence:** CONFIRMED for the aggregate byte-range and divisibility profile in this fixture; HYPOTHESIS for note-on, velocity, and pitch semantics; UNKNOWN for duration units and generality. The lack of PPQ divisibility is not evidence against integer tick durations.
 
 **Next:** Change pitch, velocity, and duration separately in minimal GarageBand projects, then compare the same status-shaped record offsets and candidate duration scaling.
+
+## MIDI-021 — correct the interpretation of PPQ divisibility
+
+**Question:** Does a note-duration candidate that is not divisible by 960 rule out an integer tick duration?
+
+**Fixture:** The same locally inspected audio-bearing logic-song payload used in EVT-010. No note values, event bytes, identifiers, project labels, or audio are reported.
+
+**Method:** Recheck the EVT-010 test against the definition of PPQ. It counted candidate little-endian 32-bit words at event offset `+0x1c` that were exact multiples of 960, the Logic-derived ticks-per-beat candidate. No new field interpretation or source values are retained.
+
+**Observation:** EVT-010's aggregate result remains 0 of 129 words divisible by 960. That test asks whether each value is a whole number of beats when interpreted as ticks; it does not ask whether values can be integer ticks.
+
+**Result:** The old statement that the data does not support integer tick units was too strong. A tick duration may be any integer, including values not divisible by PPQ. The current evidence neither confirms nor rejects `+0x1c` as a tick duration; it remains a candidate field with UNKNOWN units.
+
+**Confidence:** CONFIRMED that the divisibility count is 0 of 129 in that fixture; UNKNOWN for the field's meaning and units.
+
+**Next:** Create two otherwise-identical GarageBand projects that differ only in one note's duration. Compare the candidate `+0x1c` word and other fields, then validate the mapping with a second duration edit before assigning units.
 
 
 ## AUD-003 — retain CAF packet-table timing metadata
