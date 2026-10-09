@@ -1499,9 +1499,11 @@ See [the detailed experiment](midi-source-extent-relations.md). MIDI-022's shift
 
 **Question:** Does GarageBand's cached arrangement preview independently constrain the candidate MIDI tick scale?
 
-**Method:** Calibrate pixels per beat from two ruler ticks, detect note glyph starts in two visible track rows, and compare them one-to-one with integer-onset projections at 480, 960 and 1,920 ticks per beat. Test single-pass, 3:2 stretch and repeated-source hypotheses, clipped to candidate placement extent and viewport. No pitch, glyph width or fractional-word interpretation contributes to timing scores. The image, labels and per-note values remain local.
+**Method:** Calibrate pixels per beat from two ruler ticks, detect note glyph starts in two visible track rows, and compare them one-to-one with integer-onset projections at 480, 960 and 1,920 ticks per beat. Test single-pass, 3:2 stretch and repeated-source hypotheses, clipped to candidate placement extent and viewport. For duration, compare only matched bars above the six-pixel display minimum and away from crop edges. The image, labels and per-note values remain local.
 
 **Observation:** At 960 ticks per beat, the single-pass projection matches all 19 visible starts in one row and all seven in the other within six pixels; mean residuals are 1.912 and 2.693 pixels. At 480 ticks, four and two starts match. At 1,920 ticks, two and two match for single pass; repeating at 1,920 matches 11 and four, with extra predictions. A 3:2 stretch at 960 matches three and one. At 960, single-pass and repeat are identical in the crop because the viewport ends before the candidate 64-beat source boundary.
+
+Five interior bars above the minimum display width in the second row agree with the 960-tick duration projection to a mean absolute width error of 2.579 pixels (maximum 4.434). No first-row bars qualify after the crop/minimum-width filters. This adds limited duration support; it does not resolve the repeat interpretation.
 
 **IDA validation:** After discovering that `source_event_index` is a variable-length logical record ordinal rather than a fixed-width slot, byte reads at the parser's actual event offsets match all 75 note records in the two displayed rows. The headless IDA database is raw data and has no functions.
 

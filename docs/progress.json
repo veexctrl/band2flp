@@ -31,7 +31,7 @@
       "name": "MIDI placement and note semantics",
       "weight": 18,
       "recovered": 36,
-      "basis": "Grouped preview retains five regions. A cached view supports 960 ticks on 26 visible notes in one fixture; note lengths and universal timing remain open."
+      "basis": "Grouped preview retains five regions. A cached view supports 960 ticks on 26 visible notes and five measurable durations in one fixture; full timing semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",

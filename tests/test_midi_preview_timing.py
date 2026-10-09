@@ -4,7 +4,7 @@ from fractions import Fraction
 import unittest
 
 from research.scripts.midi_preview_timing_probe import (
-    compare_starts, green_components, predicted_boxes,
+    compare_starts, compare_widths, green_components, predicted_boxes,
 )
 
 
@@ -57,6 +57,23 @@ class PreviewTimingTests(unittest.TestCase):
 
     def test_empty_residual_is_unavailable(self):
         self.assertIsNone(compare_starts([], [1], 2)["observed_residual"])
+
+    def test_widths_ignore_minimum_and_cropped_bars(self):
+        observed = [(1, 0, 7, 4), (20, 0, 26, 4), (35, 0, 50, 4)]
+        predicted = [(1, 7), (20, 26), (35, 50)]
+        result = compare_widths(observed, predicted, 1, (0, 50))
+        self.assertEqual(result["informative_width_count"], 0)
+        observed[0] = (1, 0, 19, 4)
+        predicted[0] = (1, 18)
+        result = compare_widths(observed, predicted, 1, (0, 50))
+        self.assertEqual(result["informative_width_count"], 1)
+        self.assertEqual(result["mean_absolute_width_error_pixels"], 1)
+
+    def test_width_comparison_validates_limits(self):
+        with self.assertRaises(ValueError):
+            compare_widths([], [], -1, (0, 10))
+        with self.assertRaises(ValueError):
+            compare_widths([], [], 1, (10, 0))
 
     def test_four_connected_components_and_bounds(self):
         self.assertEqual(green_components(Pixels(), (0, 0, 5, 5)),

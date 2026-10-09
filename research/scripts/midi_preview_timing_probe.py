@@ -124,6 +124,40 @@ def compare_starts(observed, predicted, tolerance):
             "predicted_residual": residuals(predicted, observed)}
 
 
+def compare_widths(observed_boxes, predicted_boxes, tolerance, viewport,
+                   minimum_width=6):
+    """Compare widths only for matched, interior bars above display minimum."""
+    left, right = viewport
+    observed = sorted(observed_boxes, key=lambda box: box[0])
+    predicted = sorted(predicted_boxes, key=lambda box: box[0])
+    if tolerance < 0 or right <= left or minimum_width <= 0:
+        raise ValueError("invalid width comparison bounds")
+    if len(observed) * len(predicted) > 2_000_000:
+        raise ValueError("comparison exceeds research limit")
+    i = j = 0
+    errors = []
+    while i < len(observed) and j < len(predicted):
+        delta = observed[i][0] - predicted[j][0]
+        if abs(delta) <= tolerance:
+            ow = observed[i][2] - observed[i][0]
+            pw = predicted[j][1] - predicted[j][0]
+            interior = (observed[i][0] > left and observed[i][2] < right
+                        and predicted[j][0] > left and predicted[j][1] < right)
+            if interior and ow > minimum_width and pw > minimum_width:
+                errors.append(abs(ow-pw))
+            i += 1
+            j += 1
+        elif delta < 0:
+            i += 1
+        else:
+            j += 1
+    return {"informative_width_count": len(errors),
+            "mean_absolute_width_error_pixels": (
+                round(float(sum(errors)/len(errors)), 3) if errors else None),
+            "maximum_absolute_width_error_pixels": (
+                round(float(max(errors)), 3) if errors else None)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project", type=Path)
@@ -163,7 +197,9 @@ def main():
                                         viewport=(args.roi[0], args.roi[2]))
             report.append({"ppq_hypothesis": ppq, "mode_hypothesis": mode,
                            **compare_starts([b[0] for b in boxes],
-                                            [b[0] for b in predicted], args.tolerance)})
+                                            [b[0] for b in predicted], args.tolerance),
+                           **compare_widths(boxes, predicted, args.tolerance,
+                                            (args.roi[0], args.roi[2]))})
     print(json.dumps({"confidence": "HYPOTHESIS; cached image may be stale",
                       "fraction_word_scaling": "UNKNOWN; integer onsets only",
                       "tolerance_pixels": args.tolerance, "hypotheses": report}, indent=2))
