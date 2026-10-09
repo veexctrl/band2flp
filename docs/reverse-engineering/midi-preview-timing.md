@@ -18,6 +18,8 @@ For the two visible rows, the 960-tick single-pass projection matches all 19 and
 
 Five interior, non-minimum-width bars in the second row also match the 960-tick duration projection with a mean absolute width error of 2.579 pixels and a maximum of 4.434 pixels. No bar in the first row qualifies after minimum-width and crop filters. This is limited duration evidence; at 1,920 ticks, alternative projections can match individual widths while accounting for far fewer starts.
 
+The fractional-word scale remains unresolved. Every start-matched note in each visible row has the same `position_fraction_raw` value, so the image supplies no within-row variation with which to fit a fractional multiplier independently of a row offset. Applying a Q16 tick fraction changes mean absolute residuals by less than raster precision (1.912 to 1.912 pixels in one row; 2.693 to 2.690 in the other). A larger tested fraction scale worsens the fit. These results do not establish that the word is a sub-tick fraction.
+
 At 960 ticks, the single-pass and repeat projections are identical in this crop: the candidate source length is 64 beats, while the visible ruler spans approximately beats 27.6–48.2. The crop ends before the candidate source boundary, so this preview does not discriminate repeat behavior. It also does not show the full region ends.
 
 The parser's event indices are logical record ordinals, not fixed-size slots. An initial 64-byte-slot IDA read failed and was discarded. After tracing each variable-length event's actual parsed offset, IDA byte reads matched all 75 candidate note records in the two visible rows exactly. The IDA database is a raw data segment with no functions; disassembly was not applicable. The Python tool and private image comparison remain reproducible from the local fixture.
@@ -26,7 +28,7 @@ The parser's event indices are logical record ordinals, not fixed-size slots. An
 
 **HIGH CONFIDENCE, fixture-specific:** the 960 tick scale and the existing integer-onset origin together explain the visible note starts much better than the tested alternatives. Five measurable note-bar widths also support the candidate durations at that scale. The IDA cross-check confirms that the parser's note records at the measured offsets match the raw logic-song component.
 
-This does not prove a universal PPQ value or origin. The fixture is uncontrolled, the preview may be stale, the two ruler anchors are manually read, and the window is cropped. The source and placement extent meanings, fractional-word scale, actual note lengths, and repeat/stretch semantics remain unresolved. The screen image is cached presentation evidence, not a substitute for a controlled GarageBand edit pair.
+This does not prove a universal PPQ value or origin. The fixture is uncontrolled, the preview may be stale, the two ruler anchors are manually read, and the window is cropped. The source and placement extent meanings, fractional-word scale, and repeat/stretch semantics remain unresolved; the width comparison gives limited support for the visible note lengths. The screen image is cached presentation evidence, not a substitute for a controlled GarageBand edit pair.
 
 ## Reproduction
 

@@ -1505,6 +1505,8 @@ See [the detailed experiment](midi-source-extent-relations.md). MIDI-022's shift
 
 Five interior bars above the minimum display width in the second row agree with the 960-tick duration projection to a mean absolute width error of 2.579 pixels (maximum 4.434). No first-row bars qualify after the crop/minimum-width filters. This adds limited duration support; it does not resolve the repeat interpretation.
 
+Every start-matched note within each visible row has the same raw fractional-word value, so there is no within-row variation to fit a fractional scale independently of the row offset. The tested Q16 tick conversion changes mean absolute residuals by 0.000 and 0.003 pixels in the two rows, beneath raster precision; a larger tested fraction scale worsens the fit. Fractional timing remains unknown.
+
 **IDA validation:** After discovering that `source_event_index` is a variable-length logical record ordinal rather than a fixed-width slot, byte reads at the parser's actual event offsets match all 75 note records in the two displayed rows. The headless IDA database is raw data and has no functions.
 
 **Confidence:** HIGH CONFIDENCE for the combined 960-tick/integer-onset hypothesis on visible rows of this fixture. Not universal: preview freshness, manual ruler calibration, integer origin and the uncontrolled fixture limit the result. Note durations, fractional scale, full region ends, and repeat/stretch semantics remain UNKNOWN or HYPOTHESIS. No exporter policy changes.
