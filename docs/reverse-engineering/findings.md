@@ -3,6 +3,7 @@
 ## Confirmed for the inspected fixture
 
 - The `.band` file is a ZIP package, and its member list can be inventoried without executing project contents.
+- ARR-038 independently compared every parsed `AuRg` payload and recognized audio-placement event in the metadata-only fixture against IDA reads at their reported offsets: all 9 of each matched byte-for-byte. This confirms the Python extraction offsets for that fixture, not any candidate field's meaning; no audio samples were opened.
 - The supplied archive has nine members (3,795,565 bytes uncompressed): project data, two plists, package metadata, cache metadata, and three PNG images. No member is a nested archive or recognized audio media file; the six audio resources are references, not embedded audio in this saved package.
 - `projectData` is an XML plist containing an `NSKeyedArchiver` graph.
 - The graph connects a document logic model to a song object with an `NS.data` payload.

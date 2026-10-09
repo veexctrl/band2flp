@@ -1526,3 +1526,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** HIGH CONFIDENCE that `+0x0c` orders visible notes by vertical pitch in these two rows of this fixture. UNKNOWN for its absolute MIDI key convention, semitone spacing, generality across event types, and exact GarageBand semantics. The screenshot may be stale and no controlled GarageBand pitch edit is available; this visual correlation does not replace one.
 
 **Next:** Change one note by a known semitone in a minimal GarageBand project and compare its corresponding event byte and preview position, then repeat at a second pitch.
+
+## ARR-038 - compare complete audio-region and placement records in IDA
+
+**Question:** Do every Python-reported `AuRg` and recognized audio-placement byte range in the metadata-only fixture correspond to the same bytes at the same addresses in its raw logic-song component?
+
+**Fixture and method:** Use the private metadata-only `.band` fixture and its extracted raw logic-song data. The archive payload and saved IDA input were independently hash-matched locally. Open the raw component in headless IDA and read all nine complete `AuRg` payloads and all nine recognized type-`0x24` placement records at Python-reported offsets. Compare bytes in memory; do not decode or emit audio data, record contents, names, or field values.
+
+**Observation:** All 9 of 9 `AuRg` payload reads and all 9 of 9 placement-record reads are byte-identical to Python's ranges. IDA reports one raw data segment and no functions, so disassembly is not applicable to this component.
+
+**Result:** The parser's chunk and record offsets are directly corroborated for every recognized audio region and placement in this fixture. This is byte-extraction validation only. It does not establish the semantics of `AuRg +0x16`, placement `+0x1c`, suffix fields, source offsets, trims, or duration.
+
+**Confidence:** CONFIRMED for the complete-range equality and candidate counts in this fixture; UNKNOWN for audio-region boundary semantics.
+
+**Next:** Seek controlled same-source region-length and trim changes; the current archive has no embedded audio source members for this fixture, so source-frame comparisons are not possible here.
