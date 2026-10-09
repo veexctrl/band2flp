@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-07",
+  "as_of": "2026-10-10",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 34,
-      "basis": "Opt-in grouped preview retains five MIDI regions on four rows/channels; static checks pass. Note, timing and track semantics remain open."
+      "recovered": 36,
+      "basis": "Grouped preview retains five regions. A cached view supports 960 ticks on 26 visible notes in one fixture; note lengths and universal timing remain open."
     },
     {
       "name": "Tempo and meter timeline",
@@ -54,12 +54,12 @@
     {
       "name": "Audio source and start recovery",
       "state": "partial: Apple Loop metadata and relative audio-row order recovered; absolute indices and cell placement unresolved",
-      "display_label": "ROW ORDER · INDEX OPEN"
+      "display_label": "ROW ORDER \u00b7 INDEX OPEN"
     },
     {
       "name": "MIDI interpretation",
-      "state": "early: grouped candidate-track preview passes static checks; GUI acceptance and GarageBand semantics remain unverified",
-      "display_label": "GROUPED MIDI · GUI OPEN"
+      "state": "partial: grouped FLP preview passes static checks; cached GarageBand note starts support a fixture-specific 960-tick hypothesis, while duration semantics remain open",
+      "display_label": "960 TICK PREVIEW MATCH"
     },
     {
       "name": "Region boundaries and track state",

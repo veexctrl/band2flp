@@ -40,7 +40,7 @@ The other supplied fixture has no recognized note-shaped candidates and supplies
 
 Run `python -m research.scripts.mseq_timing_relations_probe example.band`. The added results are aggregate counts; legacy shifted counts remain available with an explicit coordinate-system warning. Synthetic tests cover a negative shift whose placed bounds are valid despite failure against an origin-zero end, a finite three-halves ratio without assuming repeats, and adjacent regions whose source extent exceeds their final note end.
 
-The current archive payload matches its headless IDA input byte for byte. IDA read five MSeq source words, five shifts, ten placement position/extent words, and 266 note position/duration words. All **286** reads match Python. The saved cached arrangement image was independently matched byte for byte to an archive member. Its cropped timeline does not show the full extents, so it cannot validate the longer regions or repeat behavior. Neither the image nor source-derived music is published.
+The current archive payload matches its headless IDA input byte for byte. IDA read five MSeq source words, five shifts, ten placement position/extent words, and 266 note position/duration words. All **286** reads match Python. The saved cached arrangement image was independently matched byte for byte to an archive member. MIDI-026 compares the visible glyph starts with timing candidates; the cropped timeline still does not show full extents or the candidate source boundary, so repeat behavior remains untested. Neither the image nor source-derived music is published.
 
 ## Interpretation and alternatives
 
