@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 36,
-      "basis": "Grouped preview retains five regions. A cached view supports 960 ticks on 26 visible notes and five measurable durations in one fixture; full timing semantics remain open."
+      "recovered": 37,
+      "basis": "26 cached note starts and five longer bars support fixture timing; the candidate pitch byte predicts vertical note order in both visible rows. Absolute pitch mapping and universal semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",
@@ -58,8 +58,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "partial: grouped FLP preview passes static checks; cached GarageBand note starts support a fixture-specific 960-tick hypothesis, while duration semantics remain open",
-      "display_label": "960 TICK PREVIEW MATCH"
+      "state": "partial: cached preview supports fixture-specific onset, duration, and pitch-order candidates; absolute pitch mapping and controlled validation remain open",
+      "display_label": "PITCH ORDER \u00b7 PREVIEW MATCH"
     },
     {
       "name": "Region boundaries and track state",

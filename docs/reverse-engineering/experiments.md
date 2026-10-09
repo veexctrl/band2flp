@@ -1512,3 +1512,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** HIGH CONFIDENCE for the combined 960-tick/integer-onset hypothesis on visible rows of this fixture. Not universal: preview freshness, manual ruler calibration, integer origin and the uncontrolled fixture limit the result. Note durations, fractional scale, full region ends, and repeat/stretch semantics remain UNKNOWN or HYPOTHESIS. No exporter policy changes.
 
 **Next:** Compare a controlled one-beat note move or obtain an un-cropped current preview before promoting the timing inference beyond fixture-specific evidence. See [MIDI-026](midi-preview-timing.md) for the method, residuals, script, and limits.
+
+## MIDI-027 - compare candidate pitch byte with vertical preview position
+
+**Question:** Does the note candidate byte at event `+0x0c` predict vertical note positions in the cached GarageBand arrangement preview, independently of velocity?
+
+**Method:** First associate visible note glyphs with candidate notes by horizontal start using the MIDI-026 scale. Regress each row's glyph vertical center against candidate `+0x0c`, velocity, and fine-velocity values. Use a separate line per row to allow different vertical zoom settings, and report leave-one-candidate-value-out error to reduce in-sample fitting risk. No pitch value, pixel coordinate, screenshot, label, or audio is published.
+
+**Observation:** In the first row, 19 horizontal matches spanning four `+0x0c` values yield R² 0.99991 and leave-one-value-out mean absolute error 0.8004 pixels. The second row has seven matches and five values, R² 0.99986 and error 0.3432 pixels. Velocity and fine velocity each have R² below 0.008 in both rows. The independent row slopes differ, indicating different vertical zoom; there is no common pixel-to-pitch conversion.
+
+**IDA validation:** IDA reads at the parsed variable-length event offsets match all 75 candidate note records byte-for-byte; the `+0x0c` byte is present in every checked record.
+
+**Confidence:** HIGH CONFIDENCE that `+0x0c` orders visible notes by vertical pitch in these two rows of this fixture. UNKNOWN for its absolute MIDI key convention, semitone spacing, generality across event types, and exact GarageBand semantics. The screenshot may be stale and no controlled GarageBand pitch edit is available; this visual correlation does not replace one.
+
+**Next:** Change one note by a known semitone in a minimal GarageBand project and compare its corresponding event byte and preview position, then repeat at a second pitch.

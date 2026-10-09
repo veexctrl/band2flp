@@ -4,7 +4,7 @@ from fractions import Fraction
 import unittest
 
 from research.scripts.midi_preview_timing_probe import (
-    compare_starts, compare_widths, green_components, predicted_boxes,
+    compare_starts, compare_widths, fit_vertical_fields, green_components, predicted_boxes,
 )
 
 
@@ -74,6 +74,25 @@ class PreviewTimingTests(unittest.TestCase):
             compare_widths([], [], -1, (0, 10))
         with self.assertRaises(ValueError):
             compare_widths([], [], 1, (10, 0))
+
+    def test_vertical_field_fit_uses_x_associations_only(self):
+        boxes = [(10, 30, 16, 34), (20, 20, 26, 24), (30, 10, 36, 14)]
+        points = [(10, {"pitch": 40, "velocity": 80}),
+                  (20, {"pitch": 45, "velocity": 80}),
+                  (30, {"pitch": 50, "velocity": 80})]
+        result = fit_vertical_fields(boxes, points, 1)
+        self.assertEqual(result["matched_start_count"], 3)
+        self.assertEqual(result["field_fits"]["pitch"]["r_squared"], 1)
+        self.assertEqual(result["field_fits"]["pitch"][
+            "leave_one_value_out_mean_absolute_error_pixels"], 0)
+        self.assertEqual(result["field_fits"]["velocity"]["linear_fit"], "unavailable")
+
+    def test_vertical_field_fit_rejects_limits_and_short_samples(self):
+        with self.assertRaises(ValueError):
+            fit_vertical_fields([], [], -1)
+        result = fit_vertical_fields([(10, 0, 16, 4)],
+                                     [(10, {"pitch": 60})], 1)
+        self.assertEqual(result["field_fits"]["pitch"]["linear_fit"], "unavailable")
 
     def test_four_connected_components_and_bounds(self):
         self.assertEqual(green_components(Pixels(), (0, 0, 5, 5)),

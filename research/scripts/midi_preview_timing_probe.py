@@ -158,6 +158,74 @@ def compare_widths(observed_boxes, predicted_boxes, tolerance, viewport,
                 round(float(max(errors)), 3) if errors else None)}
 
 
+def fit_vertical_fields(observed_boxes, candidate_points, tolerance):
+    """Fit candidate note fields to preview y after one-to-one x association.
+
+    candidate_points contains (predicted_x, {field: integer_value}). The fit
+    is diagnostic only: each track can use an independent vertical zoom.
+    """
+    if tolerance < 0 or len(observed_boxes) * len(candidate_points) > 2_000_000:
+        raise ValueError("invalid vertical comparison or resource limit")
+    observed = sorted(observed_boxes, key=lambda box: box[0])
+    candidates = sorted(candidate_points, key=lambda point: point[0])
+    i = j = 0
+    pairs = []
+    while i < len(observed) and j < len(candidates):
+        delta = observed[i][0] - candidates[j][0]
+        if abs(delta) <= tolerance:
+            y = (observed[i][1] + observed[i][3]) / 2
+            pairs.append((candidates[j][1], y))
+            i += 1
+            j += 1
+        elif delta < 0:
+            i += 1
+        else:
+            j += 1
+    fields = sorted({name for values, _ in pairs for name in values})
+    result = {}
+    for field in fields:
+        samples = [(values[field], y) for values, y in pairs
+                   if isinstance(values.get(field), int)]
+        xs = [float(x) for x, _ in samples]
+        ys = [float(y) for _, y in samples]
+        distinct = len(set(xs))
+        if len(samples) < 3 or distinct < 2:
+            result[field] = {"sample_count": len(samples),
+                             "distinct_candidate_values": distinct,
+                             "linear_fit": "unavailable"}
+            continue
+        x_mean = sum(xs) / len(xs)
+        y_mean = sum(ys) / len(ys)
+        variance = sum((x-x_mean)**2 for x in xs)
+        slope = sum((x-x_mean)*(y-y_mean) for x, y in zip(xs, ys)) / variance
+        intercept = y_mean - slope*x_mean
+        residuals = [y-(intercept+slope*x) for x, y in zip(xs, ys)]
+        total = sum((y-y_mean)**2 for y in ys)
+        held_out_errors = []
+        for held_out in set(xs):
+            train = [(x, y) for x, y in zip(xs, ys) if x != held_out]
+            if len({x for x, _ in train}) < 2:
+                continue
+            train_x = sum(x for x, _ in train)/len(train)
+            train_y = sum(y for _, y in train)/len(train)
+            train_var = sum((x-train_x)**2 for x, _ in train)
+            train_slope = sum((x-train_x)*(y-train_y) for x, y in train)/train_var
+            train_intercept = train_y-train_slope*train_x
+            held_out_errors.extend(abs(y-(train_intercept+train_slope*x))
+                                   for x, y in zip(xs, ys) if x == held_out)
+        result[field] = {
+            "sample_count": len(samples),
+            "distinct_candidate_values": distinct,
+            "slope_pixels_per_value": round(slope, 4),
+            "mean_absolute_residual_pixels": round(
+                sum(abs(x) for x in residuals)/len(residuals), 4),
+            "r_squared": round(1-sum(x*x for x in residuals)/total, 5) if total else None,
+            "leave_one_value_out_mean_absolute_error_pixels": round(
+                sum(held_out_errors)/len(held_out_errors), 4) if held_out_errors else None,
+        }
+    return {"matched_start_count": len(pairs), "field_fits": result}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project", type=Path)
@@ -179,14 +247,27 @@ def main():
     except ImportError:
         parser.error("Pillow is required only for this research command")
     project = parse_band(args.project)
-    notes = [(n["position_ticks_from_38400_candidate"], n["duration_ticks_candidate"])
-             for n in project.project_data["midi_note_event_candidates"]
-             if n["candidate_mseq_chunk_indices_for_group"] == [args.mseq_index]]
-    if not notes:
+    candidate_notes = [n for n in project.project_data["midi_note_event_candidates"]
+                       if n["candidate_mseq_chunk_indices_for_group"] == [args.mseq_index]]
+    if not candidate_notes:
         parser.error("no uniquely linked note candidates for this MSeq index")
+    notes = [(n["position_ticks_from_38400_candidate"], n["duration_ticks_candidate"])
+             for n in candidate_notes]
     anchors = [(int(x), Fraction(beat)) for x, beat in args.anchor]
     with Image.open(args.preview) as image:
         boxes = green_components(image.convert("RGB"), args.roi)
+    (anchor_x, anchor_beat), (anchor_x2, anchor_beat2) = anchors
+    pixels_per_beat = Fraction(anchor_x2-anchor_x, 1)/(anchor_beat2-anchor_beat)
+    vertical_points = []
+    for note in candidate_notes:
+        x = anchor_x + (Fraction(note["position_ticks_from_38400_candidate"], 960)
+                        - anchor_beat)*pixels_per_beat
+        vertical_points.append((x, {
+            "pitch_candidate": note["pitch_candidate"],
+            "velocity_candidate": note["velocity_candidate"],
+            "fine_velocity_byte_candidate": note["fine_velocity_byte_candidate"],
+        }))
+    vertical_fit = fit_vertical_fields(boxes, vertical_points, args.tolerance)
     report = []
     for ppq in args.ppq:
         for mode in ("single", "stretch", "repeat"):
@@ -202,7 +283,9 @@ def main():
                                             (args.roi[0], args.roi[2]))})
     print(json.dumps({"confidence": "HYPOTHESIS; cached image may be stale",
                       "fraction_word_scaling": "UNKNOWN; integer onsets only",
-                      "tolerance_pixels": args.tolerance, "hypotheses": report}, indent=2))
+                      "tolerance_pixels": args.tolerance,
+                      "vertical_candidate_field_associations": vertical_fit,
+                      "hypotheses": report}, indent=2))
 
 
 if __name__ == "__main__":
