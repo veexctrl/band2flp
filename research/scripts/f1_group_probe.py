@@ -37,6 +37,7 @@ def profile_f1_groups(
     f1_records = [item for item in records if item.get("type_byte") == 0xF1]
     f1_groups: Counter[int] = Counter()
     f1_group_order: list[int] = []
+    note_candidate_groups: set[int] = set()
     raw_records: set[bytes] = set()
     lengths: Counter[int] = Counter()
     zero_group_count = 0
@@ -65,6 +66,23 @@ def profile_f1_groups(
             if not isinstance(offset, int) or offset < 0:
                 raise BandFormatError("F1 event has invalid payload offset")
             f1_offsets.add(offset)
+
+    # Mirror the parser's current note-candidate shape filter. This is only a
+    # structural overlap check; it does not identify GarageBand MIDI semantics.
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        raw_hex = record.get("raw_hex")
+        group = record.get("group_id_candidate")
+        if not isinstance(raw_hex, str) or not isinstance(group, int):
+            continue
+        try:
+            raw = bytes.fromhex(raw_hex)
+        except ValueError:
+            continue
+        if len(raw) >= 32 and 0x90 <= raw[0] <= 0x9F and raw[0x17] == 0x89:
+            note_candidate_groups.add(group)
+    f1_note_group_overlap = f1_groups.keys() & note_candidate_groups
 
     payload_scan: dict[str, Any] | None = None
     if payload is not None:
@@ -120,6 +138,8 @@ def profile_f1_groups(
         },
         "distinct_f1_raw_record_count": len(raw_records),
         "distinct_f1_group_count": len(f1_groups),
+        "f1_groups_with_note_candidate_events": len(f1_note_group_overlap),
+        "f1_groups_without_note_candidate_events": len(f1_groups.keys() - note_candidate_groups),
         "group_zero_record_count": zero_group_count,
         "group_order_comparisons": {
             "MSeq": {

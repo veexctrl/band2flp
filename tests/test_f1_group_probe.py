@@ -89,6 +89,22 @@ class F1GroupProbeTests(unittest.TestCase):
         })
         self.assertNotIn(raw.hex(), json.dumps(profile))
 
+    def test_reports_f1_groups_that_also_contain_note_candidate_shapes(self) -> None:
+        f1 = bytes([0xF1]) + bytes(15)
+        note = bytearray(80)
+        note[0] = 0x90
+        note[0x17] = 0x89
+        records = [
+            {"type_byte": 0xF1, "group_id_candidate": 7, "length": 16, "raw_hex": f1.hex()},
+            {"type_byte": 0x90, "group_id_candidate": 7, "length": 80, "raw_hex": note.hex()},
+            {"type_byte": 0xF1, "group_id_candidate": 8, "length": 16, "raw_hex": f1.hex()},
+        ]
+
+        profile, _ = profile_f1_groups(records, [])
+
+        self.assertEqual(profile["f1_groups_with_note_candidate_events"], 1)
+        self.assertEqual(profile["f1_groups_without_note_candidate_events"], 1)
+
     def test_reports_matching_marker_outside_f1_event_start(self) -> None:
         raw = bytes([0xF1, *range(1, 16)])
         record = {

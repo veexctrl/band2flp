@@ -1586,3 +1586,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the observed candidate counts, link cardinalities, `0xF1` range equality, and model retention in these components. UNKNOWN whether regions without recognized note candidates contain musical content in another structure, are empty, or are stale candidates; the repeated `0xF1` event does not resolve this.
 
 **Next:** Add fixtures with known empty and populated MIDI regions, then change only one note property to validate note-event recognition and timing independently.
+
+## MIDI-029 — test whether F1 events mark MIDI groups without note candidates
+
+**Question:** Is the repeated `0xF1` event exclusive to placement groups that have no recognized note-event candidates?
+
+**Fixtures and method:** Revisit the two private raw logic-song components used for MIDI-028. Compare `0xF1` event group candidates against the parser's current note-candidate filter (`0x90`–`0x9f` event types with the established marker byte). Report only group-count aggregates. Independently read one `0xF1` record from a note-candidate group through IDA MCP; do not publish group values or raw bytes.
+
+**Observation:** In the component with note candidates, all five note-candidate groups also contain an `0xF1` event. IDA independently confirms the 16-byte event range for one such group. The second component has no note-candidate groups. The repeated event therefore occurs both alongside note candidates and in MIDI placement groups without them.
+
+**Result:** `0xF1` presence does not distinguish empty MIDI regions from regions with note candidates. It remains an unknown event in a parallel serialized group sequence, not evidence that a placement is empty or populated.
+
+**Confidence:** CONFIRMED for the group overlap under the current parser filter and the representative IDA byte read in these fixtures. UNKNOWN for event meaning and for whether note-candidate groups correspond to musically populated GarageBand regions.
+
+**Next:** Compare a controlled empty MIDI region with a one-note region and track whether the `0xF1` event persists while only the note-event family changes.
