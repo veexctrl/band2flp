@@ -122,10 +122,15 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
         self.assertEqual(summary["midi_candidate_track_rows"], 2)
         self.assertEqual(summary["midi_track_fallback_count"], 1)
         self.assertEqual(summary["audio_channels"], 0)
+        self.assertEqual(
+            summary["midi_note_channel_candidate_policy"],
+            "not_mapped_to_FL_note_channel_or_color; source status-nibble semantics unconfirmed",
+        )
         self.assertEqual([item["channel_iid"] for item in summary["midi_candidates"]], [0, 0, 1])
         self.assertEqual([item["playlist_track_index"] for item in summary["midi_candidates"]], [3, 3, 4])
         self.assertEqual(summary["midi_candidates"][2]["fallback_reason"], "synthetic_missing_link")
         self.assertTrue(any("unconfirmed" in warning for warning in summary["warnings"]))
+        self.assertTrue(any("note channel candidates" in warning for warning in summary["warnings"]))
 
 
 if __name__ == "__main__":

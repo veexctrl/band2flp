@@ -792,6 +792,9 @@ def export_flp(
             ),
             "midi_candidate_patterns": len(midi_preview_items),
             "midi_candidate_channels": len(midi_channel_iids),
+            "midi_note_channel_candidate_policy": (
+                "not_mapped_to_FL_note_channel_or_color; source status-nibble semantics unconfirmed"
+            ),
             "midi_track_policy": midi_track_policy,
             "midi_candidate_track_rows": len({item["playlist_track_index"] for item in midi_preview_items}),
             "midi_track_fallback_count": sum(item["track_policy_applied"] == "separate-fallback" for item in midi_preview_items),
@@ -809,6 +812,8 @@ def export_flp(
                 "Full-source placeholder lengths do not represent GarageBand trims, loops, or playback stretching."
             ] if length_policy == "source-full" else []) + ([
                 "MIDI candidate placement and note data are provisional; track assignment, velocity meaning, and instrument are unconfirmed."
+            ] if midi_preview_items else []) + ([
+                "MIDI note channel candidates are retained in the neutral model but not mapped to the FL note channel/color field; source semantics are unconfirmed."
             ] if midi_preview_items else []) + ([
                 "MSeq text candidates are used as preview labels only; their role as a track or region name is unconfirmed."
             ] if any(" - " in item["display_name"] for item in midi_preview_items) else []),
