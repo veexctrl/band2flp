@@ -126,6 +126,9 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
             result["source_tempo_bpm_from_frames_candidate"] = round(
                 int(beats) * 60 * rate / valid_frames, 6
             )
-            result["tempo_confidence"] = "HYPOTHESIS: valid CAF frames may include edits or codec padding"
+            result["tempo_confidence"] = (
+                "HYPOTHESIS: beat-count convention and source frame window are unvalidated; "
+                "half/double-time interpretations remain possible"
+            )
     return result
 

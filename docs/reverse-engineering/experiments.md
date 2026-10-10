@@ -1288,6 +1288,22 @@ The ordered group-value sequence of `0xF1` event records also exactly matches th
 
 **Next:** Compare controlled ordinary-audio and Live Loops uses of one source, including a trim-only change, before assigning the source beat count to region length or repetition.
 
+## AUD-007 — test CAF beat-count tempo against frame-only and preview hypotheses
+
+**Question:** Does the literal CAF beat-count tag select a unique source tempo when compared with source-frame duration, candidate region windows, and the cached arrangement preview?
+
+**Fixture:** The same private beat-tagged CAF and project candidates used for AUD-002/AUD-005. Audio, source labels, project identity, exact tag values, frame counts, tempo values, and preview image are omitted.
+
+**Method:** Re-evaluate the CAF `desc`, `pakt`, and tagged `uuid` chunk boundaries in IDA without reading the audio-data chunk. Compare those bytes with the bounded Python parser. Independently compare the two `AuRg` frame-window fields for the four same-source candidates in IDA. Evaluate the literal beat-count/frame-duration estimate against the earlier frame-only interpretation and the approximate phrase length visible in the cached preview. No audio was extracted, decoded, or played.
+
+**Observation:** IDA matches the Python parser for the relevant CAF metadata chunks and for both frame-window fields in all four candidates. The literal beat-count-derived estimate and the earlier frame-only estimate differ by an exact factor of two. The shorter candidate source window corresponds to different beat counts under these two interpretations; the cached preview's approximate phrase length is closer to the double-time reading. The preview is not a controlled measurement, and AUD-005 found that adjacent candidate placement starts do not consistently follow the source beat-count tag.
+
+**Result:** The evidence exposes a half/double-time ambiguity; it does not identify which estimate GarageBand uses or whether the cached preview depicts a trimmed, stretched, or repeated source. The CAF beat tag may represent source tempo, but neither it nor the full-source frame duration determines an arrangement region length. No timing/export behavior is changed.
+
+**Confidence:** CONFIRMED for IDA/Python metadata and candidate-field byte agreement and the arithmetic relationship between the two interpretations. HYPOTHESIS for either source-tempo interpretation; UNKNOWN for the beat-count convention, preview scaling, and region playback behavior.
+
+**Next:** Obtain controlled same-source GarageBand saves that vary only a region trim or loop setting, plus an independently measured tempo/phrase length. Until then, preserve the tempo as a candidate and leave region duration unknown.
+
 ## AUD-006 — classify external CAF references by their stored path components
 
 **Question:** Do unresolved `AudioFiles` references preserve path information that identifies an Apple Loops source, and does that identify Live Loops cell usage?

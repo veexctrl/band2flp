@@ -34,6 +34,8 @@ class CafMetadataTests(unittest.TestCase):
         assert result is not None
         self.assertEqual(result["beat_count"], 4)
         self.assertEqual(result["source_tempo_bpm_from_frames_candidate"], 60)
+        self.assertIn("half/double-time", result["tempo_confidence"])
+        self.assertIn("HYPOTHESIS", result["tempo_confidence"])
         self.assertEqual(result["fields"]["time signature"], "4/4")
         self.assertEqual(result["sample_rate_hz"], 48000)
         self.assertEqual(result["valid_frames"], 192000)
