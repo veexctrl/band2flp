@@ -221,9 +221,11 @@ def main(argv: list[str] | None = None) -> int:
             )
         if project.unplaced_midi_regions:
             note_count = sum(len(region.notes) for region in project.unplaced_midi_regions)
+            no_note_count = sum(not region.notes for region in project.unplaced_midi_regions)
             print(
                 f"Unplaced MIDI region candidates: {len(project.unplaced_midi_regions)} "
-                f"({note_count} note candidates; track identity unconfirmed)"
+                f"({note_count} note candidates; {no_note_count} without recognized notes; "
+                "that does not confirm empty regions or track identity)"
             )
             source_extents = sum(getattr(region, "source_duration_beats_candidate", None) is not None
                                  for region in project.unplaced_midi_regions)

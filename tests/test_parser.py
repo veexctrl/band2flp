@@ -1526,7 +1526,11 @@ class ParserTests(unittest.TestCase):
 
     def test_text_inspection_summarizes_candidate_midi_status_families(self) -> None:
         project = Project()
-        project.unplaced_midi_regions = [SimpleNamespace(notes=[1, 2]), SimpleNamespace(notes=[3])]
+        project.unplaced_midi_regions = [
+            SimpleNamespace(notes=[1, 2]),
+            SimpleNamespace(notes=[3]),
+            SimpleNamespace(notes=[]),
+        ]
         project.project_data["event_sequences"] = {
             "record_count": 3,
             "records": [
@@ -1540,7 +1544,8 @@ class ParserTests(unittest.TestCase):
             result = cli_main(["inspect", "synthetic.band"])
         self.assertEqual(result, 0)
         self.assertIn("MIDI-status-shaped records: note_on=2, pitch_bend=1", output.getvalue())
-        self.assertIn("Unplaced MIDI region candidates: 2 (3 note candidates; track identity unconfirmed)", output.getvalue())
+        self.assertIn("Unplaced MIDI region candidates: 3 (3 note candidates; 1 without recognized notes; "
+                      "that does not confirm empty regions or track identity)", output.getvalue())
         self.assertIn("interpretation unconfirmed", output.getvalue())
 
     def test_midi_note_fields_are_exposed_as_unconfirmed_candidates(self) -> None:
