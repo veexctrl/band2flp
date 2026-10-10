@@ -101,3 +101,4 @@
 - The four linked GarageBand note-position candidates may be region-relative, consistent with controlled Logic Pro note-region behavior. Their timing origins and placement interpretation remain cross-format candidates requiring controlled GarageBand validation.
 
 - [MIDI-022](mseq-tail-timing.md) confirms 31 end-relative MSeq/placement word equalities in two fixtures, including two nonzero positions, and 68 IDA/Python byte matches. The position relationship is HIGH CONFIDENCE for these fixtures; GarageBand timing units, authority and duration semantics remain unconfirmed.
+- ARR-039 confirms that all 11 `AuRg` payload ranges and all 10 recognized audio-placement record ranges in the audio-bearing fixture match IDA's raw bytes exactly. This validates parser extraction boundaries only; it adds no field semantics or source/timeline mapping.

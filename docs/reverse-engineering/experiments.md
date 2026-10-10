@@ -1540,3 +1540,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the complete-range equality and candidate counts in this fixture; UNKNOWN for audio-region boundary semantics.
 
 **Next:** Seek controlled same-source region-length and trim changes; the current archive has no embedded audio source members for this fixture, so source-frame comparisons are not possible here.
+
+## ARR-039 - validate audio-region extraction in the audio-bearing fixture
+
+**Question:** Do Python-reported `AuRg` payloads and recognized audio-placement records match the same byte ranges in IDA's raw view of the audio-bearing fixture's logic-song component?
+
+**Fixture and method:** Use the private audio-bearing project and its extracted logic-song component. Enumerate every `AuRg` chunk payload and every event matching the parser's existing type-`0x24` placement candidate filter. Read each complete range through IDA MCP and compare it in memory with the parser's source bytes. Do not decode audio or emit record contents, names, or field values.
+
+**Observation:** IDA and Python agree byte-for-byte for all 11 `AuRg` payloads and all 10 recognized placement records. IDA reports a raw data segment with no functions; byte comparison is appropriate here, not disassembly.
+
+**Result:** The parser's offsets and complete-range boundaries are corroborated for every candidate in this fixture. This validates extraction only; it does not identify the meaning of any `AuRg` or placement field.
+
+**Confidence:** CONFIRMED for candidate counts and byte-range equality in this fixture. UNKNOWN for region/source identity, timing, trimming, looping, and field semantics.
+
+**Next:** Use controlled GarageBand edits that change only one audio-region property to test candidate fields against the resulting source-frame and timeline differences.
