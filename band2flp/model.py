@@ -25,6 +25,7 @@ class Track:
     kind: str = "unknown"
     regions: list[Region] = field(default_factory=list)
     unknown: dict[str, Any] = field(default_factory=dict)
+    index_confidence: str = "UNKNOWN"
 
 
 @dataclass

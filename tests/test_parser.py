@@ -1507,6 +1507,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(project.tracks), 1)
         track = project.tracks[0]
         self.assertEqual(track.index, 2)
+        self.assertEqual(track.index_confidence, "HYPOTHESIS")
+        self.assertEqual(project.to_dict()["tracks"][0]["index_confidence"], "HYPOTHESIS")
         self.assertEqual(track.kind, "audio")
         self.assertEqual(len(track.regions), 1)
         self.assertEqual(track.regions[0].start_beats, "16")

@@ -1015,6 +1015,7 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
             index=track_index,
             kind="audio",
             unknown={"garageband_track_number_1_based_candidate": track_number},
+            index_confidence="HYPOTHESIS",
         ))
         reference = references.get(placement["media_group_id_candidate"])
         stem = reference.reference.rsplit("/", 1)[-1].rsplit(".", 1)[0] if reference else None
