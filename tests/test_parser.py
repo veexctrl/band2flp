@@ -758,6 +758,7 @@ class ParserTests(unittest.TestCase):
         record = _pack_midi_note_candidate(96, 48, 65, 100, 7)
         decoded = struct.unpack("<IHHIHH8B", record)
         self.assertEqual(decoded[:6], (96, 0x4000, 7, 48, 65, 0))
+        self.assertEqual(decoded[9], 0)  # FL note channel/color field stays at its default.
         self.assertEqual(decoded[11], 100)
 
     def test_midi_preview_name_uses_bounded_candidate_label(self) -> None:
