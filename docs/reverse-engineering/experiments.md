@@ -1619,3 +1619,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the group overlap under the current parser filter and the representative IDA byte read in these fixtures. UNKNOWN for event meaning and for whether note-candidate groups correspond to musically populated GarageBand regions.
 
 **Next:** Compare a controlled empty MIDI region with a one-note region and track whether the `0xF1` event persists while only the note-event family changes.
+
+## MIDI-030 — inventory all records in placed MIDI groups
+
+**Question:** Do the recognized note-shaped records account for all event data in uniquely placed MIDI groups, and are other event-type candidates associated with note-bearing groups?
+
+**Fixtures and method:** Compare the two local private project archives. Follow each recognized MIDI placement to its uniquely linked `MSeq` chunk, then inventory all event records sharing those groups by first-byte type and serialized record length. Compare group presence with the current note-candidate classifier. The repeatable aggregate-only probe is `python -m research.scripts.midi_linked_event_inventory <project-a.band> <project-b.band>`. It omits raw records, group IDs, note values, names, paths, and media references. IDA MCP independently read seven representative ranges from note-bearing groups in the first fixture (types `0x32`, `0x90`, `0xB0`, `0xD1`, `0xE0`, `0xE5`, and `0xF1`) and one representative `0xF1` range from the second fixture. For each fixture, the logic-song payload hash matched the IDA-loaded input; all eight ranges matched Python byte-for-byte.
+
+**Observation:** All 19 MIDI placements in the first fixture and all 12 in the second uniquely link to one `MSeq`. The first has 292 event records across 19 groups and 47 distinct type-byte values; 133 records match the current note-shaped candidate filter. Type `0x32` appears in all five groups with note candidates and none of the other 14 groups. Types `0xB0`, `0xD1`–`0xDE`, and `0xE0`–`0xEE` also occur in note-bearing groups, with serialized lengths from 16 to 48 bytes. Type `0xF1` occurs once in each of the 19 groups, including both groups with and without note candidates. The second fixture has 12 records, all type `0xF1`, one per linked group, and no recognized note candidates.
+
+**Result:** The 133 recognized note-shaped records do not exhaust the records co-located with placed MIDI groups. The type-`0x32`/note-candidate association is a fixture-specific structural correlation, not an identified note or region event. The `0xB0`, `0xD*`, and `0xE*` values resemble MIDI status families, but their wrapped record lengths and payloads are not decoded as MIDI messages. No new event semantics or exporter behavior is inferred; the neutral model already preserves the raw unknown records.
+
+**Confidence:** CONFIRMED for aggregate type/length/group counts, the observed type-`0x32` overlap in this fixture, and the eight representative IDA/Python byte-range matches. UNKNOWN for event meanings, whether these events encode controllers or other state, and generality across GarageBand projects.
+
+**Next:** Compare controlled MIDI projects with and without one controller, pitch-bend, or channel-pressure edit, and a controlled empty versus one-note region. Track the raw event type, record length, group membership, and IDA-verified ranges without assuming MIDI-standard payload layout.

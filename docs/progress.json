@@ -12,8 +12,8 @@
     {
       "name": "Logic payload framing and event inventory",
       "weight": 13,
-      "recovered": 75,
-      "basis": "Chunk/event boundaries validated across fixtures; IDA confirmed 68 F1 ranges, 204 group fields, and 21 audio-region/placement ranges. Field semantics remain open."
+      "recovered": 76,
+      "basis": "Chunk/event boundaries validated across fixtures; MIDI-030 inventories 304 records in uniquely placed MIDI groups and IDA confirms representative ranges. Most event semantics remain open."
     },
     {
       "name": "Audio references and placement starts",
