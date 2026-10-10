@@ -31,7 +31,7 @@
       "name": "MIDI placement and note semantics",
       "weight": 18,
       "recovered": 37,
-      "basis": "26 cached note starts and five longer bars support fixture timing; the candidate pitch byte predicts vertical note order in both visible rows. Absolute pitch mapping and universal semantics remain open."
+      "basis": "Preview matches 26 candidate note starts and pitch order in two rows; the neutral model now preserves all 31 recognized placements. Absolute semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",

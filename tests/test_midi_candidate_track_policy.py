@@ -103,6 +103,12 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
             source_placement_event_index=2,
             unknown={"candidate_track_binding": {"status": "unavailable", "reason": "synthetic_missing_link"}},
         ))
+        regions.append(UnplacedMidiRegionCandidate(
+            start_beats_candidate="12", label_candidate=None, notes=[],
+            source_mseq_chunk_index=4, source_placement_chunk_index=8,
+            source_placement_event_index=3,
+            unknown=region(2).unknown,
+        ))
         project = Project(tempo_bpm=120, time_signature=(4, 4), unplaced_midi_regions=regions)
         with tempfile.TemporaryDirectory() as directory:
             result = export_flp(project, template_path=os.environ["BAND2FLP_TEST_TEMPLATE"],
@@ -110,6 +116,8 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
                                 include_midi_candidates=True, midi_track_policy="candidate-bindings")
             summary = result["summary"]
         self.assertEqual(summary["midi_candidate_patterns"], 3)
+        self.assertEqual(summary["midi_region_candidates"], 4)
+        self.assertEqual(summary["midi_region_candidates_without_recognized_notes"], 1)
         self.assertEqual(summary["midi_candidate_channels"], 2)
         self.assertEqual(summary["midi_candidate_track_rows"], 2)
         self.assertEqual(summary["midi_track_fallback_count"], 1)

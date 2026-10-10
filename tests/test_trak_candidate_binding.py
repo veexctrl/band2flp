@@ -8,9 +8,14 @@ import tempfile
 import unittest
 import zipfile
 
+from band2flp.model import Project
 from band2flp.parser import (
-    BandFormatError, _candidate_midi_track_binding, _link_trak_word_candidates,
-    _parse_trak_reference_candidates, parse_band,
+    BandFormatError,
+    _attach_unplaced_midi_region_candidates,
+    _candidate_midi_track_binding,
+    _link_trak_word_candidates,
+    _parse_trak_reference_candidates,
+    parse_band,
 )
 
 
@@ -122,6 +127,39 @@ class TrakCandidateBindingTests(unittest.TestCase):
         self.assertEqual([len(r["unknown"]["candidate_trak_word_links"])
                           for r in result["unplaced_midi_regions"]], [2, 2])
         self.assertEqual(result["tracks"], [])
+
+    def test_placements_without_recognized_notes_are_preserved_as_candidates(self):
+        def placement(chunk, event, mseqs):
+            return {
+                "source_chunk_index": chunk,
+                "source_event_index": event,
+                "candidate_mseq_chunk_indices": mseqs,
+                "start_beats_candidate": str(event * 2),
+                "track_value_candidate": 1,
+                "candidate_trak_word_links": [],
+                "candidate_trak_word_links_truncated": False,
+                "u32_at_0x1c_candidate": 960,
+                "position_ticks_from_origin_candidate": event * 1920,
+            }
+
+        project = Project(project_data={
+            "midi_region_placement_candidates": [
+                placement(20, 1, [4]),
+                placement(21, 2, [5, 6]),
+            ],
+            "midi_note_event_candidates": [],
+            "mseq_tail_word_candidates": [],
+        })
+        _attach_unplaced_midi_region_candidates(project)
+
+        self.assertEqual(len(project.unplaced_midi_regions), 2)
+        self.assertEqual([region.source_mseq_chunk_index for region in project.unplaced_midi_regions], [4, None])
+        self.assertTrue(all(region.notes == [] for region in project.unplaced_midi_regions))
+        self.assertTrue(all(region.unknown["note_content_status"] == "no_recognized_note_candidates"
+                            for region in project.unplaced_midi_regions))
+        self.assertTrue(all("does not establish that the region is empty"
+                            in region.unknown["note_content_note"]
+                            for region in project.unplaced_midi_regions))
 
 
 if __name__ == "__main__":

@@ -102,3 +102,4 @@
 
 - [MIDI-022](mseq-tail-timing.md) confirms 31 end-relative MSeq/placement word equalities in two fixtures, including two nonzero positions, and 68 IDA/Python byte matches. The position relationship is HIGH CONFIDENCE for these fixtures; GarageBand timing units, authority and duration semantics remain unconfirmed.
 - ARR-039 confirms that all 11 `AuRg` payload ranges and all 10 recognized audio-placement record ranges in the audio-bearing fixture match IDA's raw bytes exactly. This validates parser extraction boundaries only; it adds no field semantics or source/timeline mapping.
+- MIDI-028 found that the current recognized MIDI placement filter yields 31 one-to-one `MSeq`-linked candidates across two components, while the note-event filter only yields notes for five placements in one component. The neutral model now preserves the other 26 placement candidates with empty notes and explicit uncertainty; that does not confirm the source regions are empty.

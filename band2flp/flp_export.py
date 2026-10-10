@@ -394,7 +394,11 @@ def export_flp(
         raise FLPExportError("FLP or report output already exists; choose new paths")
 
     regions = [region for track in project.tracks for region in track.regions if region.kind == "audio"]
-    midi_regions = list(project.unplaced_midi_regions) if include_midi_candidates else []
+    midi_region_candidates = list(project.unplaced_midi_regions)
+    midi_regions = (
+        [region for region in midi_region_candidates if region.notes]
+        if include_midi_candidates else []
+    )
     if not regions and not midi_regions:
         raise FLPExportError("the neutral model contains no supported audio or MIDI candidates to export")
     if length_policy == "reject-unknown" and any(region.duration_beats is None for region in regions):
@@ -782,6 +786,10 @@ def export_flp(
             "ppq": roundtrip.ppq,
             "audio_channels": len(source_iid),
             "channel_count": roundtrip.channel_count,
+            "midi_region_candidates": len(midi_region_candidates),
+            "midi_region_candidates_without_recognized_notes": sum(
+                not region.notes for region in midi_region_candidates
+            ),
             "midi_candidate_patterns": len(midi_preview_items),
             "midi_candidate_channels": len(midi_channel_iids),
             "midi_track_policy": midi_track_policy,

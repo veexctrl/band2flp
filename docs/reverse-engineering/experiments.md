@@ -1554,3 +1554,19 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for candidate counts and byte-range equality in this fixture. UNKNOWN for region/source identity, timing, trimming, looping, and field semantics.
 
 **Next:** Use controlled GarageBand edits that change only one audio-region property to test candidate fields against the resulting source-frame and timeline differences.
+
+## MIDI-028 - preserve placements without recognized note events
+
+**Question:** Does building neutral MIDI regions only from recognized note events omit placements that otherwise link to an `MSeq` chunk?
+
+**Fixture and method:** Re-run the parser's placement, `MSeq`, and note-candidate linking stages on two private raw logic-song components loaded in IDA. Compare candidate counts and linkage cardinalities, without emitting payload bytes, names, note values, or audio.
+
+**Observation:** One component has 19 recognized MIDI placements, each linked to exactly one `MSeq`; five placements have uniquely linked note candidates and 14 do not. The second has 12 placements, each linked to exactly one `MSeq`, but no events match the current note-candidate filter. Before the change, the neutral model contained five and zero MIDI-region candidates respectively.
+
+**Change:** Retain every recognized placement as a neutral MIDI-region candidate. Regions with no uniquely linked recognized notes have `notes: []` and `note_content_status: no_recognized_note_candidates`; ambiguous `MSeq` links remain represented as candidate indices, with no source chunk invented. The FLP preview exporter skips these regions and reports their count rather than creating blank patterns.
+
+**Result:** The neutral model now preserves all 31 placements across these two components. This repairs information loss at the parser/model boundary; it does not show that a region is actually empty or establish the meanings of any placement fields.
+
+**Confidence:** CONFIRMED for the observed candidate counts, link cardinalities, and model retention in these components. UNKNOWN whether regions without recognized note candidates are empty, use unsupported event types, or are stale candidates.
+
+**Next:** Add fixtures with known empty and populated MIDI regions, then change only one note property to validate note-event recognition and timing independently.

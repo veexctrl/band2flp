@@ -44,7 +44,7 @@ class UnplacedMidiRegionCandidate:
     start_beats_candidate: str
     label_candidate: str | None
     notes: list[MidiNoteCandidate]
-    source_mseq_chunk_index: int
+    source_mseq_chunk_index: int | None
     source_placement_chunk_index: int
     source_placement_event_index: int
     unknown: dict[str, Any] = field(default_factory=dict)

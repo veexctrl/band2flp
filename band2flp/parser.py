@@ -763,7 +763,7 @@ def _parse_midi_note_candidates(
 
 
 def _attach_unplaced_midi_region_candidates(project: Project) -> None:
-    """Join uniquely linked note candidates without inventing arrange tracks."""
+    """Preserve MIDI placements and join only uniquely linked notes and tracks."""
     placements = project.project_data.get("midi_region_placement_candidates", [])
     placement_by_location = {
         (item["source_chunk_index"], item["source_event_index"]): item
@@ -807,8 +807,10 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
             },
         ))
     regions: list[UnplacedMidiRegionCandidate] = []
+    represented_locations: set[tuple[int, int]] = set()
     for (mseq_index, chunk_index, event_index), notes in grouped.items():
         placement = placement_by_location[(chunk_index, event_index)]
+        represented_locations.add((chunk_index, event_index))
         labels = placement.get("candidate_mseq_labels", [])
         label = labels[0]["text_candidate"] if len(labels) == 1 and labels[0]["status"] == "candidate" else None
         notes.sort(key=lambda item: (Fraction(item.onset_beats_candidate), item.source_chunk_index, item.source_event_index))
@@ -827,7 +829,38 @@ def _attach_unplaced_midi_region_candidates(project: Project) -> None:
                 "candidate_trak_word_links": placement.get("candidate_trak_word_links", []),
                 "candidate_track_binding": _candidate_midi_track_binding(placement, project.declared_track_count),
                 "extent_candidates": extents,
+                "note_content_status": "recognized_note_candidates_linked",
+                "note_content_note": "Only uniquely linked recognized note-shaped events are represented; other event types remain unknown.",
                 "confidence": "HYPOTHESIS for note timing, fields, label role, and placement track identity",
+            },
+        ))
+    for placement in placements:
+        location = (placement["source_chunk_index"], placement["source_event_index"])
+        if location in represented_locations:
+            continue
+        mseq_links = placement.get("candidate_mseq_chunk_indices", [])
+        mseq_index = mseq_links[0] if len(mseq_links) == 1 else None
+        labels = placement.get("candidate_mseq_labels", [])
+        label = labels[0]["text_candidate"] if len(labels) == 1 and labels[0]["status"] == "candidate" else None
+        tail_record = tail_by_mseq.get(mseq_index) if mseq_index is not None else None
+        extents = _midi_region_extent_candidates(placement, tail_record, [])
+        regions.append(UnplacedMidiRegionCandidate(
+            start_beats_candidate=placement["start_beats_candidate"],
+            label_candidate=label,
+            notes=[],
+            source_mseq_chunk_index=mseq_index,
+            source_placement_chunk_index=location[0],
+            source_placement_event_index=location[1],
+            placement_extent_beats_candidate=extents["placement_extent_beats_candidate"],
+            unknown={
+                "track_value_candidate": placement["track_value_candidate"],
+                "candidate_mseq_chunk_indices": mseq_links,
+                "candidate_trak_word_links": placement.get("candidate_trak_word_links", []),
+                "candidate_track_binding": _candidate_midi_track_binding(placement, project.declared_track_count),
+                "extent_candidates": extents,
+                "note_content_status": "no_recognized_note_candidates",
+                "note_content_note": "No uniquely associated events matched the current note candidate filter; this does not establish that the region is empty.",
+                "confidence": "HYPOTHESIS for MIDI placement, source link, extent, and track identity",
             },
         ))
     regions.sort(key=lambda item: (
