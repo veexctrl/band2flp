@@ -1479,6 +1479,11 @@ See [the detailed experiment](trak-note-subset-order.md). The existing note-shap
 **Next:** Export a separately labeled preview that groups MIDI regions by these neutral candidate bindings, with fallback diagnostics for unbound regions. Validate the emitted FLP structures statically; independent GarageBand/FL Studio visual comparison remains required.
 
 
+## TRK-019 - join selected-track UUID to placement word candidates
+
+See [the detailed experiment](trak-selected-track-link.md). In both fixtures, the selected UUID matches one 58-byte `Trak` record and that record's nonzero `+0x08` word is unique within its family but duplicated in the other family. It matches one MIDI placement in the first fixture, whose `+0x14` byte disagrees with the selected record's family ordinal. In the second, it matches one audio and one MIDI placement, and both bytes agree with the ordinal. IDA confirms both UUID fields and all five placement/reference word fields. This does not prove the word or ordinal identifies an arrange track; no model/export mapping is changed.
+
+
 ## FLP-035 - group provisional MIDI regions using neutral track bindings
 
 **Question:** Can the exporter preserve separate MIDI clips while grouping regions that share a neutral candidate track binding?

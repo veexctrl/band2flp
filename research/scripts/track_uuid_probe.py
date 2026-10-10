@@ -68,6 +68,18 @@ def selected_track_uuid(root: Any) -> uuid.UUID | None:
         return None
 
 
+def selected_track_uuid_from_archive(path: str | Path) -> uuid.UUID | None:
+    """Read the selected-track UUID from projectData without exposing it."""
+    project_path = Path(path)
+    with zipfile.ZipFile(project_path) as archive:
+        names = [info.filename for info in archive.infolist()]
+        member = _find_member(names, "/projectData")
+        if member is None:
+            raise BandFormatError("projectData member was not found")
+        root = _safe_plist(_read_member(archive, archive.getinfo(member)), member)
+    return selected_track_uuid(root)
+
+
 def find_uuid_payload_matches(
     payload: bytes, chunk_stream: dict[str, Any], value: uuid.UUID
 ) -> list[dict[str, Any]]:

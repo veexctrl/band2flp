@@ -15,9 +15,12 @@ from band2flp.parser import (
     _parse_midi_note_candidates,
 )
 from research.scripts.midi_region_timing_probe import _payload_from_archive
+from research.scripts.track_uuid_probe import selected_track_uuid_from_archive
 
 
-def profile_links(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
+def profile_links(
+    raw: bytes, stream: dict[str, Any], selected_track_uuid_bytes: bytes | None = None
+) -> dict[str, Any]:
     """Compare payload +8 in 58-byte Trak records with placement +16.
 
     Group values scope separate candidate families. They are not track kinds.
@@ -91,6 +94,55 @@ def profile_links(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         note_and_audio_bytes[p["event_id_candidate"]].add(p["track_number_1_based_candidate"])
     for p in with_notes:
         note_and_audio_bytes[p["event_id_candidate"]].add(p["track_value_candidate"])
+    selected_track_link: dict[str, Any] = {"uuid_available": selected_track_uuid_bytes is not None}
+    if selected_track_uuid_bytes is not None:
+        if len(selected_track_uuid_bytes) != 16:
+            raise BandFormatError("selected-track UUID must be 16 bytes")
+        selected_records = []
+        selected_ordinals: dict[int, int] = defaultdict(int)
+        for chunk in stream.get("chunks", []):
+            if chunk.get("type") != "Trak" or chunk.get("payload_size") != 58:
+                continue
+            start = chunk.get("payload_offset")
+            if not isinstance(start, int) or start < 0 or start > len(raw) - 58:
+                raise BandFormatError("selected-track Trak payload bounds are invalid")
+            group = chunk["group_id_candidate"]
+            selected_ordinals[group] += 1
+            if raw[start + 0x18:start + 0x28] == selected_track_uuid_bytes:
+                selected_records.append((group, selected_ordinals[group],
+                                         struct.unpack_from("<I", raw, start + 8)[0]))
+        selected_track_link["uuid_matching_trak_count"] = len(selected_records)
+        if len(selected_records) == 1:
+            group, ordinal, word = selected_records[0]
+            family_counts = by_group.get(group, Counter())
+            unique_word = word != 0 and family_counts[word] == 1
+            other_family_word_count = sum(
+                counts[word] for family, counts in by_group.items() if family != group
+            ) if word else 0
+            selected_track_link.update({
+                "word_nonzero": word != 0,
+                "word_unique_in_family": unique_word,
+                "word_occurrences_in_other_families": other_family_word_count,
+                "word_unique_across_families": unique_word and other_family_word_count == 0,
+                "audio_placement_word_match_count": sum(
+                    p["event_id_candidate"] == word for p in audio
+                ) if unique_word else 0,
+                "audio_track_byte_matches_ordinal_count": sum(
+                    p["event_id_candidate"] == word
+                    and p["track_number_1_based_candidate"] == ordinal for p in audio
+                ) if unique_word else 0,
+                "midi_placement_word_match_count": sum(
+                    p["event_id_candidate"] == word for p in midi
+                ) if unique_word else 0,
+                "midi_track_byte_matches_ordinal_count": sum(
+                    p["event_id_candidate"] == word
+                    and p["track_value_candidate"] == ordinal for p in midi
+                ) if unique_word else 0,
+            })
+    selected_track_link["confidence"] = (
+        "UNKNOWN; UUID-to-Trak and numeric placement matches are candidate associations, "
+        "not confirmed arrangement-track identity"
+    )
     return {
         "trak_families": families,
         "group4_group8_shared_nonzero_word_count": len(shared),
@@ -105,6 +157,7 @@ def profile_links(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
         "audio_and_note_bearing_midi_word_groups_with_conflicting_track_bytes": sum(
             len(v) > 1 for v in note_and_audio_bytes.values()
         ),
+        "selected_track_candidate_link": selected_track_link,
         "confidence": "UNKNOWN: word equalities are candidate links, not confirmed arrangement track identity",
         "privacy_note": "Counts and structural family values only; identifiers, labels, music and paths omitted.",
     }
@@ -112,7 +165,10 @@ def profile_links(raw: bytes, stream: dict[str, Any]) -> dict[str, Any]:
 
 def probe(path: Path) -> dict[str, Any]:
     raw = _payload_from_archive(path)
-    return profile_links(raw, _parse_chunk_stream(raw))
+    selected_uuid = selected_track_uuid_from_archive(path)
+    return profile_links(
+        raw, _parse_chunk_stream(raw), selected_uuid.bytes if selected_uuid is not None else None
+    )
 
 
 def main() -> int:

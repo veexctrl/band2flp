@@ -36,6 +36,7 @@ from research.scripts.flp_playlist_tail_probe import replace_one_tail_byte, repl
 from research.scripts.track_uuid_probe import (
     find_uuid_payload_matches,
     selected_track_uuid,
+    selected_track_uuid_from_archive,
     trak_uuid_field_profile,
 )
 from research.scripts.trak_uuid_archive_probe import profile_archive_references
@@ -611,6 +612,26 @@ class ParserTests(unittest.TestCase):
         }
 
         self.assertEqual(selected_track_uuid(root), selected)
+
+    def test_selected_track_uuid_archive_helper_reads_only_project_data(self) -> None:
+        selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
+        root = {
+            "$objects": [
+                "$null",
+                {"CBData": plistlib.UID(2)},
+                {"NS.keys": [plistlib.UID(3)], "NS.objects": [plistlib.UID(4)]},
+                "previousCurrentTrackUUID",
+                {"NS.string": str(selected)},
+            ],
+            "$top": {"DfDocument arrange model": plistlib.UID(1)},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory) / "fixture.band"
+            with zipfile.ZipFile(package, "w") as archive:
+                archive.writestr("fixture.band/projectData", plistlib.dumps(root, fmt=plistlib.FMT_BINARY))
+                archive.writestr("fixture.band/private-data", b"unused")
+
+            self.assertEqual(selected_track_uuid_from_archive(package), selected)
 
     def test_track_uuid_probe_matches_payload_bytes_without_returning_uuid(self) -> None:
         selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")

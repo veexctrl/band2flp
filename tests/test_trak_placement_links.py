@@ -1,3 +1,4 @@
+import json
 import struct
 import unittest
 
@@ -5,12 +6,14 @@ from band2flp.parser import BandFormatError
 from research.scripts.trak_placement_link_probe import profile_links
 
 
-def fixture(traks, placements, *, mseq_groups=(), note_groups=()):
+def fixture(traks, placements, *, mseq_groups=(), note_groups=(), selected_uuid=None):
     raw = bytearray()
     chunks = []
-    for group, word in traks:
+    for index, (group, word) in enumerate(traks):
         payload = bytearray(58)
         struct.pack_into("<I", payload, 8, word)
+        if selected_uuid is not None and index == 0:
+            payload[0x18:0x28] = selected_uuid
         chunks.append({"type": "Trak", "index": len(chunks), "payload_offset": len(raw),
                        "payload_size": 58, "group_id_candidate": group, "offset": len(raw)})
         raw.extend(payload)
@@ -43,6 +46,27 @@ def fixture(traks, placements, *, mseq_groups=(), note_groups=()):
 
 
 class TrakPlacementLinkTests(unittest.TestCase):
+    def test_selected_track_uuid_candidate_word_is_profiled_without_exposing_it(self):
+        selected_uuid = bytes(range(1, 17))
+        raw, stream = fixture(
+            [(0x40000, 100), (0x80000, 100)],
+            [(0x24, 100, 1), (0x20, 100, 2)],
+            selected_uuid=selected_uuid,
+        )
+
+        report = profile_links(raw, stream, selected_uuid)
+
+        selected = report["selected_track_candidate_link"]
+        self.assertEqual(selected["uuid_matching_trak_count"], 1)
+        self.assertTrue(selected["word_unique_in_family"])
+        self.assertEqual(selected["word_occurrences_in_other_families"], 1)
+        self.assertFalse(selected["word_unique_across_families"])
+        self.assertEqual(selected["audio_placement_word_match_count"], 1)
+        self.assertEqual(selected["audio_track_byte_matches_ordinal_count"], 1)
+        self.assertEqual(selected["midi_placement_word_match_count"], 1)
+        self.assertEqual(selected["midi_track_byte_matches_ordinal_count"], 0)
+        self.assertNotIn(selected_uuid.hex(), json.dumps(report))
+
     def test_unique_word_links_can_conflict_with_track_bytes(self):
         report = profile_links(*fixture([(0x40000, 100), (0x80000, 100)],
                                         [(0x24, 100, 2), (0x20, 100, 3)]))
