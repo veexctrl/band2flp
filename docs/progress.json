@@ -54,12 +54,12 @@
     {
       "name": "Audio source and start recovery",
       "state": "partial: Apple Loop metadata and relative audio-row order recovered; absolute indices and cell placement unresolved",
-      "display_label": "ROW ORDER \u00b7 INDEX OPEN"
+      "display_label": "ROW ORDER · INDEX OPEN"
     },
     {
       "name": "MIDI interpretation",
       "state": "partial: cached preview supports fixture-specific onset, duration, and pitch-order candidates; absolute pitch mapping and controlled validation remain open",
-      "display_label": "PITCH ORDER \u00b7 PREVIEW MATCH"
+      "display_label": "PITCH ORDER · PREVIEW MATCH"
     },
     {
       "name": "Region boundaries and track state",
@@ -67,9 +67,9 @@
       "display_label": "FRAME-WINDOW RELATION"
     },
     {
-      "name": "FL Studio audio clip loading",
-      "state": "partial: source-matched WAV loads; optional FFmpeg conversion available; playback unverified",
-      "display_label": "SOURCE MATCH + WAV"
+      "name": "FL Studio output",
+      "state": "Synthetic MIDI notes are editable in FL Studio 25 and source-matched WAV clips load; playback and other versions remain unverified.",
+      "display_label": "EDITABLE MIDI + WAV"
     }
   ]
 }
