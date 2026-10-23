@@ -6,6 +6,12 @@ from research.scripts.mseq_event_scope_probe import inventory_scope
 
 
 class MseqEventScopeProbeTests(unittest.TestCase):
+    @staticmethod
+    def _raw_event(event_type: int, length: int) -> str:
+        raw = bytearray(length)
+        raw[0] = event_type
+        return bytes(raw).hex()
+
     def test_separates_unique_ambiguous_and_unplaced_mseq_groups(self) -> None:
         chunks = [
             {"type": "MSeq", "index": 1, "group_id_candidate": 0xD001},
@@ -27,12 +33,16 @@ class MseqEventScopeProbeTests(unittest.TestCase):
             {"candidate_mseq_chunk_indices": [7]},
         ]
         records = [
-            {"group_id_candidate": 0xD001, "type_byte": 0x32, "length": 32},
+            {"group_id_candidate": 0xD001, "type_byte": 0x32, "length": 32,
+             "raw_hex": self._raw_event(0x32, 32)},
             {"group_id_candidate": 0xD001, "type_byte": 0x90, "length": 32},
-            {"group_id_candidate": 0xD002, "type_byte": 0x32, "length": 48},
+            {"group_id_candidate": 0xD002, "type_byte": 0x32, "length": 48,
+             "raw_hex": self._raw_event(0x32, 48)},
             {"group_id_candidate": 0xD003, "type_byte": 0xF1, "length": 16},
-            {"group_id_candidate": 0xD004, "type_byte": 0x32, "length": 32},
-            {"group_id_candidate": 0xD005, "type_byte": 0x32, "length": 32},
+            {"group_id_candidate": 0xD004, "type_byte": 0x32, "length": 32,
+             "raw_hex": self._raw_event(0x32, 32)},
+            {"group_id_candidate": 0xD005, "type_byte": 0x32, "length": 32,
+             "raw_hex": self._raw_event(0x32, 32)},
         ]
 
         result = inventory_scope(records, chunks, placements, {0xD001})
@@ -98,6 +108,13 @@ class MseqEventScopeProbeTests(unittest.TestCase):
             "length": 32,
             "raw_hex": "00",
         }
+        with self.assertRaises(BandFormatError):
+            inventory_scope([record], [chunk], [placement])
+
+    def test_rejects_type_32_record_without_raw_bytes(self) -> None:
+        chunk = {"type": "MSeq", "index": 1, "group_id_candidate": 0xD001}
+        placement = {"candidate_mseq_chunk_indices": [1]}
+        record = {"group_id_candidate": 0xD001, "type_byte": 0x32, "length": 32}
         with self.assertRaises(BandFormatError):
             inventory_scope([record], [chunk], [placement])
 

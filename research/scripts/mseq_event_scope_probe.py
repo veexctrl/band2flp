@@ -77,17 +77,16 @@ def inventory_scope(
         groups_by_type_32[group] += 1
         type_32_lengths_by_group[group][length] += 1
         raw_hex = record.get("raw_hex")
-        if raw_hex is not None:
-            if not isinstance(raw_hex, str):
-                raise BandFormatError("type-0x32 event has invalid raw bytes")
-            try:
-                raw = bytes.fromhex(raw_hex)
-            except ValueError as exc:
-                raise BandFormatError("type-0x32 event has invalid raw bytes") from exc
-            if len(raw) != length:
-                raise BandFormatError("type-0x32 event length does not match raw bytes")
-            type_32_payloads_by_length[length].append((record, raw))
-            type_32_event_records.append((record, raw))
+        if not isinstance(raw_hex, str):
+            raise BandFormatError("type-0x32 event has invalid raw bytes")
+        try:
+            raw = bytes.fromhex(raw_hex)
+        except ValueError as exc:
+            raise BandFormatError("type-0x32 event has invalid raw bytes") from exc
+        if len(raw) != length:
+            raise BandFormatError("type-0x32 event length does not match raw bytes")
+        type_32_payloads_by_length[length].append((record, raw))
+        type_32_event_records.append((record, raw))
 
     payload_profiles: dict[str, dict[str, Any]] = {}
     for length, entries in sorted(type_32_payloads_by_length.items()):
