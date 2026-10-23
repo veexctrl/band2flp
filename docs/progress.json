@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-10",
+  "as_of": "2026-10-23",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -24,8 +24,8 @@
     {
       "name": "Region lengths, trims, loops, and offsets",
       "weight": 17,
-      "recovered": 15,
-      "basis": "Neutral MIDI source/placed extent candidates and AuRg source-window leads are retained; actual duration, trims, repeats and stretch remain open."
+      "recovered": 16,
+      "basis": "ARR-040 found two distinct, duplicated AuRg frame pairs in one source whose sums equal its CAF frame count; offset/trim meaning remains hypothetical."
     },
     {
       "name": "MIDI placement and note semantics",
@@ -63,8 +63,8 @@
     },
     {
       "name": "Region boundaries and track state",
-      "state": "partial: neutral source/placement MIDI extent candidates; duration, repeat/stretch and track state unconfirmed",
-      "display_label": "MIDI EXTENT CANDIDATES"
+      "state": "partial: MIDI extent candidates and an AuRg source-frame window relation; duration, trim/repeat/stretch and track state unconfirmed",
+      "display_label": "FRAME-WINDOW RELATION"
     },
     {
       "name": "FL Studio audio clip loading",
