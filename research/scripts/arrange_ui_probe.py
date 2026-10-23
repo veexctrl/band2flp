@@ -55,9 +55,15 @@ def profile_arrange_ui(archive: Any) -> dict[str, Any]:
         None,
     )
     fields = _entries(objects, state)
+    cell_grid_fields = [
+        {"key": key, "value_type": type(value).__name__}
+        for key, value in _entries(objects, cb_data)
+        if "cell" in key.lower() or "grid" in key.lower()
+    ]
     return {
         "arrange_model_found": isinstance(arrange, dict),
         "cbdata_found": isinstance(cb_data, dict),
+        "cell_grid_state_fields": cell_grid_fields,
         "track_inspector_state_found": state is not None,
         "track_inspector_state_field_count": len(fields),
         "track_inspector_state_fields": [
