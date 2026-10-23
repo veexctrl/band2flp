@@ -177,6 +177,9 @@ def profile_source_frame_window_candidates(
         counts["nonzero_without_unique_zero_baseline"] += sum(first != 0 for first, _ in pairs)
     pair_count = counts["candidate_pair_count"]
     if pair_count:
+        distinct_pair_count = len(set(pairs))
+        counts["distinct_candidate_pair_count"] = distinct_pair_count
+        counts["duplicate_candidate_pair_count"] = pair_count - distinct_pair_count
         counts["source_has_window_candidates"] = 1
         if source_frames is None:
             counts["source_length_unknown_with_windows"] = 1

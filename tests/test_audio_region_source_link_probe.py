@@ -50,6 +50,20 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         result = profile_source_frame_window_candidates(100, [bytes(full), bytes(partial)])
         self.assertEqual(result["source_has_mixed_window_sums"], 1)
 
+    def test_source_frame_window_counts_distinct_pairs_separately_from_repeats(self) -> None:
+        full = bytearray(0x1A)
+        full[0x16:0x1A] = (100).to_bytes(4, "little")
+        partial = bytearray(full)
+        partial[0x06:0x0A] = (25).to_bytes(4, "little")
+        partial[0x16:0x1A] = (75).to_bytes(4, "little")
+        result = profile_source_frame_window_candidates(
+            100, [bytes(full), bytes(full), bytes(partial), bytes(partial)]
+        )
+        self.assertEqual(result["candidate_pair_count"], 4)
+        self.assertEqual(result["distinct_candidate_pair_count"], 2)
+        self.assertEqual(result["duplicate_candidate_pair_count"], 2)
+        self.assertEqual(result["source_all_windows_sum_to_full_length"], 1)
+
     def test_candidate_links_are_counted_without_assigning_region_semantics(self) -> None:
         result = profile_source_link_candidates(
             source_frames=100,
