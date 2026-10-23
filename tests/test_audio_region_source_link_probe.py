@@ -24,6 +24,7 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         self.assertEqual(result["first_nonzero"], 1)
         self.assertEqual(result["sum_equals_source_frames"], 2)
         self.assertEqual(result["nonzero_sum_equals_zero_baseline"], 1)
+        self.assertEqual(result["source_all_windows_sum_to_full_length"], 1)
 
     def test_source_frame_window_reports_unavailable_source(self) -> None:
         result = profile_source_frame_window_candidates(None, [bytes(0x1A), b"short"])
@@ -38,6 +39,16 @@ class AudioRegionSourceLinkProbeTests(unittest.TestCase):
         shorter[0x16:0x1A] = (70).to_bytes(4, "little")
         result = profile_source_frame_window_candidates(None, [bytes(whole), bytes(shorter)])
         self.assertEqual(result["nonzero_sum_below_zero_baseline"], 1)
+        self.assertEqual(result["source_length_unknown_with_windows"], 1)
+
+    def test_source_frame_window_reports_mixed_matches_per_source(self) -> None:
+        full = bytearray(0x1A)
+        full[0x16:0x1A] = (100).to_bytes(4, "little")
+        partial = bytearray(full)
+        partial[0x06:0x0A] = (20).to_bytes(4, "little")
+        partial[0x16:0x1A] = (70).to_bytes(4, "little")
+        result = profile_source_frame_window_candidates(100, [bytes(full), bytes(partial)])
+        self.assertEqual(result["source_has_mixed_window_sums"], 1)
 
     def test_candidate_links_are_counted_without_assigning_region_semantics(self) -> None:
         result = profile_source_link_candidates(

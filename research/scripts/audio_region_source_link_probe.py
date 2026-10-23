@@ -139,7 +139,11 @@ def profile_candidate_region_payloads(
 def profile_source_frame_window_candidates(
     source_frames: int | None, region_payloads: list[bytes]
 ) -> dict[str, int]:
-    """Compare AuRg +0x06 and +0x16 words with source frames, without naming them."""
+    """Compare AuRg +0x06 and +0x16 words with source frames, without naming them.
+
+    Source-level flags let the caller distinguish a consistent per-source
+    relation from several unrelated candidate pairs that happen to aggregate.
+    """
     counts: collections.Counter[str] = collections.Counter()
     pairs: list[tuple[int, int]] = []
     for payload in region_payloads:
@@ -171,6 +175,17 @@ def profile_source_frame_window_candidates(
             counts[f"nonzero_sum_{relation}_zero_baseline"] += 1
     elif any(first for first, _ in pairs):
         counts["nonzero_without_unique_zero_baseline"] += sum(first != 0 for first, _ in pairs)
+    pair_count = counts["candidate_pair_count"]
+    if pair_count:
+        counts["source_has_window_candidates"] = 1
+        if source_frames is None:
+            counts["source_length_unknown_with_windows"] = 1
+        elif counts["sum_equals_source_frames"] == pair_count:
+            counts["source_all_windows_sum_to_full_length"] = 1
+        elif counts["sum_equals_source_frames"]:
+            counts["source_has_mixed_window_sums"] = 1
+        else:
+            counts["source_no_windows_sum_to_full_length"] = 1
     return dict(sorted(counts.items()))
 
 

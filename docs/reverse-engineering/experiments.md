@@ -1590,6 +1590,20 @@ Every start-matched note within each visible row has the same raw fractional-wor
 
 **Next:** Use controlled GarageBand edits that change only one audio-region property to test candidate fields against the resulting source-frame and timeline differences.
 
+## ARR-040 — compare paired AuRg frame candidates with source length
+
+**Question:** Do the `AuRg` words at payload `+0x06` and `+0x16` form a repeatable source-frame boundary when compared within a single referenced audio source?
+
+**Fixture and method:** Re-run the aggregate-only source-link probe on both local projects. For each embedded `AudioFiles` source, compare filename-stem-associated `AuRg` candidate pairs with the source's CAF frame count. Count source-level outcomes as well as individual pair matches so matches from unrelated sources cannot be combined. Do not decode, extract, play, or publish audio. The aggregate probe emits no source names, field values, paths, or payloads. Read the four complete candidate `AuRg` ranges through IDA MCP and compare them with Python's extracted logic-song component bytes.
+
+**Observation:** In the audio-bearing fixture, one source has four associated `AuRg` candidates; all four satisfy `+0x06 + +0x16 = source frame count`. Two `+0x06` candidates are zero and two are nonzero. The other embedded sources have no such candidate pairs. The four complete 216-byte candidate payloads match IDA MCP byte-for-byte. The metadata-only fixture has nine candidate pairs but no embedded audio members, so their source-frame relationship cannot be tested.
+
+**Result:** The exact sum is a repeatable within-source structural relation in one fixture, not a collection of matches across unrelated sources. It supports a hypothesis that the two words partition a source-frame window, such as source offset plus remaining region frames, but other field roles or cached values remain possible. No duration, trim, or source-offset field is promoted into the neutral model or exporter.
+
+**Confidence:** CONFIRMED for the four arithmetic equalities, source grouping under the current filename-stem association, absence of an embedded source-frame comparator in the second fixture, and IDA/Python byte agreement. HYPOTHESIS for an offset/length interpretation; UNKNOWN for GarageBand trim, playback, and timeline semantics.
+
+**Next:** Create same-source GarageBand saves with a region that ends at the source boundary, then trim its head and tail separately. Check whether `+0x06` and `+0x16` change by the corresponding source-frame deltas while region placement stays fixed.
+
 ## MIDI-028 - preserve placements without recognized note events
 
 **Question:** Does building neutral MIDI regions only from recognized note events omit placements that otherwise link to an `MSeq` chunk?
