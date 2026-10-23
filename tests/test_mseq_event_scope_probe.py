@@ -139,6 +139,18 @@ class MseqEventScopeProbeTests(unittest.TestCase):
                 "length": 32,
                 "raw_hex": bytes(raw).hex(),
             })
+        control_raw = bytearray(32)
+        control_raw[0] = 0xB0
+        control_raw[2:4] = (7).to_bytes(2, "little")
+        control_raw[4:8] = (100).to_bytes(4, "little")
+        records.append({
+            "group_id_candidate": groups[0],
+            "chunk_index": 4,
+            "event_index": 4,
+            "type_byte": 0xB0,
+            "length": 32,
+            "raw_hex": bytes(control_raw).hex(),
+        })
         notes = [
             {
                 "source_group_id_candidate": groups[0],
@@ -166,6 +178,7 @@ class MseqEventScopeProbeTests(unittest.TestCase):
             result["type_32_timestamp_candidate_counts"],
             {
                 "eligible_record_count": 2,
+                "same_group_note_candidate_record_count": 1,
                 "same_group_position_word_match_record_count": 1,
                 "same_group_exact_fractional_position_match_record_count": 1,
                 "any_group_position_word_match_record_count": 2,
@@ -175,6 +188,21 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         self.assertEqual(
             result["type_32_matching_note_event_type_counts"],
             {"0x90": 1, "0x91": 1},
+        )
+        self.assertEqual(
+            result["non_note_event_position_candidate_matches"],
+            {
+                "0x32": {
+                    "eligible_record_count": 1,
+                    "same_group_position_word_match_record_count": 1,
+                    "same_group_exact_fractional_position_match_record_count": 1,
+                },
+                "0xb0": {
+                    "eligible_record_count": 1,
+                    "same_group_position_word_match_record_count": 1,
+                    "same_group_exact_fractional_position_match_record_count": 1,
+                },
+            },
         )
         self.assertIn("HYPOTHESIS", result["type_32_timestamp_candidate_interpretation"])
         self.assertNotIn("D101", json.dumps(result))

@@ -1682,10 +1682,24 @@ Every start-matched note within each visible row has the same raw fractional-wor
 
 **Fixtures and method:** Extend the aggregate type-`0x32` profile to compare the two words with note candidates' existing `position_fraction_raw` and `position_raw` fields. Count exact matches within the same candidate group and across all groups. The comparison uses candidate fields derived from Logic-family structure and does not treat them as confirmed GarageBand positions. Emit only counts; no note positions, groups, event payloads, or media are included.
 
-**Observation:** The audio-bearing fixture has six type-`0x32` records with at least eight payload bytes. Four match both candidate words against one or more note candidates in the same group; five match both words against a candidate note somewhere in the fixture. The four same-group records correspond to five matching note candidates because one timestamp is shared. The metadata-only fixture has nine records but no recognized note candidates, so it offers no note-position comparison.
+**Observation:** The audio-bearing fixture has six type-`0x32` records with at least eight payload bytes; five occur in groups with recognized note candidates. Four match both candidate words against one or more note candidates in the same group, and five match both words against a candidate note somewhere in the fixture. The four same-group records correspond to five matching note candidates because one timestamp is shared. The metadata-only fixture has nine records but no recognized note candidates, so it offers no note-position comparison.
 
 **Result:** The `+0x02/+0x04` pair is a HIGH CONFIDENCE exact match to note-candidate position fields for four type-`0x32` records in one fixture. A shared event-time interpretation remains a HYPOTHESIS; coincident timing is also possible. The result does not identify the `0x32` event role, establish GarageBand timing units, or justify exporting these records as notes. The existing note-field interpretation remains a Logic-derived HYPOTHESIS.
 
 **Confidence:** CONFIRMED for the observed exact equalities and aggregate counts. HYPOTHESIS for a shared timestamp representation; UNKNOWN for the event semantics and transfer to GarageBand.
 
 **Next:** Use controlled GarageBand MIDI edits to determine whether a type-`0x32` event follows a note onset when only that note moves, and whether it appears for an empty or non-note MIDI region.
+
+## MIDI-034 — test whether candidate position matches are event-family specific
+
+**Question:** Is the `+0x02/+0x04` match confined to type `0x32`, and does the matching group establish a unique relationship to note candidates?
+
+**Fixtures and method:** For every non-note-family record of at least eight bytes in a group with recognized note candidates, compare the same two raw words with candidate note positions in that group. Aggregate matches by event-type byte. In the audio-bearing fixture, permute the five note-group position sets across the five candidate group labels as a sensitivity check; this is descriptive only and not a statistical significance test. Read representative complete `0x32`, `0xB0`, `0xD5`, and `0xE0` records through IDA MCP and compare their bytes with Python.
+
+**Observation:** Exact same-group position matches occur in several event families: type `0x32` in 4 of 5 records in note-candidate groups, `0xB0` in 5 of 8, `0xD*` in 1 of 105, and `0xE*` in 18 of 22. The other included families yield 4 matches in 10 records. All four representative IDA ranges match Python byte-for-byte. Each of the five type-`0x32` candidate position pairs also appears among note candidates in four of the five groups, so all 120 permutations of group-to-note-position assignment retain four matches.
+
+**Result:** The `+0x02/+0x04` pair is not unique to type `0x32`; the broad distribution supports a generic event-position candidate for some event families. The type-`0x32` match count has no group specificity in this fixture because its candidate times recur across four groups. Group-local equality therefore does not identify a note, region, or event role. No GarageBand timing units or event semantics are confirmed, and no exporter behavior changes.
+
+**Confidence:** CONFIRMED for the observed family-level counts, the type-`0x32` cross-group repetition, the permutation result, and IDA/Python byte equality for the four representative ranges. HYPOTHESIS for a generic event-position layout; UNKNOWN for GarageBand timing semantics and event roles.
+
+**Next:** Use controlled GarageBand saves that move one note and observe which non-note event families change with it, then test empty and one-note regions before assigning a role to the candidate position pair.

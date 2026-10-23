@@ -135,6 +135,7 @@ def inventory_scope(
 
     timestamp_candidate_counts: Counter[str] = Counter()
     timestamp_candidate_note_types: Counter[int] = Counter()
+    event_position_counts: dict[int, Counter[str]] = defaultdict(Counter)
     all_notes = [note for group_notes in notes_by_group.values() for note in group_notes]
     for record, raw in type_32_event_records:
         if len(raw) < 8:
@@ -143,6 +144,7 @@ def inventory_scope(
         position = int.from_bytes(raw[4:8], "little")
         fraction = int.from_bytes(raw[2:4], "little")
         group_notes = notes_by_group.get(record["group_id_candidate"], [])
+        timestamp_candidate_counts["same_group_note_candidate_record_count"] += bool(group_notes)
         group_position_matches = [
             note for note in group_notes if note["position_raw"] == position
         ]
@@ -167,6 +169,38 @@ def inventory_scope(
                 and note.get("position_fraction_raw") == fraction
                 and isinstance(note.get("event_type_byte"), int)
             )
+
+    for record in records:
+        event_type = record.get("type_byte")
+        group = record.get("group_id_candidate")
+        if not isinstance(event_type, int) or 0x90 <= event_type <= 0x9F:
+            continue
+        if not notes_by_group.get(group):
+            continue
+        length = record.get("length")
+        if not isinstance(length, int) or length < 8:
+            continue
+        raw_hex = record.get("raw_hex")
+        if not isinstance(raw_hex, str):
+            raise BandFormatError("event in a note-candidate group has invalid raw bytes")
+        try:
+            raw = bytes.fromhex(raw_hex)
+        except ValueError as exc:
+            raise BandFormatError("event in a note-candidate group has invalid raw bytes") from exc
+        if len(raw) != length:
+            raise BandFormatError("event length does not match raw bytes")
+        position = int.from_bytes(raw[4:8], "little")
+        fraction = int.from_bytes(raw[2:4], "little")
+        group_notes = notes_by_group[group]
+        counts = event_position_counts[event_type]
+        counts["eligible_record_count"] += 1
+        counts["same_group_position_word_match_record_count"] += any(
+            note["position_raw"] == position for note in group_notes
+        )
+        counts["same_group_exact_fractional_position_match_record_count"] += any(
+            note["position_raw"] == position and note["fraction_raw"] == fraction
+            for note in group_notes
+        )
 
     categories: dict[str, dict[str, Any]] = {}
     for category in ("unique_placement", "ambiguous_placement", "no_placement_candidate"):
@@ -203,6 +237,10 @@ def inventory_scope(
         "type_32_matching_note_event_type_counts": {
             f"0x{event_type:02x}": count
             for event_type, count in sorted(timestamp_candidate_note_types.items())
+        },
+        "non_note_event_position_candidate_matches": {
+            f"0x{event_type:02x}": dict(sorted(counts.items()))
+            for event_type, counts in sorted(event_position_counts.items())
         },
         "type_32_timestamp_candidate_interpretation": (
             "HYPOTHESIS: payload +0x02/+0x04 words match candidate note positions in one fixture; "
