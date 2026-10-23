@@ -1675,3 +1675,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the record counts, duplicate-payload multiplicities, varying offsets, tested non-matches, and IDA/Python byte equality. UNKNOWN for the event role and field meanings.
 
 **Next:** Compare controlled saves that change one MIDI property at a time and observe whether these byte positions follow the edited property, region, or serialized ordering.
+
+## MIDI-033 — compare type-0x32 position words with note candidates
+
+**Question:** Do the first type-`0x32` event's candidate fraction word at `+0x02` and little-endian word at `+0x04` match note-candidate positions in the same `MSeq` group?
+
+**Fixtures and method:** Extend the aggregate type-`0x32` profile to compare the two words with note candidates' existing `position_fraction_raw` and `position_raw` fields. Count exact matches within the same candidate group and across all groups. The comparison uses candidate fields derived from Logic-family structure and does not treat them as confirmed GarageBand positions. Emit only counts; no note positions, groups, event payloads, or media are included.
+
+**Observation:** The audio-bearing fixture has six type-`0x32` records with at least eight payload bytes. Four match both candidate words against one or more note candidates in the same group; five match both words against a candidate note somewhere in the fixture. The four same-group records correspond to five matching note candidates because one timestamp is shared. The metadata-only fixture has nine records but no recognized note candidates, so it offers no note-position comparison.
+
+**Result:** The `+0x02/+0x04` pair is a HIGH CONFIDENCE exact match to note-candidate position fields for four type-`0x32` records in one fixture. A shared event-time interpretation remains a HYPOTHESIS; coincident timing is also possible. The result does not identify the `0x32` event role, establish GarageBand timing units, or justify exporting these records as notes. The existing note-field interpretation remains a Logic-derived HYPOTHESIS.
+
+**Confidence:** CONFIRMED for the observed exact equalities and aggregate counts. HYPOTHESIS for a shared timestamp representation; UNKNOWN for the event semantics and transfer to GarageBand.
+
+**Next:** Use controlled GarageBand MIDI edits to determine whether a type-`0x32` event follows a note onset when only that note moves, and whether it appears for an empty or non-note MIDI region.

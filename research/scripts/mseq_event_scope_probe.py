@@ -21,6 +21,7 @@ def inventory_scope(
     chunks: list[dict[str, Any]],
     placements: list[dict[str, Any]],
     note_group_ids: set[int] | None = None,
+    note_candidates: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Aggregate type-0x32 records by MSeq placement-link confidence."""
     mseq_by_index: dict[int, dict[str, Any]] = {}
@@ -64,6 +65,7 @@ def inventory_scope(
     groups_by_type_32: Counter[int] = Counter()
     type_32_lengths_by_group: dict[int, Counter[int]] = defaultdict(Counter)
     type_32_payloads_by_length: dict[int, list[tuple[dict[str, Any], bytes]]] = defaultdict(list)
+    type_32_event_records: list[tuple[dict[str, Any], bytes]] = []
     note_group_ids = note_group_ids or set()
     for record in records:
         group = record.get("group_id_candidate")
@@ -85,6 +87,7 @@ def inventory_scope(
             if len(raw) != length:
                 raise BandFormatError("type-0x32 event length does not match raw bytes")
             type_32_payloads_by_length[length].append((record, raw))
+            type_32_event_records.append((record, raw))
 
     payload_profiles: dict[str, dict[str, Any]] = {}
     for length, entries in sorted(type_32_payloads_by_length.items()):
@@ -121,6 +124,51 @@ def inventory_scope(
             profile["varying_byte_candidate_field_matches"] = field_matches
         payload_profiles[str(length)] = profile
 
+    notes_by_group: dict[int, list[dict[str, int]]] = defaultdict(list)
+    for note in note_candidates or []:
+        if not isinstance(note, dict):
+            continue
+        group = note.get("source_group_id_candidate")
+        position = note.get("position_raw")
+        fraction = note.get("position_fraction_raw")
+        if all(type(value) is int for value in (group, position, fraction)):
+            notes_by_group[group].append({"position_raw": position, "fraction_raw": fraction})
+
+    timestamp_candidate_counts: Counter[str] = Counter()
+    timestamp_candidate_note_types: Counter[int] = Counter()
+    all_notes = [note for group_notes in notes_by_group.values() for note in group_notes]
+    for record, raw in type_32_event_records:
+        if len(raw) < 8:
+            continue
+        timestamp_candidate_counts["eligible_record_count"] += 1
+        position = int.from_bytes(raw[4:8], "little")
+        fraction = int.from_bytes(raw[2:4], "little")
+        group_notes = notes_by_group.get(record["group_id_candidate"], [])
+        group_position_matches = [
+            note for note in group_notes if note["position_raw"] == position
+        ]
+        group_exact_matches = [
+            note for note in group_position_matches if note["fraction_raw"] == fraction
+        ]
+        any_group_position_matches = any(note["position_raw"] == position for note in all_notes)
+        any_group_exact_matches = any(
+            note["position_raw"] == position and note["fraction_raw"] == fraction
+            for note in all_notes
+        )
+        timestamp_candidate_counts["same_group_position_word_match_record_count"] += bool(group_position_matches)
+        timestamp_candidate_counts["same_group_exact_fractional_position_match_record_count"] += bool(group_exact_matches)
+        timestamp_candidate_counts["any_group_position_word_match_record_count"] += any_group_position_matches
+        timestamp_candidate_counts["any_group_exact_fractional_position_match_record_count"] += any_group_exact_matches
+        if group_exact_matches:
+            timestamp_candidate_note_types.update(
+                note.get("event_type_byte") for note in (note_candidates or [])
+                if isinstance(note, dict)
+                and note.get("source_group_id_candidate") == record["group_id_candidate"]
+                and note.get("position_raw") == position
+                and note.get("position_fraction_raw") == fraction
+                and isinstance(note.get("event_type_byte"), int)
+            )
+
     categories: dict[str, dict[str, Any]] = {}
     for category in ("unique_placement", "ambiguous_placement", "no_placement_candidate"):
         if category == "unique_placement":
@@ -152,6 +200,15 @@ def inventory_scope(
         "placement_count_with_missing_or_ambiguous_mseq_link": missing_or_ambiguous_placements,
         "scope_categories": categories,
         "type_32_payload_profiles": payload_profiles,
+        "type_32_timestamp_candidate_counts": dict(sorted(timestamp_candidate_counts.items())),
+        "type_32_matching_note_event_type_counts": {
+            f"0x{event_type:02x}": count
+            for event_type, count in sorted(timestamp_candidate_note_types.items())
+        },
+        "type_32_timestamp_candidate_interpretation": (
+            "HYPOTHESIS: payload +0x02/+0x04 words match candidate note positions in one fixture; "
+            "timing semantics and generality are unconfirmed."
+        ),
         "interpretation": (
             "UNKNOWN; type-0x32 co-occurrence with MSeq or placement groups does not establish "
             "note, region, or event semantics."
@@ -183,7 +240,7 @@ def probe_project(path: Path) -> dict[str, Any]:
         for note in note_candidates
         if isinstance(note, dict) and isinstance(note.get("source_group_id_candidate"), int)
     }
-    return inventory_scope(records, chunks, placements, note_group_ids)
+    return inventory_scope(records, chunks, placements, note_group_ids, note_candidates)
 
 
 def main(argv: list[str] | None = None) -> int:

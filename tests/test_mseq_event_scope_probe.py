@@ -101,6 +101,68 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         with self.assertRaises(BandFormatError):
             inventory_scope([record], [chunk], [placement])
 
+    def test_counts_fractional_position_matches_only_as_candidates(self) -> None:
+        groups = [0xD101, 0xD202, 0xD303]
+        chunks = [
+            {"type": "MSeq", "index": index, "group_id_candidate": group}
+            for index, group in enumerate(groups, 1)
+        ]
+        placements = [{"candidate_mseq_chunk_indices": [index]} for index in range(1, 4)]
+        records = []
+        for index, (group, fraction) in enumerate(zip((groups[0], groups[2]), (7, 8)), 1):
+            raw = bytearray(32)
+            raw[0] = 0x32
+            raw[2:4] = fraction.to_bytes(2, "little")
+            raw[4:8] = (100).to_bytes(4, "little")
+            records.append({
+                "group_id_candidate": group,
+                "chunk_index": index,
+                "event_index": index,
+                "type_byte": 0x32,
+                "length": 32,
+                "raw_hex": bytes(raw).hex(),
+            })
+        notes = [
+            {
+                "source_group_id_candidate": groups[0],
+                "position_raw": 100,
+                "position_fraction_raw": 7,
+                "event_type_byte": 0x91,
+            },
+            {
+                "source_group_id_candidate": groups[0],
+                "position_raw": 100,
+                "position_fraction_raw": 7,
+                "event_type_byte": 0x90,
+            },
+            {
+                "source_group_id_candidate": groups[1],
+                "position_raw": 100,
+                "position_fraction_raw": 8,
+                "event_type_byte": 0x90,
+            },
+        ]
+
+        result = inventory_scope(records, chunks, placements, {groups[0], groups[1]}, notes)
+
+        self.assertEqual(
+            result["type_32_timestamp_candidate_counts"],
+            {
+                "eligible_record_count": 2,
+                "same_group_position_word_match_record_count": 1,
+                "same_group_exact_fractional_position_match_record_count": 1,
+                "any_group_position_word_match_record_count": 2,
+                "any_group_exact_fractional_position_match_record_count": 2,
+            },
+        )
+        self.assertEqual(
+            result["type_32_matching_note_event_type_counts"],
+            {"0x90": 1, "0x91": 1},
+        )
+        self.assertIn("HYPOTHESIS", result["type_32_timestamp_candidate_interpretation"])
+        self.assertNotIn("D101", json.dumps(result))
+        self.assertNotIn(bytes(records[0]["raw_hex"], "ascii").decode(), json.dumps(result))
+
 
 if __name__ == "__main__":
     unittest.main()
