@@ -578,11 +578,18 @@ class ParserTests(unittest.TestCase):
         objects = [
             "$null",
             {"CBData": plistlib.UID(2)},
-            {"NS.keys": [plistlib.UID(3)], "NS.objects": [plistlib.UID(4)]},
+            {
+                "NS.keys": [plistlib.UID(3), plistlib.UID(7), plistlib.UID(8)],
+                "NS.objects": [plistlib.UID(4), plistlib.UID(9), plistlib.UID(10)],
+            },
             "CbTrackInspectorInternalState",
             {"NS.keys": [plistlib.UID(5)], "NS.objects": [plistlib.UID(6)]},
             "CbMasterEffectsEchoSectionOpen",
             True,
+            "MetronomeEnabledOnceForCellRecording",
+            "GridHighLatencyModeCache",
+            False,
+            {"NS.keys": [], "NS.objects": []},
         ]
         root = {
             "$objects": objects,
@@ -595,8 +602,12 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(report["track_inspector_state_fields"], [
             {"key": "CbMasterEffectsEchoSectionOpen", "value_type": "bool"},
         ])
+        self.assertEqual(report["cell_grid_state_fields"], [
+            {"key": "MetronomeEnabledOnceForCellRecording", "value_type": "bool"},
+            {"key": "GridHighLatencyModeCache", "value_type": "dict"},
+        ])
         self.assertNotIn("True", json.dumps(report))
-
+        self.assertNotIn("False", json.dumps(report))
     def test_selected_track_uuid_probe_resolves_keyed_archive_reference(self) -> None:
         selected = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
         objects = [
