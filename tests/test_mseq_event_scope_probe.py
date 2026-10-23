@@ -54,6 +54,53 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         with self.assertRaises(BandFormatError):
             inventory_scope([], [], [{"candidate_mseq_chunk_indices": [5]}])
 
+    def test_profiles_repeated_payloads_and_varying_bytes_without_emitting_payloads(self) -> None:
+        groups = [0xD101, 0xD202, 0xD303, 0xD404]
+        chunks = [
+            {"type": "MSeq", "index": index, "group_id_candidate": group}
+            for index, group in enumerate(groups, 1)
+        ]
+        placements = [{"candidate_mseq_chunk_indices": [index]} for index in range(1, 5)]
+        first = bytearray(32)
+        first[0] = 0x32
+        first[5] = 1
+        second = bytearray(first)
+        second[5] = 2
+        payloads = [first, first, first, second]
+        records = [
+            {
+                "group_id_candidate": group,
+                "chunk_index": index,
+                "event_index": index + 10,
+                "type_byte": 0x32,
+                "length": 32,
+                "raw_hex": bytes(payload).hex(),
+            }
+            for index, (group, payload) in enumerate(zip(groups, payloads), 1)
+        ]
+
+        profile = inventory_scope(records, chunks, placements)["type_32_payload_profiles"]["32"]
+
+        self.assertEqual(profile["record_count"], 4)
+        self.assertEqual(profile["distinct_payload_count"], 2)
+        self.assertEqual(profile["duplicate_record_count"], 2)
+        self.assertEqual(profile["distinct_payload_multiplicity_counts"], {"1": 1, "3": 1})
+        self.assertEqual(profile["varying_byte_positions"], [5])
+        self.assertEqual(profile["varying_byte_candidate_field_matches"], [])
+        self.assertNotIn(bytes(first).hex(), json.dumps(profile))
+
+    def test_rejects_type_32_length_that_disagrees_with_raw_bytes(self) -> None:
+        chunk = {"type": "MSeq", "index": 1, "group_id_candidate": 0xD001}
+        placement = {"candidate_mseq_chunk_indices": [1]}
+        record = {
+            "group_id_candidate": 0xD001,
+            "type_byte": 0x32,
+            "length": 32,
+            "raw_hex": "00",
+        }
+        with self.assertRaises(BandFormatError):
+            inventory_scope([record], [chunk], [placement])
+
 
 if __name__ == "__main__":
     unittest.main()

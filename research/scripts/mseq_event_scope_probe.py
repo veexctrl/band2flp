@@ -63,6 +63,7 @@ def inventory_scope(
     mseq_groups = set(mseq_count_by_group)
     groups_by_type_32: Counter[int] = Counter()
     type_32_lengths_by_group: dict[int, Counter[int]] = defaultdict(Counter)
+    type_32_payloads_by_length: dict[int, list[tuple[dict[str, Any], bytes]]] = defaultdict(list)
     note_group_ids = note_group_ids or set()
     for record in records:
         group = record.get("group_id_candidate")
@@ -73,6 +74,52 @@ def inventory_scope(
             raise BandFormatError("type-0x32 event has an invalid length")
         groups_by_type_32[group] += 1
         type_32_lengths_by_group[group][length] += 1
+        raw_hex = record.get("raw_hex")
+        if raw_hex is not None:
+            if not isinstance(raw_hex, str):
+                raise BandFormatError("type-0x32 event has invalid raw bytes")
+            try:
+                raw = bytes.fromhex(raw_hex)
+            except ValueError as exc:
+                raise BandFormatError("type-0x32 event has invalid raw bytes") from exc
+            if len(raw) != length:
+                raise BandFormatError("type-0x32 event length does not match raw bytes")
+            type_32_payloads_by_length[length].append((record, raw))
+
+    payload_profiles: dict[str, dict[str, Any]] = {}
+    for length, entries in sorted(type_32_payloads_by_length.items()):
+        payload_counts = Counter(raw for _record, raw in entries)
+        profile: dict[str, Any] = {
+            "record_count": len(entries),
+            "distinct_payload_count": len(payload_counts),
+            "duplicate_record_count": len(entries) - len(payload_counts),
+            "distinct_payload_multiplicity_counts": {
+                str(multiplicity): count
+                for multiplicity, count in sorted(Counter(payload_counts.values()).items())
+            },
+        }
+        varying_positions = [
+            index for index in range(length)
+            if len({raw[index] for _record, raw in entries}) > 1
+        ]
+        profile["varying_byte_positions"] = varying_positions
+        if len(entries) > 1:
+            field_matches: list[str] = []
+            for index in varying_positions:
+                candidates = [
+                    (f"group_id_candidate:u32le_byte{lane}",
+                     lambda record, lane=lane: (record["group_id_candidate"] >> (8 * lane)) & 0xFF)
+                    for lane in range(4)
+                ]
+                candidates.extend([
+                    ("chunk_index:u8", lambda record: record["chunk_index"] & 0xFF),
+                    ("event_index:u8", lambda record: record["event_index"] & 0xFF),
+                ])
+                for label, get_candidate in candidates:
+                    if all(raw[index] == get_candidate(record) for record, raw in entries):
+                        field_matches.append(f"byte_{index}:{label}")
+            profile["varying_byte_candidate_field_matches"] = field_matches
+        payload_profiles[str(length)] = profile
 
     categories: dict[str, dict[str, Any]] = {}
     for category in ("unique_placement", "ambiguous_placement", "no_placement_candidate"):
@@ -104,6 +151,7 @@ def inventory_scope(
         "mseq_group_count": len(mseq_groups),
         "placement_count_with_missing_or_ambiguous_mseq_link": missing_or_ambiguous_placements,
         "scope_categories": categories,
+        "type_32_payload_profiles": payload_profiles,
         "interpretation": (
             "UNKNOWN; type-0x32 co-occurrence with MSeq or placement groups does not establish "
             "note, region, or event semantics."

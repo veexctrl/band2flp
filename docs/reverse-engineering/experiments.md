@@ -1661,3 +1661,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for aggregate counts, lengths, group scope under the current placement-candidate classifier, and byte-for-byte IDA agreement for all 15 ranges. UNKNOWN for the meaning of type `0x32`, the role of unplaced groups, and whether these patterns generalize.
 
 **Next:** Compare controlled GarageBand projects with one empty MIDI region and one-note MIDI region, then add a single controller or note-property change. Track type `0x32` in both placed and unplaced groups before inferring a role.
+
+## MIDI-032 — type-0x32 payload reuse and varying byte positions
+
+**Question:** Do the repeated type-`0x32` event payloads share a stable structure, and do their varying bytes directly encode the current candidate group, chunk, or event index?
+
+**Fixtures and method:** Reparse the two local Logic-song component extracts and aggregate type-`0x32` records by serialized length. Count exact duplicate payloads, identify byte positions that vary within each length, and test those positions against each event's candidate group-ID byte lanes and low-byte chunk/event indices. Do not emit payload contents or identifiers. Read all 15 complete event ranges from the two components through IDA MCP and compare them byte-for-byte with the parser output.
+
+**Observation:** In the first fixture, five 32-byte records contain two distinct payloads: one occurs four times and one once. Their only varying byte is payload offset `+0x05`; it does not directly equal any tested group-ID byte, chunk index, or event index across the records. A separate 48-byte record occurs once. In the second fixture, nine 32-byte records contain four distinct payloads, with multiplicities of five, two, one, and one. Their varying byte positions are `+0x02`, `+0x03`, `+0x04`, `+0x05`, and `+0x0c`; none directly matches the tested candidate fields. All 15 complete ranges match IDA MCP bytes exactly.
+
+**Result:** Exact payload reuse and sparse byte variation are reproducible structural properties in these two fixtures. The tested varying bytes are not direct copies of the candidate group ID or low-byte record indices. This does not exclude transformed values, other keys, or event-specific meaning; no `0x32` semantics are inferred and the neutral model remains unchanged.
+
+**Confidence:** CONFIRMED for the record counts, duplicate-payload multiplicities, varying offsets, tested non-matches, and IDA/Python byte equality. UNKNOWN for the event role and field meanings.
+
+**Next:** Compare controlled saves that change one MIDI property at a time and observe whether these byte positions follow the edited property, region, or serialized ordering.
