@@ -130,6 +130,20 @@
 
 **Next:** Continue correlating chunk families against controlled track-add/reorder fixtures; preserve the inventory command as a quick check for future GarageBand versions.
 
+## PD-006 — classify cell/grid strings in the arrange-model UI state
+
+**Question:** Do cell/grid-related names in `projectData` identify saved Live Loops arrangement content, or are they part of editor state?
+
+**Fixtures and method:** Inspect the `DfDocument arrange model` → `CBData` keyed-archive branch in both supplied projects. Count matching keys and report only their schema names and value types; do not emit scalar values or read media. In IDA MCP, find both complete key strings in the audio-bearing XML `projectData` component and compare the exact byte ranges with the Python-decoded keys.
+
+**Observation:** Both `CBData` dictionaries contain `MetronomeEnabledOnceForCellRecording` (boolean) and `GridHighLatencyModeCache` (mutable dictionary). The dictionaries contain 27 and 14 keys respectively. IDA MCP found each key exactly once in the audio-bearing component, and both complete byte ranges match Python. The boolean values were not recorded.
+
+**Result:** These cell/grid-related entries are reachable from the arrange-model UI-state branch, but they do not enumerate cell contents, clip placement, or a Live Loops grid. Their presence alone cannot identify whether a referenced audio source is used in an ordinary arrangement region or in a Live Loops cell.
+
+**Confidence:** CONFIRMED for key names, value types, branch linkage, counts, and IDA/Python byte agreement in these two fixtures. UNKNOWN for the settings' values and for any relationship between these keys and serialized song content.
+
+**Next:** Compare a controlled project with one populated Live Loops cell against an otherwise identical project with an ordinary arrangement region; trace changes across `projectData` and logic-song components.
+
 ## ARR-026 - audio placement track-index bounds across two projects
 
 **Question:** Do the recovered audio-placement indices, after the parser's candidate one-based-to-zero-based conversion, fall within each project's declared arrange-track count?
