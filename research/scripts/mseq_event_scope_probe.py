@@ -39,6 +39,7 @@ def inventory_scope(
 
     unique_groups: set[int] = set()
     ambiguous_groups: set[int] = set()
+    unique_placement_counts: Counter[int] = Counter()
     missing_or_ambiguous_placements = 0
     for placement in placements:
         links = placement.get("candidate_mseq_chunk_indices")
@@ -51,9 +52,13 @@ def inventory_scope(
             linked_groups.add(mseq_by_index[index]["group_id_candidate"])
         if len(links) == 1:
             unique_groups.update(linked_groups)
+            unique_placement_counts.update(linked_groups)
         else:
             missing_or_ambiguous_placements += 1
             ambiguous_groups.update(linked_groups)
+    ambiguous_groups.update(
+        group for group, count in unique_placement_counts.items() if count > 1
+    )
 
     mseq_groups = set(mseq_count_by_group)
     groups_by_type_32: Counter[int] = Counter()
@@ -70,11 +75,11 @@ def inventory_scope(
         type_32_lengths_by_group[group][length] += 1
 
     categories: dict[str, dict[str, Any]] = {}
-    for category in ("unique_placement", "ambiguous_only", "no_placement_candidate"):
+    for category in ("unique_placement", "ambiguous_placement", "no_placement_candidate"):
         if category == "unique_placement":
-            selected = mseq_groups & unique_groups
-        elif category == "ambiguous_only":
-            selected = (mseq_groups & ambiguous_groups) - unique_groups
+            selected = (mseq_groups & unique_groups) - ambiguous_groups
+        elif category == "ambiguous_placement":
+            selected = mseq_groups & ambiguous_groups
         else:
             selected = mseq_groups - unique_groups - ambiguous_groups
         matching_groups = selected & groups_by_type_32.keys()

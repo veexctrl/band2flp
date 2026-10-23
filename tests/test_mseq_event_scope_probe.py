@@ -23,6 +23,8 @@ class MseqEventScopeProbeTests(unittest.TestCase):
             {"candidate_mseq_chunk_indices": [2, 3, 4, 5, 6]},
             {"candidate_mseq_chunk_indices": [7]},
             {"candidate_mseq_chunk_indices": [8, 9]},
+            {"candidate_mseq_chunk_indices": [8]},
+            {"candidate_mseq_chunk_indices": [7]},
         ]
         records = [
             {"group_id_candidate": 0xD001, "type_byte": 0x32, "length": 32},
@@ -37,12 +39,13 @@ class MseqEventScopeProbeTests(unittest.TestCase):
 
         categories = result["scope_categories"]
         self.assertEqual(result["mseq_group_count"], 5)
-        self.assertEqual(categories["unique_placement"]["mseq_group_count"], 2)
+        self.assertEqual(categories["unique_placement"]["mseq_group_count"], 1)
         self.assertEqual(categories["unique_placement"]["groups_with_type_32"], 1)
         self.assertEqual(categories["unique_placement"]["groups_with_note_candidates"], 1)
-        self.assertEqual(categories["ambiguous_only"]["groups_with_type_32"], 2)
-        self.assertEqual(categories["ambiguous_only"]["type_32_record_length_counts"], {"32": 1, "48": 1})
-        self.assertEqual(categories["ambiguous_only"]["mseq_chunk_multiplicity_counts_for_type_32_groups"], {"2": 1, "5": 1})
+        self.assertEqual(categories["ambiguous_placement"]["groups_with_type_32"], 2)
+        self.assertEqual(categories["ambiguous_placement"]["mseq_group_count"], 3)
+        self.assertEqual(categories["ambiguous_placement"]["type_32_record_length_counts"], {"32": 1, "48": 1})
+        self.assertEqual(categories["ambiguous_placement"]["mseq_chunk_multiplicity_counts_for_type_32_groups"], {"2": 1, "5": 1})
         self.assertEqual(categories["no_placement_candidate"]["groups_with_type_32"], 1)
         self.assertNotIn("D001", json.dumps(result))
         self.assertNotIn("53249", json.dumps(result))
