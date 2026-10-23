@@ -1703,3 +1703,18 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the observed family-level counts, the type-`0x32` cross-group repetition, the permutation result, and IDA/Python byte equality for the four representative ranges. HYPOTHESIS for a generic event-position layout; UNKNOWN for GarageBand timing semantics and event roles.
 
 **Next:** Use controlled GarageBand saves that move one note and observe which non-note event families change with it, then test empty and one-note regions before assigning a role to the candidate position pair.
+
+
+## FLP-036 — make MIDI preview notes editable in FL Studio 25
+
+**Question:** Why did otherwise valid MIDI preview patterns appear only as ghost notes in FL Studio 25?
+
+**Fixture and method:** Compare synthetic MIDI FLPs derived from a user-created editable one-channel reference. The v14 candidate used note flags 0; v16 changed only the note flags word to 16384 (0x4000). The user opened both in FL Studio 25 and reported v14 as ghost notes and v16 as editable, with no invalid-playlist warning. The output files contain synthetic MIDI only.
+
+**Observation:** The single-field change correlated with the transition from ghost notes to editable notes. The exporter now emits 0x4000 in the FL note flags word, retains the containing channel IID, and has a byte-level regression assertion.
+
+**Result:** 0x4000 is a confirmed compatibility requirement for editable notes in the tested FL Studio 25 pattern fixture. This is an FLP-format finding; it does not establish any GarageBand note flag or validate candidate pitch, timing, velocity, or track semantics.
+
+**Confidence:** CONFIRMED for the observed FL Studio 25 behavior in the two synthetic files and the exporter byte encoding. Other FL Studio versions remain untested.
+
+**Next:** Keep the note-flag regression test; verify the synthetic preview in another FL Studio version if one becomes available.
