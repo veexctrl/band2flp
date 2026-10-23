@@ -1633,3 +1633,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for aggregate type/length/group counts, the observed type-`0x32` overlap and one-per-note-candidate-group count in this fixture, and the byte-for-byte IDA agreement for the six `0x32` records and eight other representative ranges. UNKNOWN for event meanings, whether these events encode controllers or other state, and generality across GarageBand projects.
 
 **Next:** Compare controlled MIDI projects with and without one controller, pitch-bend, or channel-pressure edit, and a controlled empty versus one-note region. Track the raw event type, record length, group membership, and IDA-verified ranges without assuming MIDI-standard payload layout.
+
+## MIDI-031 — scope of type-0x32 records across MSeq groups
+
+**Question:** Are the type-`0x32` records from MIDI-030 confined to uniquely placed groups, especially groups with note candidates?
+
+**Fixtures and method:** Reclassify every `MSeq` group from the two local project archives as uniquely placed, ambiguous-only, or lacking a placement candidate, then count type-`0x32` records, their serialized lengths, and the number of `MSeq` chunks per group. The aggregate-only probe is `python -m research.scripts.mseq_event_scope_probe <project-a.band> <project-b.band>`. It omits names, identifiers, raw payloads, and media references. IDA MCP independently read all 15 type-`0x32` ranges from the two logic-song components; all 15 ranges matched the parser-reported bytes.
+
+**Observation:** The first fixture has 29 `MSeq` groups: 19 uniquely placed and 10 without a placement candidate. Each of the five note-candidate groups among the 19 uniquely placed groups contains one type-`0x32` record; none of the other 14 uniquely placed groups does. One of the 10 unplaced groups also contains a type-`0x32` record, in a group with five `MSeq` chunks. The second fixture has 27 `MSeq` groups: 12 uniquely placed and 15 without a placement candidate. None of the 12 uniquely placed groups contains type `0x32`; nine of the 15 unplaced groups do. Eight such groups have one `MSeq` chunk and one has five. All 15 records are 32 bytes except one 48-byte record in the first fixture.
+
+**Result:** The MIDI-030 correlation does not generalize across all `MSeq` groups or fixtures. Type `0x32` is not exclusive to uniquely placed or note-candidate groups; its presence in unplaced groups falsifies using it alone as a marker for a placed MIDI note region. Co-occurrence is structural evidence only and does not establish event semantics.
+
+**Confidence:** CONFIRMED for aggregate counts, lengths, group scope under the current placement-candidate classifier, and byte-for-byte IDA agreement for all 15 ranges. UNKNOWN for the meaning of type `0x32`, the role of unplaced groups, and whether these patterns generalize.
+
+**Next:** Compare controlled GarageBand projects with one empty MIDI region and one-note MIDI region, then add a single controller or note-property change. Track type `0x32` in both placed and unplaced groups before inferring a role.
