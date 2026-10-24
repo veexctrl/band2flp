@@ -1620,8 +1620,6 @@ Every start-matched note within each visible row has the same raw fractional-wor
 
 **Metadata-only validation:** The aggregate probes read ZIP member streams through the needed container headers and stop at the audio-data chunk. Synthetic WAVE, AIFF, and CAF tests verify the stream position remains before sample bytes. Re-running both supplied archives preserved the prior frame-count and source-link aggregates; no audio sample payload is copied into the probe output.
 
-
- 
 ## ARR-041 — rank source-frame sums against other AuRg field pairs
 
 **Question:** Is the observed `AuRg +0x06/+0x16` sum-to-source-frame relation more specific than other non-overlapping 32-bit field-pair candidates?
@@ -1635,6 +1633,7 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the rank, four record matches, one-source scope, and IDA/Python byte agreement. HYPOTHESIS for source-window semantics; UNKNOWN for region timing and trim behavior.
 
 **Next:** Compare controlled saves of the same source with its region boundary unchanged, then with only the head trim and only the tail trim changed.
+
 ## MIDI-028 - preserve placements without recognized note events
 
 **Question:** Does building neutral MIDI regions only from recognized note events omit placements that otherwise link to an `MSeq` chunk?
