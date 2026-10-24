@@ -1253,7 +1253,9 @@ def parse_band(path: str | Path) -> Project:
                     if member not in loop_metadata_by_member:
                         try:
                             with archive.open(info_by_name[member]) as source:
-                                loop_metadata_by_member[member] = inspect_caf_loop_metadata(source)
+                                loop_metadata_by_member[member] = inspect_caf_loop_metadata(
+                                    source, allow_data_seek=False
+                                )
                         except (
                             OSError, EOFError, zipfile.BadZipFile, RuntimeError,
                             NotImplementedError, lzma.LZMAError, zlib.error,
