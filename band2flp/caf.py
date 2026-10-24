@@ -67,6 +67,15 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
             break
         if size < 0:
             return None
+        if tag == b"data":
+            # Sample payloads can be large and may be private recordings. Skip
+            # them without reading bytes into this parser. If the stream cannot
+            # seek, retain metadata already found and stop scanning.
+            try:
+                stream.seek(size, 1)
+            except (AttributeError, OSError, ValueError):
+                break
+            continue
         if tag in (b"desc", b"pakt", b"uuid") and size <= MAX_METADATA_CHUNK:
             payload = stream.read(size)
             if len(payload) != size:
