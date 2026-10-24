@@ -89,6 +89,21 @@ class CafMetadataTests(unittest.TestCase):
         )
         self.assertGreaterEqual(stream.tell(), sample_end)
 
+    def test_truncated_known_size_data_chunk_is_rejected(self) -> None:
+        header = b"caff\\0\\x01\\0\\0"
+        metadata = chunk(
+            b"uuid",
+            LOOP_METADATA_UUID + (1).to_bytes(4, "big") + b"beat count\\0" + b"4\\0",
+        )
+        truncated_data = b"data" + (100).to_bytes(8, "big", signed=True) + b"X" * 30
+
+        self.assertIsNone(
+            inspect_caf_loop_metadata(
+                BytesIO(header + metadata + truncated_data),
+                allow_data_seek=True,
+            )
+        )
+
     def test_zip_member_stops_before_data_payload(self) -> None:
         data = fixture({"beat count": "4"})
         data_header = data.index(b"data", 8)
