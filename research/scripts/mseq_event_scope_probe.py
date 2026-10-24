@@ -184,16 +184,25 @@ def inventory_scope(
             notes_by_group[group].append({"position_raw": position, "fraction_raw": fraction})
 
     timestamp_candidate_counts: Counter[str] = Counter()
+    timestamp_counts_by_scope: dict[str, Counter[str]] = {
+        "unique_placement": Counter(),
+        "ambiguous_placement": Counter(),
+        "no_placement_candidate": Counter(),
+    }
     timestamp_candidate_note_types: Counter[int] = Counter()
     event_position_counts: dict[int, Counter[str]] = defaultdict(Counter)
     all_notes = [note for group_notes in notes_by_group.values() for note in group_notes]
+    all_note_positions = {
+        (note["position_raw"], note["fraction_raw"]) for note in all_notes
+    }
     for record, raw in type_32_event_records:
         if len(raw) < 8:
             continue
         timestamp_candidate_counts["eligible_record_count"] += 1
         position = int.from_bytes(raw[4:8], "little")
         fraction = int.from_bytes(raw[2:4], "little")
-        group_notes = notes_by_group.get(record["group_id_candidate"], [])
+        group = record["group_id_candidate"]
+        group_notes = notes_by_group.get(group, [])
         timestamp_candidate_counts["same_group_note_candidate_record_count"] += bool(group_notes)
         group_position_matches = [
             note for note in group_notes if note["position_raw"] == position
@@ -210,6 +219,17 @@ def inventory_scope(
         timestamp_candidate_counts["same_group_exact_fractional_position_match_record_count"] += bool(group_exact_matches)
         timestamp_candidate_counts["any_group_position_word_match_record_count"] += any_group_position_matches
         timestamp_candidate_counts["any_group_exact_fractional_position_match_record_count"] += any_group_exact_matches
+        scope = (
+            "ambiguous_placement" if group in ambiguous_groups
+            else "unique_placement" if group in unique_groups
+            else "no_placement_candidate"
+        )
+        scope_counts = timestamp_counts_by_scope[scope]
+        scope_counts["eligible_record_count"] += 1
+        scope_counts["same_group_exact_fractional_position_match_record_count"] += bool(group_exact_matches)
+        scope_counts["any_group_exact_fractional_position_match_record_count"] += (
+            (position, fraction) in all_note_positions
+        )
         if group_exact_matches:
             timestamp_candidate_note_types.update(
                 note.get("event_type_byte") for note in (note_candidates or [])
@@ -294,6 +314,10 @@ def inventory_scope(
             "records_with_other_group_note_family_match": other_group_note_type_match_count,
         },
         "type_32_timestamp_candidate_counts": dict(sorted(timestamp_candidate_counts.items())),
+        "type_32_timestamp_counts_by_placement_scope": {
+            scope: dict(sorted(counts.items()))
+            for scope, counts in sorted(timestamp_counts_by_scope.items())
+        },
         "type_32_matching_note_event_type_counts": {
             f"0x{event_type:02x}": count
             for event_type, count in sorted(timestamp_candidate_note_types.items())
