@@ -10,6 +10,23 @@ import zipfile
 
 from band2flp.parser import BandFormatError, _find_member, _read_member, _safe_plist, _uid_index
 
+CB_DATA_KEY_CATEGORIES = (
+    "cell",
+    "grid",
+    "live",
+    "loop",
+    "section",
+    "automation",
+    "region",
+    "audio",
+    "midi",
+    "tempo",
+    "volume",
+    "pan",
+    "mute",
+    "solo",
+)
+
 
 def _resolve(objects: list[Any], reference: Any) -> Any:
     index = _uid_index(reference)
@@ -55,14 +72,21 @@ def profile_arrange_ui(archive: Any) -> dict[str, Any]:
         None,
     )
     fields = _entries(objects, state)
+    cb_data_entries = _entries(objects, cb_data)
     cell_grid_fields = [
         {"key": key, "value_type": type(value).__name__}
-        for key, value in _entries(objects, cb_data)
-        if "cell" in key.lower() or "grid" in key.lower()
+        for key, value in cb_data_entries
+        if "cell" in key.casefold() or "grid" in key.casefold()
     ]
+    keyword_key_counts = {
+        category: sum(category in key.casefold() for key, _ in cb_data_entries)
+        for category in CB_DATA_KEY_CATEGORIES
+    }
     return {
         "arrange_model_found": isinstance(arrange, dict),
         "cbdata_found": isinstance(cb_data, dict),
+        "cbdata_field_count": len(cb_data_entries),
+        "cbdata_keyword_key_counts": keyword_key_counts,
         "cell_grid_state_fields": cell_grid_fields,
         "track_inspector_state_found": state is not None,
         "track_inspector_state_field_count": len(fields),

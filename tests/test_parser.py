@@ -606,6 +606,13 @@ class ParserTests(unittest.TestCase):
             {"key": "MetronomeEnabledOnceForCellRecording", "value_type": "bool"},
             {"key": "GridHighLatencyModeCache", "value_type": "dict"},
         ])
+        self.assertEqual(report["cbdata_field_count"], 3)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["cell"], 1)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["grid"], 1)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["live"], 0)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["loop"], 0)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["section"], 0)
+        self.assertEqual(report["cbdata_keyword_key_counts"]["automation"], 0)
         self.assertNotIn("True", json.dumps(report))
         self.assertNotIn("False", json.dumps(report))
     def test_selected_track_uuid_probe_resolves_keyed_archive_reference(self) -> None:

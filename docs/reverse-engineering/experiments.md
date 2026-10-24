@@ -1732,3 +1732,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the observed FL Studio 25 behavior in the two synthetic files and the exporter byte encoding. Other FL Studio versions remain untested.
 
 **Next:** Keep the note-flag regression test; verify the synthetic preview in another FL Studio version if one becomes available.
+
+## PD-007 — scope cell/grid keywords within arrange-model UI state
+
+**Question:** Do the cell/grid settings in `CBData` sit alongside key names that identify Live Loops content, sections, regions, or automation?
+
+**Fixtures and method:** Inspect the top-level arrange-model `CBData` keyed-archive dictionary in the audio-bearing and metadata-only project fixtures. Count entries and case-insensitive key-name substring matches for cell, grid, live, loop, section, automation, region, audio, MIDI, tempo, volume, pan, mute, and solo. Report counts for the broader keyword profile; the existing cell/grid diagnostic includes those schema key names and value types but no values. Independently search both `projectData` components in IDA MCP for the two cell/grid key strings and read their exact XML byte ranges. No media members are read.
+
+**Observation:** The audio-bearing and metadata-only `CBData` dictionaries contain 27 and 14 entries. Each has one key containing `cell` and one containing `grid`; neither has a key containing `live`, `loop`, `section`, `automation`, `region`, or `audio`. The remaining substring counts are retained by the probe but are not assigned meanings. IDA MCP found each of the two cell/grid strings exactly once in both projectData components; the bytes match the corresponding XML text.
+
+**Result:** This top-level `CBData` branch provides no named collection for Live Loops cells, arrangement regions, or automation in these fixtures. The negative result applies only to key names in this UI-state dictionary; relevant content could be serialized in other branches or components.
+
+**Confidence:** CONFIRMED for entry counts, lexical key-name counts, and IDA/Python byte agreement for the two cell/grid strings. UNKNOWN whether Live Loops content is stored elsewhere or under unrelated key names.
+
+**Next:** Compare a controlled project with one populated Live Loops cell against an otherwise identical project with an ordinary arrangement region, then trace changes across projectData and logic-song components.
