@@ -1,6 +1,7 @@
 import io
 import struct
 import unittest
+import zipfile
 
 from research.scripts.audio_frame_probe import audio_frame_metadata_stream
 
@@ -18,6 +19,24 @@ class AudioFrameStreamProbeTests(unittest.TestCase):
 
         self.assertEqual(result, (1024, "WAVE", 44_100))
         self.assertEqual(stream.tell(), len(data) - len(samples))
+
+    def test_zip_member_probe_stops_before_compressed_sample_payload(self) -> None:
+        samples = b"X" * (1024 * 1024)
+        fmt = struct.pack("<HHIIHH", 1, 2, 44_100, 176_400, 4, 16)
+        data = b"RIFF" + struct.pack("<I", 4 + 8 + len(fmt) + 8 + len(samples))
+        data += b"WAVEfmt " + struct.pack("<I", len(fmt)) + fmt
+        data += b"data" + struct.pack("<I", len(samples)) + samples
+        archive_bytes = io.BytesIO()
+        with zipfile.ZipFile(archive_bytes, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("synthetic.wav", data)
+        archive_bytes.seek(0)
+
+        with zipfile.ZipFile(archive_bytes) as archive:
+            info = archive.getinfo("synthetic.wav")
+            with archive.open(info) as stream:
+                result = audio_frame_metadata_stream(stream, info.file_size)
+                self.assertEqual(result, (262_144, "WAVE", 44_100))
+                self.assertEqual(stream.tell(), len(data) - len(samples))
 
     def test_aiff_probe_stops_after_common_chunk(self) -> None:
         samples = b"X" * 4096
