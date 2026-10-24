@@ -1828,3 +1828,20 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the reported counts under the current parser and fixture set. UNKNOWN whether the external CAF sources carry beat metadata or whether their placement spacing follows that metadata.
 
 **Next:** Test a project whose referenced CAF source can be safely matched to a local file, or create a controlled project with an available source and vary only region placement. Keep samples out of logs and public artifacts.
+
+
+## FLP-037 — compare sample-channel and playlist signatures across FL Studio 25 references
+
+**Question:** How closely does the generated sample-backed channel and playlist row match structures used in real FL Studio projects?
+
+**Fixture and method:** Compare one synthetic sample-backed FLP with the owner-supplied private FL Studio 25 reference collection using the aggregate-only `flp_channel_inventory` and `flp_playlist_inventory` probes (`--limit 289`). The probes parse FLP event structures, do not open any sample paths, and omit project names, paths, media paths, timing values, and scalar values. The reference projects and their linked media remain local.
+
+**Observation:** All 289 reference FLPs parsed; they contained 2,931 sample-backed audio-clip channels. The synthetic channel's 36-event ordering and event-ID set matched 2,775 channels. Sixteen candidate scalar fields matched across all 2,775; the `FXFlags` candidate differed in three, and an otherwise unnamed event ID 155 matched in nine. The references included both channels with and without plugin-data events. The playlist scan found 800 audio-linked 32-byte rows, 545 60-byte rows, and 6,605 80-byte rows. The synthetic FLP contained a 32-byte audio row whose full static profile matched a reference row; its fieldwise candidates also appeared in the reference set.
+
+**Result:** The synthetic sample-channel structure is common in this private FL Studio 25 corpus, and its static playlist row has a direct structural precedent. The corpus also demonstrates multiple playlist row sizes, so compatibility evidence for a 32-byte row does not establish that 32 bytes is universal or replace the tested 80-byte exporter path. Event ID 155 and the three `FXFlags` differences show that reference channels are not perfectly uniform. These are FLP-format comparisons only; they reveal no GarageBand field semantics.
+
+**Confidence:** CONFIRMED for the aggregate counts and exact structural comparisons within the supplied reference set. UNKNOWN for the semantics of event ID 155, the cause of the small `FXFlags` variation, and generality beyond FL Studio 25 projects.
+
+**Privacy:** The reference files and media remain private and are not in the repository. No sample data was opened or copied.
+
+**Next:** Preserve the tested channel signature and 32-byte precedent as compatibility evidence, while keeping the exporter’s row serialization version-aware and validating each output in FL Studio. Do not promote fields from this cross-project resemblance to GarageBand semantics.
