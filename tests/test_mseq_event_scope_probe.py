@@ -145,27 +145,43 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         control_raw[4:8] = (100).to_bytes(4, "little")
         records.append({
             "group_id_candidate": groups[0],
-            "chunk_index": 4,
+            "chunk_index": 1,
             "event_index": 4,
             "type_byte": 0xB0,
             "length": 32,
             "raw_hex": bytes(control_raw).hex(),
         })
+        other_chunk_raw = bytearray(control_raw)
+        other_chunk_raw[0] = 0xE0
+        records.append({
+            "group_id_candidate": groups[0],
+            "chunk_index": 9,
+            "event_index": 1,
+            "type_byte": 0xE0,
+            "length": 32,
+            "raw_hex": bytes(other_chunk_raw).hex(),
+        })
         notes = [
             {
                 "source_group_id_candidate": groups[0],
+                "source_chunk_index": 1,
+                "source_event_index": 2,
                 "position_raw": 100,
                 "position_fraction_raw": 7,
                 "event_type_byte": 0x91,
             },
             {
                 "source_group_id_candidate": groups[0],
+                "source_chunk_index": 1,
+                "source_event_index": 3,
                 "position_raw": 100,
                 "position_fraction_raw": 7,
                 "event_type_byte": 0x90,
             },
             {
                 "source_group_id_candidate": groups[1],
+                "source_chunk_index": 2,
+                "source_event_index": 2,
                 "position_raw": 100,
                 "position_fraction_raw": 8,
                 "event_type_byte": 0x90,
@@ -188,6 +204,25 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         self.assertEqual(
             result["type_32_matching_note_event_type_counts"],
             {"0x90": 1, "0x91": 1},
+        )
+        self.assertEqual(
+            result["non_note_event_position_candidate_order"],
+            {
+                "0x32": {
+                    "matching_event_count": 1,
+                    "same_chunk_pairs": 2,
+                    "before_note_pairs": 2,
+                },
+                "0xb0": {
+                    "matching_event_count": 1,
+                    "same_chunk_pairs": 2,
+                    "after_note_pairs": 2,
+                },
+                "0xe0": {
+                    "matching_event_count": 1,
+                    "different_chunk_pairs": 2,
+                },
+            },
         )
         self.assertEqual(
             result["type_32_timestamp_counts_by_placement_scope"],
@@ -214,6 +249,11 @@ class MseqEventScopeProbeTests(unittest.TestCase):
                     "same_group_exact_fractional_position_match_record_count": 1,
                 },
                 "0xb0": {
+                    "eligible_record_count": 1,
+                    "same_group_position_word_match_record_count": 1,
+                    "same_group_exact_fractional_position_match_record_count": 1,
+                },
+                "0xe0": {
                     "eligible_record_count": 1,
                     "same_group_position_word_match_record_count": 1,
                     "same_group_exact_fractional_position_match_record_count": 1,
