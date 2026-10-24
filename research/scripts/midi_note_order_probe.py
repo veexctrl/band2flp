@@ -44,6 +44,12 @@ def inventory_note_order(notes: list[dict[str, Any]]) -> dict[str, int]:
                     counts["distinct_pitch_shared_onsets"] += 1
                 else:
                     counts["repeated_pitch_shared_onsets"] += 1
+            durations = [note.get("duration_ticks_candidate") for note in tied_notes]
+            if all(isinstance(duration, int) for duration in durations):
+                if len(set(durations)) == 1:
+                    counts["same_duration_shared_onsets"] += 1
+                else:
+                    counts["mixed_duration_shared_onsets"] += 1
         ordered = sorted(group_notes, key=lambda note: (
             note["source_chunk_index"], note["source_event_index"]
         ))
@@ -63,6 +69,7 @@ def inventory_note_order(notes: list[dict[str, Any]]) -> dict[str, int]:
         "adjacent_pairs", "nondecreasing", "strictly_increasing", "ties", "decreases",
         "shared_onset_groups", "extra_events_at_shared_onsets",
         "distinct_pitch_shared_onsets", "repeated_pitch_shared_onsets",
+        "same_duration_shared_onsets", "mixed_duration_shared_onsets",
     )}}
 
 
