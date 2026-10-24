@@ -35,6 +35,10 @@ def main(argv: list[str] | None = None) -> int:
     extract_audio.add_argument("project", help="GarageBand .band package")
     extract_audio.add_argument("output_dir", help="new directory for the extracted audio files")
     extract_audio.add_argument(
+        "--source-root",
+        help="optional folder to resolve external audio references by unique basename",
+    )
+    extract_audio.add_argument(
         "--to-wav", action="store_true",
         help="transcode referenced audio to 16-bit PCM WAV with FFmpeg",
     )
@@ -47,6 +51,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("output", help="new FL Studio .flp output path")
     export.add_argument("--template", required=True, help="path to a blank FL Studio project template")
     export.add_argument("--media-dir", help="new directory for referenced audio used by the FLP (required when exporting audio regions)")
+    export.add_argument(
+        "--source-root",
+        help="optional folder to resolve external audio references by unique basename",
+    )
     export.add_argument(
         "--to-wav", action="store_true",
         help="transcode referenced audio to 16-bit PCM WAV with FFmpeg before linking it",
@@ -80,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.output_dir,
                 to_wav=args.to_wav,
                 transcoder=args.transcoder,
+                source_root=args.source_root,
             )
             _print_json(report)
             return 0
@@ -112,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.media_dir,
                     to_wav=args.to_wav,
                     transcoder=args.transcoder,
+                    source_root=args.source_root,
                 )
                 media_root = Path(args.media_dir).expanduser().resolve()
                 media_by_reference = {
