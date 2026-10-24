@@ -185,4 +185,6 @@ Special thanks to [@zazasys](https://github.com/zazasys) (Instagram: `_zaaaaan_`
 
 Cross-format research references include [loov/logicx](https://github.com/loov/logicx) and [Jon Kubis's LogicProFormatWriter format notes](https://github.com/jonkubis/LogicProFormatWriter/blob/main/PROJECTDATA_FORMAT.md). They document Logic Pro, so we use them as research leads and validate candidate meanings against GarageBand evidence. The band2flp implementation was written independently; no code was copied from these projects.
 
+The project owner also supplied private FL Studio 25 projects as local compatibility references for sample-backed channel and playlist structures. We used their structure to guide independent exporter code and aggregate-only probes; no FLP projects, media, sample paths, or project-specific values are included in the repository.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the research workflow and fixture privacy guidance, [docs/roadmap.md](docs/roadmap.md) for milestones, [docs/architecture.md](docs/architecture.md) for the parser/model/exporter boundary, [docs/band-format.md](docs/band-format.md) for observed format details, and [docs/flp-mapping.md](docs/flp-mapping.md) for FL Studio status.
