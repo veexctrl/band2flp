@@ -114,3 +114,5 @@
 
 - MIDI-035 found that the opaque six-byte slice at type-0x32 offsets +0x02..+0x07 is repeated across records and other MSeq groups, and its same-group association with other events varies between two fixtures. It is not a unique event key; its semantics remain unknown.
 - PD-008 scanned object fields and keyed-dictionary keys across two `projectData` graphs (66/37 objects). The arrangement-like keyword hits remained editor/UI settings and current-track selection state; the scan found no named region, automation, loop, or Live Loops collection. The opaque Logic Song payload and other components remain outside this conclusion.
+
+- FLP-037 compared a synthetic sample-backed channel with a private FL Studio 25 reference collection: its 36-event signature matched 2,775 of 2,931 sample-backed channels, and its 32-byte playlist row had a full static-profile match. The corpus also contains 60- and 80-byte rows; these cross-format counts do not establish GarageBand semantics or a universal FLP stride.
