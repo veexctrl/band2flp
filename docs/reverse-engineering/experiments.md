@@ -1915,3 +1915,18 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for candidate event counts, same-chunk order relations, and the 49 IDA/Python byte-range matches in this fixture. UNKNOWN whether the pattern generalizes or encodes a musical event phase.
 
 **Next:** Use controlled projects that add one note and vary one controller or note property, then compare event-family presence and ordering while keeping the current candidate fields uninterpreted.
+
+
+## MIDI-038 — compare note-position candidates with serialized event order
+
+**Question:** Are note-shaped event position candidates ordered by their raw onset fields within each candidate group?
+
+**Fixtures and method:** Sort note-shaped candidates by source chunk and event index within each group, then count adjacent position comparisons using the pair `(position_raw, position_fraction_raw)`. The aggregate-only command is `python -m research.scripts.midi_note_order_probe <project-a.band> <project-b.band>`. It emits counts only, not group IDs, position values, note properties, paths, or media. Independently compare representative complete event ranges with IDA MCP.
+
+**Observation:** Fixture 1 has five groups and 128 adjacent pairs: 124 strictly increase, four tie, and none decrease. Fixture 2 has no recognized note-shaped candidates. Three representative complete event ranges match the parser bytes read through IDA MCP.
+
+**Result:** Candidate positions are nondecreasing in serialized event order within the observed groups in one fixture. This supports a structural ordering correlation only; the candidates are Logic-derived and do not establish GarageBand onset semantics, PPQ, region scope, or that records are musical notes. No parser normalization or export behavior changes.
+
+**Confidence:** CONFIRMED for these aggregate counts and the three IDA/Python range comparisons. HYPOTHESIS for interpreting serialized ordering as onset ordering; UNKNOWN for GarageBand meaning and generality.
+
+**Next:** Produce a controlled GarageBand save changing only one note onset, then check whether both event order and the candidate raw position respond predictably. Until that fixture exists, preserve the observation as research metadata only.
