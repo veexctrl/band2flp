@@ -1618,6 +1618,8 @@ Every start-matched note within each visible row has the same raw fractional-wor
 
 **Next:** Create same-source GarageBand saves with a region that ends at the source boundary, then trim its head and tail separately. Check whether `+0x06` and `+0x16` change by the corresponding source-frame deltas while region placement stays fixed.
 
+**Metadata-only validation:** The aggregate probes read ZIP member streams through the needed container headers and stop at the audio-data chunk. Synthetic WAVE, AIFF, and CAF tests verify the stream position remains before sample bytes. Re-running both supplied archives preserved the prior frame-count and source-link aggregates; no audio sample payload is copied into the probe output.
+
 ## MIDI-028 - preserve placements without recognized note events
 
 **Question:** Does building neutral MIDI regions only from recognized note events omit placements that otherwise link to an `MSeq` chunk?
