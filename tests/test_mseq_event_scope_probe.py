@@ -124,7 +124,7 @@ class MseqEventScopeProbeTests(unittest.TestCase):
             {"type": "MSeq", "index": index, "group_id_candidate": group}
             for index, group in enumerate(groups, 1)
         ]
-        placements = [{"candidate_mseq_chunk_indices": [index]} for index in range(1, 4)]
+        placements = [{"candidate_mseq_chunk_indices": [index]} for index in range(1, 3)]
         records = []
         for index, (group, fraction) in enumerate(zip((groups[0], groups[2]), (7, 8)), 1):
             raw = bytearray(32)
@@ -188,6 +188,22 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         self.assertEqual(
             result["type_32_matching_note_event_type_counts"],
             {"0x90": 1, "0x91": 1},
+        )
+        self.assertEqual(
+            result["type_32_timestamp_counts_by_placement_scope"],
+            {
+                "ambiguous_placement": {},
+                "no_placement_candidate": {
+                    "eligible_record_count": 1,
+                    "same_group_exact_fractional_position_match_record_count": 0,
+                    "any_group_exact_fractional_position_match_record_count": 1,
+                },
+                "unique_placement": {
+                    "eligible_record_count": 1,
+                    "same_group_exact_fractional_position_match_record_count": 1,
+                    "any_group_exact_fractional_position_match_record_count": 1,
+                },
+            },
         )
         self.assertEqual(
             result["non_note_event_position_candidate_matches"],
