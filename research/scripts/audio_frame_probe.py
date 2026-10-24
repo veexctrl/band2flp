@@ -1,7 +1,8 @@
 """Compare GarageBand AuRg frame-count candidates with embedded audio lengths.
 
-The probe reads audio members in memory and reports aggregate counts only. It
-does not extract, play, copy, or print project audio or member names.
+The probe reads only container headers and frame metadata from embedded audio
+members, and reports aggregate counts. It does not read sample payloads,
+extract, play, copy, or print project audio or member names.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import math
 import struct
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from band2flp.parser import BandFormatError, parse_band
 
@@ -51,6 +52,7 @@ def audio_frame_count(data: bytes) -> tuple[int | None, str | None]:
     if data.startswith(b"RIFF") and data[8:12] == b"WAVE":
         offset = 12
         block_align: int | None = None
+        sample_rate: int | None = None
         data_size: int | None = None
         while offset + 8 <= len(data):
             tag = data[offset:offset + 4]
@@ -85,6 +87,156 @@ def audio_frame_count(data: bytes) -> tuple[int | None, str | None]:
         return _caf_frame_count(data)
 
     return None, None
+
+
+def audio_frame_metadata_stream(
+    stream: BinaryIO, file_size: int
+) -> tuple[int | None, str | None, int | None]:
+    """Read frame metadata from a media stream without reading sample payloads.
+
+    The supported layouts put the needed metadata before their audio-data
+    chunks: WAVE ``fmt `` before ``data``, AIFF ``COMM`` before ``SSND``, and
+    CAF ``desc``/``pakt`` before ``data``. Unknown large chunks and unusual
+    orderings are reported as unsupported instead of being consumed.
+    """
+    if file_size < 12:
+        return None, None, None
+    try:
+        header = stream.read(12)
+    except (OSError, ValueError):
+        return None, None, None
+    if len(header) != 12:
+        return None, None, None
+
+    def seek_metadata_chunk(size: int, pad: int = 0) -> bool:
+        # Refuse to walk potentially large opaque chunks. In particular, this
+        # prevents an unusual chunk order from consuming audio samples.
+        if size < 0 or size + pad > 1_048_576:
+            return False
+        try:
+            stream.seek(size + pad, 1)
+            return True
+        except (AttributeError, OSError, ValueError):
+            return False
+
+    if header[:4] == b"RIFF" and header[8:12] == b"WAVE":
+        offset = 12
+        block_align: int | None = None
+        while offset + 8 <= min(file_size, 1_048_576):
+            chunk_header = stream.read(8)
+            if len(chunk_header) != 8:
+                break
+            tag = chunk_header[:4]
+            size = struct.unpack_from("<I", chunk_header, 4)[0]
+            offset += 8
+            if size > file_size - offset:
+                break
+            if tag == b"fmt " and size >= 16:
+                fmt = stream.read(16)
+                if len(fmt) != 16:
+                    break
+                block_align = struct.unpack_from("<H", fmt, 12)[0]
+                sample_rate = struct.unpack_from("<I", fmt, 4)[0]
+                if not seek_metadata_chunk(size - 16, size & 1):
+                    break
+            elif tag == b"data":
+                # Standard WAVE places fmt before data. Do not seek over the
+                # sample bytes if the file has an unusual chunk ordering.
+                if block_align and size >= 0:
+                    rate = sample_rate if sample_rate and sample_rate > 0 else None
+                    return size // block_align, "WAVE", rate
+                break
+            elif not seek_metadata_chunk(size, size & 1):
+                break
+            offset += size + (size & 1)
+        return None, "WAVE-unrecognized-layout", None
+
+    if header[:4] == b"FORM" and header[8:12] in (b"AIFF", b"AIFC"):
+        offset = 12
+        while offset + 8 <= min(file_size, 1_048_576):
+            chunk_header = stream.read(8)
+            if len(chunk_header) != 8:
+                break
+            tag = chunk_header[:4]
+            size = struct.unpack_from(">I", chunk_header, 4)[0]
+            offset += 8
+            if size > file_size - offset:
+                break
+            if tag == b"COMM" and size >= 18:
+                comm = stream.read(18)
+                if len(comm) != 18:
+                    break
+                frames = struct.unpack_from(">I", comm, 2)[0]
+                sign_exp = struct.unpack_from(">H", comm, 8)[0]
+                mantissa = struct.unpack_from(">Q", comm, 10)[0]
+                exponent = sign_exp & 0x7FFF
+                exponent_value = exponent - 16383
+                if exponent == 0x7FFF or mantissa == 0 or not -63 <= exponent_value <= 32:
+                    return frames, "AIFF", None
+                rate_value = mantissa / (1 << 63) * (2.0 ** exponent_value)
+                rate = round(-rate_value if sign_exp & 0x8000 else rate_value)
+                return frames, "AIFF", rate if rate > 0 else None
+            if not seek_metadata_chunk(size, size & 1):
+                break
+            offset += size + (size & 1)
+        return None, "AIFF-unrecognized-layout", None
+
+    if header[:4] == b"caff":
+        # The CAF file header is eight bytes; the initial common header read
+        # also consumed four bytes from the first chunk header.
+        try:
+            stream.seek(8)
+        except (AttributeError, OSError, ValueError):
+            return None, "CAF-variable-or-unrecognized-layout", None
+        offset = 8
+        packet_frames: int | None = None
+        bytes_per_packet: int | None = None
+        frames_per_packet: int | None = None
+        sample_rate: int | None = None
+        while offset + 12 <= min(file_size, 1_048_576):
+            chunk_header = stream.read(12)
+            if len(chunk_header) != 12:
+                break
+            tag = chunk_header[:4]
+            size = struct.unpack_from(">q", chunk_header, 4)[0]
+            offset += 12
+            if size < 0 or size > file_size - offset:
+                break
+            if tag == b"desc" and size >= 32:
+                desc = stream.read(32)
+                if len(desc) != 32:
+                    break
+                rate_value = struct.unpack_from(">d", desc, 0)[0]
+                if math.isfinite(rate_value) and rate_value > 0:
+                    sample_rate = round(rate_value)
+                bytes_per_packet = struct.unpack_from(">I", desc, 16)[0]
+                frames_per_packet = struct.unpack_from(">I", desc, 20)[0]
+                if not seek_metadata_chunk(size - 32):
+                    break
+            elif tag == b"pakt" and size >= 24:
+                packet = stream.read(24)
+                if len(packet) != 24:
+                    break
+                value = struct.unpack_from(">q", packet, 8)[0]
+                if value >= 0:
+                    packet_frames = value
+                if not seek_metadata_chunk(size - 24):
+                    break
+            elif tag == b"data":
+                if packet_frames is not None:
+                    return packet_frames, "CAF-packet-table", sample_rate
+                if bytes_per_packet and frames_per_packet:
+                    return ((size - 4) // bytes_per_packet * frames_per_packet,
+                            "CAF-fixed-packet", sample_rate)
+                break
+            elif not seek_metadata_chunk(size):
+                break
+            offset += size
+        if packet_frames is not None:
+            return packet_frames, "CAF-packet-table", sample_rate
+        return None, "CAF-variable-or-unrecognized-layout", sample_rate
+
+    return None, None, None
 
 
 def audio_sample_rate(data: bytes) -> int | None:
@@ -167,14 +319,16 @@ def probe_project(path: str | Path) -> dict[str, Any]:
             if reference.category != "AudioFiles" or reference.package_member is None:
                 continue
             compared_sources += 1
-            audio_data = archive.read(reference.package_member)
-            frame_count, format_name = audio_frame_count(audio_data)
+            info = archive.getinfo(reference.package_member)
+            with archive.open(info) as audio_stream:
+                frame_count, format_name, sample_rate = audio_frame_metadata_stream(
+                    audio_stream, info.file_size
+                )
             if frame_count is None or format_name is None:
                 unmatched_layout_count += 1
                 continue
             decoded_sources += 1
             formats[format_name] += 1
-            sample_rate = audio_sample_rate(audio_data)
             if sample_rate is not None:
                 sample_rates[str(sample_rate)] += 1
             source_match_count = 0
