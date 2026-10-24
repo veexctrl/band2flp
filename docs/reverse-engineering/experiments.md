@@ -1901,3 +1901,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the scope counts, candidate-position match counts, and IDA/Python byte agreement in these two fixtures. HYPOTHESIS for a relationship between the candidate pair and event position in one fixture. UNKNOWN for event semantics and generality.
 
 **Next:** Compare controlled empty and one-note GarageBand regions, then vary note start independently. Until then, preserve type-0x32 bytes as unknown event data.
+
+## MIDI-037 — compare same-position event order with note records
+
+**Question:** When a non-note event in a note-bearing MSeq group has the same +0x02/+0x04 position candidate as a note, does it serialize before or after that note in the event stream?
+
+**Fixtures and method:** Extend the aggregate-only mseq_event_scope_probe to compare event and note chunk/event indices for exact same-group position-pair matches. Read the complete matched event and note records from both Logic Song payloads in IDA MCP and compare them with Python. The report emits counts by event type and ordering relation only; it omits positions, values, identifiers, names, payloads, and media.
+
+**Observation:** In the note-bearing fixture, four type-0x32 records yield five exact note-position pairs, all in the same chunk and preceding their note records. Five type-0xB0 records yield six same-chunk pairs, all preceding notes. One type-0xD5 record yields one pair after its note. Eighteen matching records from types 0xE0 and 0xE3–0xEE yield 19 same-chunk pairs, all after notes. All 49 selected complete event ranges match IDA byte-for-byte. The second fixture has no recognized note candidates and no ordering comparisons.
+
+**Result:** Exact-position co-occurrences occupy different serialization phases by event family in this fixture. This may be event ordering or another serializer convention; it does not establish event semantics, MIDI message roles, or a causal relation to notes. No type decoder or export behavior changes.
+
+**Confidence:** CONFIRMED for candidate event counts, same-chunk order relations, and the 49 IDA/Python byte-range matches in this fixture. UNKNOWN whether the pattern generalizes or encodes a musical event phase.
+
+**Next:** Use controlled projects that add one note and vary one controller or note property, then compare event-family presence and ordering while keeping the current candidate fields uninterpreted.
