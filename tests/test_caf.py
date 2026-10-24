@@ -3,6 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 import struct
 import unittest
+import zipfile
 
 from band2flp.caf import LOOP_METADATA_UUID, inspect_caf_loop_metadata
 
@@ -87,6 +88,31 @@ class CafMetadataTests(unittest.TestCase):
             )
         )
         self.assertGreaterEqual(stream.tell(), sample_end)
+
+    def test_zip_member_stops_before_data_payload(self) -> None:
+        data = fixture({"beat count": "4"})
+        data_header = data.index(b"data", 8)
+        old_sample_end = data_header + 12 + 30
+        sample_payload = b"X" * (1024 * 1024)
+        data = (
+            data[:data_header]
+            + b"data"
+            + len(sample_payload).to_bytes(8, "big", signed=True)
+            + sample_payload
+            + data[old_sample_end:]
+        )
+        archive_bytes = BytesIO()
+        with zipfile.ZipFile(archive_bytes, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("synthetic.caf", data)
+        archive_bytes.seek(0)
+
+        with zipfile.ZipFile(archive_bytes) as archive:
+            info = archive.getinfo("synthetic.caf")
+            with archive.open(info) as stream:
+                self.assertIsNone(
+                    inspect_caf_loop_metadata(stream, allow_data_seek=False)
+                )
+                self.assertEqual(stream.tell(), data_header + 12)
 
     def test_unknown_uuid_is_not_interpreted(self) -> None:
         self.assertIsNone(inspect_caf_loop_metadata(BytesIO(fixture({"beat count": "4"}, uuid=bytes(16)))))
