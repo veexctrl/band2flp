@@ -173,7 +173,7 @@ def inventory_scope(
             profile["varying_byte_candidate_field_matches"] = field_matches
         payload_profiles[str(length)] = profile
 
-    notes_by_group: dict[int, list[dict[str, int]]] = defaultdict(list)
+    notes_by_group: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for note in note_candidates or []:
         if not isinstance(note, dict):
             continue
@@ -181,7 +181,12 @@ def inventory_scope(
         position = note.get("position_raw")
         fraction = note.get("position_fraction_raw")
         if all(type(value) is int for value in (group, position, fraction)):
-            notes_by_group[group].append({"position_raw": position, "fraction_raw": fraction})
+            notes_by_group[group].append({
+                "position_raw": position,
+                "fraction_raw": fraction,
+                "source_chunk_index": note.get("source_chunk_index"),
+                "source_event_index": note.get("source_event_index"),
+            })
 
     timestamp_candidate_counts: Counter[str] = Counter()
     timestamp_counts_by_scope: dict[str, Counter[str]] = {
@@ -191,6 +196,7 @@ def inventory_scope(
     }
     timestamp_candidate_note_types: Counter[int] = Counter()
     event_position_counts: dict[int, Counter[str]] = defaultdict(Counter)
+    event_position_order_counts: dict[int, Counter[str]] = defaultdict(Counter)
     all_notes = [note for group_notes in notes_by_group.values() for note in group_notes]
     all_note_positions = {
         (note["position_raw"], note["fraction_raw"]) for note in all_notes
@@ -263,14 +269,37 @@ def inventory_scope(
         fraction = int.from_bytes(raw[2:4], "little")
         group_notes = notes_by_group[group]
         counts = event_position_counts[event_type]
+        exact_matches = [
+            note for note in group_notes
+            if note["position_raw"] == position and note["fraction_raw"] == fraction
+        ]
         counts["eligible_record_count"] += 1
         counts["same_group_position_word_match_record_count"] += any(
             note["position_raw"] == position for note in group_notes
         )
-        counts["same_group_exact_fractional_position_match_record_count"] += any(
-            note["position_raw"] == position and note["fraction_raw"] == fraction
-            for note in group_notes
-        )
+        counts["same_group_exact_fractional_position_match_record_count"] += bool(exact_matches)
+        if exact_matches:
+            order_counts = event_position_order_counts[event_type]
+            order_counts["matching_event_count"] += 1
+            event_chunk = record.get("chunk_index")
+            event_index = record.get("event_index")
+            for note in exact_matches:
+                note_chunk = note.get("source_chunk_index")
+                note_index = note.get("source_event_index")
+                if not all(type(value) is int for value in (event_chunk, event_index, note_chunk, note_index)):
+                    order_counts["pairs_missing_order_fields"] += 1
+                    continue
+                if event_chunk != note_chunk:
+                    order_counts["different_chunk_pairs"] += 1
+                elif event_index < note_index:
+                    order_counts["same_chunk_pairs"] += 1
+                    order_counts["before_note_pairs"] += 1
+                elif event_index > note_index:
+                    order_counts["same_chunk_pairs"] += 1
+                    order_counts["after_note_pairs"] += 1
+                else:
+                    order_counts["same_chunk_pairs"] += 1
+                    order_counts["same_event_index_pairs"] += 1
 
     categories: dict[str, dict[str, Any]] = {}
     for category in ("unique_placement", "ambiguous_placement", "no_placement_candidate"):
@@ -325,6 +354,10 @@ def inventory_scope(
         "non_note_event_position_candidate_matches": {
             f"0x{event_type:02x}": dict(sorted(counts.items()))
             for event_type, counts in sorted(event_position_counts.items())
+        },
+        "non_note_event_position_candidate_order": {
+            f"0x{event_type:02x}": dict(sorted(counts.items()))
+            for event_type, counts in sorted(event_position_order_counts.items())
         },
         "type_32_timestamp_candidate_interpretation": (
             "HYPOTHESIS: payload +0x02/+0x04 words match candidate note positions in one fixture; "
