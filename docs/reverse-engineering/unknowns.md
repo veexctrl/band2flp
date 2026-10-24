@@ -1,6 +1,7 @@
 # Unknowns and required evidence
 
 - Semantic field layouts and relationships for the observed chunk types inside the `DfLogicModelLogicSong` `NS.data` payload.
+- Whether arrangement, region, or automation content appears as named structures elsewhere in the `projectData` keyed archive. PD-008 scanned object-field and dictionary-key names in two graphs and found only editor/UI settings and current-track selection terms; unnamed structures and the opaque Logic Song `NS.data` payload remain outside that negative result.
 - Semantics and lifecycle of the `CacheInfo` plist `cachesValidationUUID`. CROSS-006 matched the IDA-loaded component to duplicate package members and found no UUID match in `projectData`, summary, or asset plists. CROSS-008 also found no ASCII, standard-byte, or little-endian-byte match in either retained Logic Song component. These checks do not rule out transformed identifiers or references elsewhere; whether the UUID validates a cache, save generation, or another object remains unknown.
 - Whether Logic Pro chunk decoders transfer unchanged to iOS GarageBand versions.
 - Scope and semantics of the 32-bit header value at offset 8: it is reused by `TxSt` and audio chunk families, so it is not globally unique. Its role in source/region grouping needs validation with controlled projects and edits.

@@ -11,6 +11,11 @@ import zipfile
 
 from band2flp.parser import BandFormatError, _find_member, _read_member, _safe_plist, _uid_index
 
+DICTIONARY_KEYWORDS = (
+    "track", "region", "automation", "tempo", "signature", "meter", "section",
+    "loop", "live", "cell", "audio", "midi", "mute", "solo", "volume", "pan",
+)
+
 
 def _resolve(objects: list[Any], value: Any) -> Any:
     index = _uid_index(value)
@@ -44,8 +49,12 @@ def profile_archive(archive: Any) -> dict[str, Any]:
     class_counts: Counter[str] = Counter()
     fields_by_class: dict[str, Counter[str]] = defaultdict(Counter)
     value_types_by_class: dict[str, Counter[str]] = defaultdict(Counter)
+    object_field_keyword_counts: Counter[str] = Counter()
+    object_field_keyword_counts_by_class: dict[str, Counter[str]] = defaultdict(Counter)
     dictionary_key_length_counts: Counter[str] = Counter()
     dictionary_value_types: Counter[str] = Counter()
+    dictionary_keyword_key_counts: Counter[str] = Counter()
+    dictionary_keyword_key_counts_by_class: dict[str, Counter[str]] = defaultdict(Counter)
 
     for obj in objects:
         if not isinstance(obj, dict):
@@ -57,6 +66,14 @@ def profile_archive(archive: Any) -> dict[str, Any]:
         class_counts[class_name] += 1
         fields_by_class[class_name].update(key for key in obj if key != "$class")
         value_types_by_class[class_name].update(type(value).__name__ for key, value in obj.items() if key != "$class")
+        for key in obj:
+            if key == "$class":
+                continue
+            folded_key = str(key).casefold()
+            for keyword in DICTIONARY_KEYWORDS:
+                if keyword in folded_key:
+                    object_field_keyword_counts[keyword] += 1
+                    object_field_keyword_counts_by_class[class_name][keyword] += 1
 
         keys, values = obj.get("NS.keys"), obj.get("NS.objects")
         if isinstance(keys, list) and isinstance(values, list) and len(keys) == len(values):
@@ -64,6 +81,11 @@ def profile_archive(archive: Any) -> dict[str, Any]:
                 key = _string(objects, key_ref)
                 if key is not None:
                     dictionary_key_length_counts[str(len(key))] += 1
+                    folded_key = key.casefold()
+                    for keyword in DICTIONARY_KEYWORDS:
+                        if keyword in folded_key:
+                            dictionary_keyword_key_counts[keyword] += 1
+                            dictionary_keyword_key_counts_by_class[class_name][keyword] += 1
                 dictionary_value_types[type(value_ref).__name__] += 1
 
     return {
@@ -75,8 +97,18 @@ def profile_archive(archive: Any) -> dict[str, Any]:
         "value_types_by_class": {
             name: dict(sorted(counts.items())) for name, counts in sorted(value_types_by_class.items())
         },
+        "object_field_keyword_counts": dict(sorted(object_field_keyword_counts.items())),
+        "object_field_keyword_counts_by_class": {
+            name: dict(sorted(counts.items()))
+            for name, counts in sorted(object_field_keyword_counts_by_class.items())
+        },
         "keyed_dictionary_key_length_counts": dict(sorted(dictionary_key_length_counts.items())),
         "keyed_dictionary_value_reference_types": dict(sorted(dictionary_value_types.items())),
+        "dictionary_keyword_key_counts": dict(sorted(dictionary_keyword_key_counts.items())),
+        "dictionary_keyword_key_counts_by_class": {
+            name: dict(sorted(counts.items()))
+            for name, counts in sorted(dictionary_keyword_key_counts_by_class.items())
+        },
         "privacy_note": "Dictionary key text, project values, identifiers, user strings, paths, media, and archive object indices are omitted.",
     }
 
@@ -107,3 +139,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

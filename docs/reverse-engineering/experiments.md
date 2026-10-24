@@ -1780,3 +1780,20 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** HIGH CONFIDENCE for these counts on the reconstructed component sets; UNKNOWN for the slice's meaning. This comparison used Python; the exact slice matches were not independently re-read in IDA during this experiment.
 
 **Next:** Compare controlled GarageBand note-onset and pitch edits, then use IDA to cross-check the specific event ranges when the IDA MCP service responds.
+
+
+## PD-008 — scan the full keyed archive for arrangement-like schema names
+
+**Question:** Do other objects in the `projectData` keyed archive expose named track, region, or automation collections outside the already inspected arrange-model `CBData` branch?
+
+**Fixtures:** The two private `projectData` components, kept local. No audio or preview images were opened.
+
+**Method:** Parse each `NSKeyedArchiver` graph with Python's standard plist support, resolve every serialized object field and `NSDictionary` key reference, and count case-insensitive schema-keyword matches by object class. The report omits key text, project values, identifiers, and object indices. Keywords cover track, region, automation, tempo/meter, section, loop/Live Loops, audio/MIDI, and mixer state.
+
+**Observation:** The graphs contain 66 and 37 objects, including four and three keyed dictionaries. The only object-field keyword hits are two `DfArrangeModel` fields containing `track` and one containing `midi`; their values are editor type/visibility state. Dictionary-key hits occur only in `NSMutableDictionary` objects: one graph has track, cell, MIDI, tempo, pan, and section terms; the other has track, cell, tempo, and pan terms. The inspected hits are editor/UI state and current-track selection; section hits refer to UI panel visibility. No region, automation, loop, Live Loops, audio, mute, solo, or volume key was found.
+
+**Result:** Across the named fields and dictionary keys in these two keyed archives, the lexical matches do not reveal an arrangement-content collection. This does not rule out unnamed objects, data in the opaque Logic Song `NS.data` payload, or other package components.
+
+**Confidence:** CONFIRMED for the reported object counts and lexical profiles in these two graphs. UNKNOWN whether arrangement structures are stored elsewhere.
+
+**Next:** Continue analyzing the Logic Song payload and compare a minimal GarageBand project with one controlled arrangement edit.
