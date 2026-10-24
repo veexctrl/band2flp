@@ -30,6 +30,20 @@ def inventory_note_order(notes: list[dict[str, Any]]) -> dict[str, int]:
 
     counts: Counter[str] = Counter()
     for group_notes in groups.values():
+        by_position: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
+        for note in group_notes:
+            by_position[(note["position_raw"], note["position_fraction_raw"])].append(note)
+        for tied_notes in by_position.values():
+            if len(tied_notes) < 2:
+                continue
+            counts["shared_onset_groups"] += 1
+            counts["extra_events_at_shared_onsets"] += len(tied_notes) - 1
+            pitches = [note.get("pitch_candidate") for note in tied_notes]
+            if all(isinstance(pitch, int) for pitch in pitches):
+                if len(set(pitches)) == len(pitches):
+                    counts["distinct_pitch_shared_onsets"] += 1
+                else:
+                    counts["repeated_pitch_shared_onsets"] += 1
         ordered = sorted(group_notes, key=lambda note: (
             note["source_chunk_index"], note["source_event_index"]
         ))
@@ -46,7 +60,9 @@ def inventory_note_order(notes: list[dict[str, Any]]) -> dict[str, int]:
             else:
                 counts["decreases"] += 1
     return {"groups": len(groups), **{key: counts[key] for key in (
-        "adjacent_pairs", "nondecreasing", "strictly_increasing", "ties", "decreases"
+        "adjacent_pairs", "nondecreasing", "strictly_increasing", "ties", "decreases",
+        "shared_onset_groups", "extra_events_at_shared_onsets",
+        "distinct_pitch_shared_onsets", "repeated_pitch_shared_onsets",
     )}}
 
 

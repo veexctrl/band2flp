@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-23",
+  "as_of": "2026-10-24",
   "title": "GarageBand reverse-engineering progress",
   "scope_note": "Rough estimate of targeted format knowledge recovered, not a measure of converter completeness. Category weights express project priorities; category percentages are evidence-based judgments. The headline rounds the weighted estimate to the nearest 10%.",
   "categories": [
@@ -30,8 +30,8 @@
     {
       "name": "MIDI placement and note semantics",
       "weight": 18,
-      "recovered": 37,
-      "basis": "Preview matches 26 candidate note starts and pitch order in two rows; the neutral model now preserves all 31 recognized placements. Absolute semantics remain open."
+      "recovered": 38,
+      "basis": "Preview matches candidate onset and pitch order in two rows; MIDI-038 adds serialized-order and distinct-pitch shared-onset correlations in one fixture. Absolute semantics remain open."
     },
     {
       "name": "Tempo and meter timeline",
@@ -58,8 +58,8 @@
     },
     {
       "name": "MIDI interpretation",
-      "state": "partial: cached preview supports fixture-specific onset, duration, and pitch-order candidates; absolute pitch mapping and controlled validation remain open",
-      "display_label": "PITCH ORDER · PREVIEW MATCH"
+      "state": "partial: preview supports fixture-specific onset and pitch candidates; one fixture also has nondecreasing serialized onsets and distinct-pitch shared-onset groups; controlled validation remains open",
+      "display_label": "ONSET ORDER · DISTINCT PITCHES"
     },
     {
       "name": "Region boundaries and track state",
