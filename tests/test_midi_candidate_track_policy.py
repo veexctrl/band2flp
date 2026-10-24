@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 import io
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -95,6 +96,8 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
                 source_mseq_chunk_index=index + 1, source_placement_chunk_index=8,
                 source_placement_event_index=index,
                 unknown=region(2).unknown,
+                source_duration_beats_candidate="8" if index == 0 else None,
+                placement_extent_beats_candidate="12" if index == 0 else None,
             ))
         regions.append(UnplacedMidiRegionCandidate(
             start_beats_candidate="8", label_candidate="Synthetic unbound",
@@ -115,6 +118,7 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
                                 output_path=Path(directory) / "synthetic.flp", media_by_reference={},
                                 include_midi_candidates=True, midi_track_policy="candidate-bindings")
             summary = result["summary"]
+            sidecar = json.loads((Path(directory) / result["report"]).read_text(encoding="utf-8"))
         self.assertEqual(summary["midi_candidate_patterns"], 3)
         self.assertEqual(summary["midi_region_candidates"], 4)
         self.assertEqual(summary["midi_region_candidates_without_recognized_notes"], 1)
@@ -128,9 +132,15 @@ class MidiCandidateTrackPolicyTests(unittest.TestCase):
         )
         self.assertEqual([item["channel_iid"] for item in summary["midi_candidates"]], [0, 0, 1])
         self.assertEqual([item["playlist_track_index"] for item in summary["midi_candidates"]], [3, 3, 4])
+        self.assertEqual(summary["midi_candidates"][0]["source_duration_beats_candidate"], "8")
+        self.assertEqual(summary["midi_candidates"][0]["placement_extent_beats_candidate"], "12")
+        self.assertEqual(summary["midi_candidates"][0]["length_ticks"], 96)
+        self.assertEqual(sidecar["midi_candidates"][0]["source_duration_beats_candidate"], "8")
+        self.assertEqual(sidecar["midi_candidates"][0]["placement_extent_beats_candidate"], "12")
         self.assertEqual(summary["midi_candidates"][2]["fallback_reason"], "synthetic_missing_link")
         self.assertTrue(any("unconfirmed" in warning for warning in summary["warnings"]))
         self.assertTrue(any("note channel candidates" in warning for warning in summary["warnings"]))
+        self.assertTrue(any("do not set pattern or playlist clip lengths" in warning for warning in summary["warnings"]))
 
 
 if __name__ == "__main__":

@@ -656,6 +656,8 @@ def export_flp(
                 "source_mseq_chunk_index": region.source_mseq_chunk_index,
                 "source_placement_chunk_index": region.source_placement_chunk_index,
                 "source_placement_event_index": region.source_placement_event_index,
+                "source_duration_beats_candidate": getattr(region, "source_duration_beats_candidate", None),
+                "placement_extent_beats_candidate": getattr(region, "placement_extent_beats_candidate", None),
             })
         fl_project.channel_count = (
             len(source_iid) + len(midi_channel_iids)
@@ -844,6 +846,8 @@ def export_flp(
                 "MIDI candidate placement and note data are provisional; track assignment, velocity meaning, and instrument are unconfirmed."
             ] if midi_preview_items else []) + ([
                 "MIDI note channel candidates are retained in the neutral model but not mapped to the FL note channel/color field; source semantics are unconfirmed."
+            ] if midi_preview_items else []) + ([
+                "MIDI source-duration and placement-extent candidates are reported but do not set pattern or playlist clip lengths; their semantics are unconfirmed."
             ] if midi_preview_items else []) + ([
                 "MSeq text candidates are used as preview labels only; their role as a track or region name is unconfirmed."
             ] if any(" - " in item["display_name"] for item in midi_preview_items) else []),
