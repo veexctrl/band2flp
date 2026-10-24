@@ -88,6 +88,56 @@ def inventory_scope(
         type_32_payloads_by_length[length].append((record, raw))
         type_32_event_records.append((record, raw))
 
+    # Check whether the opaque +0x02..+0x07 slice is group-local or reused
+    # verbatim by other event families. This is only a byte-level collision
+    # profile; it does not assign timing semantics to the slice.
+    other_type_slices_by_group: dict[bytes, dict[int, set[int]]] = defaultdict(
+        lambda: defaultdict(set)
+    )
+    for record in records:
+        group = record.get("group_id_candidate")
+        event_type = record.get("type_byte")
+        raw_hex = record.get("raw_hex")
+        if (
+            group not in mseq_count_by_group
+            or not isinstance(event_type, int)
+            or event_type == 0x32
+            or not isinstance(raw_hex, str)
+        ):
+            continue
+        try:
+            raw = bytes.fromhex(raw_hex)
+        except ValueError:
+            continue
+        if len(raw) >= 8:
+            other_type_slices_by_group[raw[2:8]][group].add(event_type)
+
+    nonzero_type_32_records = [
+        (record, raw) for record, raw in type_32_event_records if any(raw[2:8])
+    ]
+    same_group_other_type_match_count = 0
+    other_group_other_type_match_count = 0
+    same_group_note_type_match_count = 0
+    other_group_note_type_match_count = 0
+    for record, raw in nonzero_type_32_records:
+        group = record["group_id_candidate"]
+        groups_for_slice = other_type_slices_by_group.get(raw[2:8], {})
+        same_group_types = groups_for_slice.get(group, set())
+        other_group_types = {
+            event_type
+            for matched_group, event_types in groups_for_slice.items()
+            if matched_group != group
+            for event_type in event_types
+        }
+        same_group_other_type_match_count += bool(same_group_types)
+        other_group_other_type_match_count += bool(other_group_types)
+        same_group_note_type_match_count += any(
+            0x90 <= event_type <= 0x9F for event_type in same_group_types
+        )
+        other_group_note_type_match_count += any(
+            0x90 <= event_type <= 0x9F for event_type in other_group_types
+        )
+
     payload_profiles: dict[str, dict[str, Any]] = {}
     for length, entries in sorted(type_32_payloads_by_length.items()):
         payload_counts = Counter(raw for _record, raw in entries)
@@ -233,6 +283,16 @@ def inventory_scope(
         "placement_count_with_missing_or_ambiguous_mseq_link": missing_or_ambiguous_placements,
         "scope_categories": categories,
         "type_32_payload_profiles": payload_profiles,
+        "type_32_shared_byte_slice_counts": {
+            "slice_range": "+0x02..+0x07",
+            "type_32_record_count": len(type_32_event_records),
+            "nonzero_candidate_record_count": len(nonzero_type_32_records),
+            "distinct_nonzero_candidate_slice_count": len({raw[2:8] for _record, raw in nonzero_type_32_records}),
+            "records_with_same_group_non_type32_match": same_group_other_type_match_count,
+            "records_with_other_group_non_type32_match": other_group_other_type_match_count,
+            "records_with_same_group_note_family_match": same_group_note_type_match_count,
+            "records_with_other_group_note_family_match": other_group_note_type_match_count,
+        },
         "type_32_timestamp_candidate_counts": dict(sorted(timestamp_candidate_counts.items())),
         "type_32_matching_note_event_type_counts": {
             f"0x{event_type:02x}": count
@@ -295,3 +355,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

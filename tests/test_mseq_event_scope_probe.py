@@ -208,6 +208,50 @@ class MseqEventScopeProbeTests(unittest.TestCase):
         self.assertNotIn("D101", json.dumps(result))
         self.assertNotIn(bytes(records[0]["raw_hex"], "ascii").decode(), json.dumps(result))
 
+    def test_profiles_nonunique_type32_slices_across_event_groups(self) -> None:
+        groups = [0xD101, 0xD202, 0xD303]
+        chunks = [
+            {"type": "MSeq", "index": index, "group_id_candidate": group}
+            for index, group in enumerate(groups, 1)
+        ]
+        placements = [{"candidate_mseq_chunk_indices": [index]} for index in range(1, 4)]
+        raw_slice = b"\x01\x00\x05\x00\x00\x00"
+
+        def event(event_type: int, group: int, candidate_slice: bytes) -> dict[str, object]:
+            raw = bytearray(32)
+            raw[0] = event_type
+            raw[2:8] = candidate_slice
+            return {
+                "group_id_candidate": group,
+                "chunk_index": 1,
+                "event_index": 1,
+                "type_byte": event_type,
+                "length": len(raw),
+                "raw_hex": bytes(raw).hex(),
+            }
+
+        records = [
+            event(0x32, groups[0], raw_slice),
+            event(0x32, groups[1], raw_slice),
+            event(0x32, groups[2], bytes(6)),
+            event(0xB0, groups[0], raw_slice),
+            event(0x91, groups[2], raw_slice),
+        ]
+
+        result = inventory_scope(records, chunks, placements)
+        profile = result["type_32_shared_byte_slice_counts"]
+
+        self.assertEqual(profile["type_32_record_count"], 3)
+        self.assertEqual(profile["nonzero_candidate_record_count"], 2)
+        self.assertEqual(profile["distinct_nonzero_candidate_slice_count"], 1)
+        self.assertEqual(profile["records_with_same_group_non_type32_match"], 1)
+        self.assertEqual(profile["records_with_other_group_non_type32_match"], 2)
+        self.assertEqual(profile["records_with_same_group_note_family_match"], 0)
+        self.assertEqual(profile["records_with_other_group_note_family_match"], 2)
+        self.assertNotIn(raw_slice.hex(), json.dumps(profile))
+        self.assertNotIn("D101", json.dumps(profile))
+
 
 if __name__ == "__main__":
     unittest.main()
+

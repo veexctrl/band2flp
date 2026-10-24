@@ -1763,3 +1763,20 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for no matches in the tested representations and components. The UUID's semantic role and lifecycle remain UNKNOWN.
 
 **Next:** Compare CacheInfo across controlled save-only and content-edit fixtures, then search for relationships using other identifiers or transformed forms.
+
+
+## MIDI-035 — test whether type-0x32 byte slices are group-local
+
+**Question:** Does the opaque six-byte slice at offsets +0x02 through +0x07 in type-0x32 events uniquely match other events in the same MSeq group?
+
+**Fixtures:** Two private project component sets reconstructed locally as metadata-only test packages from retained non-media members. Audio and preview-image members were omitted. The packages and derived data remain local.
+
+**Method:** For each type-0x32 record in an MSeq group, ignore the all-zero slice and compare its exact six bytes against the same range in non-type-0x32 records across all MSeq groups. Report only counts, not byte values, identifiers, names, or positions.
+
+**Observation:** The first component set has five nonzero type-0x32 records but only one distinct slice; four records match a non-type-0x32 event in the same group, and all five match one in another group. The second set has eight nonzero records and two distinct slices; none matches a non-type-0x32 event in the same group, while six match in another group. Same-group matches to note-family records occur for four of five in the first set and zero of eight in the second.
+
+**Result:** The slice is not a unique per-event key and its relationship to other events is not consistently group-local across these fixtures. This does not determine whether the bytes encode a shared time coordinate, cached state, or another value.
+
+**Confidence:** HIGH CONFIDENCE for these counts on the reconstructed component sets; UNKNOWN for the slice's meaning. This comparison used Python; the exact slice matches were not independently re-read in IDA during this experiment.
+
+**Next:** Compare controlled GarageBand note-onset and pitch edits, then use IDA to cross-check the specific event ranges when the IDA MCP service responds.
