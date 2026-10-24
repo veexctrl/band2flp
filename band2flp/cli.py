@@ -19,12 +19,30 @@ def _print_json(value: object) -> None:
     print(json.dumps(value, indent=2, ensure_ascii=True))
 
 
+def _without_raw_byte_fields(value: object) -> object:
+    """Return a JSON-safe copy without Base64 or hexadecimal byte payloads."""
+    if isinstance(value, dict):
+        return {
+            key: _without_raw_byte_fields(item)
+            for key, item in value.items()
+            if not isinstance(key, str)
+            or (key.lower() != "base64" and not key.lower().endswith("_hex"))
+        }
+    if isinstance(value, list):
+        return [_without_raw_byte_fields(item) for item in value]
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="band2flp")
     subparsers = parser.add_subparsers(dest="command", required=True)
     inspect = subparsers.add_parser("inspect", help="inspect a GarageBand project package")
     inspect.add_argument("project")
     inspect.add_argument("--json", action="store_true", help="emit the neutral model as JSON")
+    inspect.add_argument(
+        "--redact-raw-bytes", action="store_true",
+        help="with --json, omit Base64 and hexadecimal byte payload fields",
+    )
     inspect.add_argument(
         "--groups", action="store_true",
         help="show chunks grouped by the opaque candidate group field",
@@ -80,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         help="use separate MIDI preview rows, or group by provisional neutral track bindings",
     )
     args = parser.parse_args(argv)
+    if getattr(args, "redact_raw_bytes", False) and not getattr(args, "json", False):
+        parser.error("--redact-raw-bytes requires inspect --json")
 
     try:
         if args.command == "extract-audio":
@@ -149,7 +169,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.json:
-        _print_json(project.to_dict())
+        model = project.to_dict()
+        _print_json(_without_raw_byte_fields(model) if args.redact_raw_bytes else model)
     else:
         print(f"Format: {project.source_format}")
         print(f"Package members: {len(project.package_members)}")

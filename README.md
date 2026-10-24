@@ -47,9 +47,10 @@ FLP export additionally requires PyFLP 2.2.1 and a blank FL Studio project templ
 
     band2flp inspect path/to/project.band
     band2flp inspect path/to/project.band --json
+    band2flp inspect path/to/project.band --json --redact-raw-bytes
     band2flp inspect path/to/project.band --groups
 
-Text inspection gives a concise summary. JSON output preserves raw project payloads and media references, which may contain private project information; review it before storing or sharing it. Binary keyed-archive fields are represented as Base64 so JSON can preserve their bytes losslessly; Base64 is reversible encoding, not encryption, and this is separate from audio extraction. The groups option displays opaque candidate group values and does not assign them meaning.
+Text inspection gives a concise summary. JSON output preserves raw project payloads and media references, which may contain private project information; review it before storing or sharing it. Binary keyed-archive fields are represented as Base64 so JSON can preserve their bytes losslessly; Base64 is reversible encoding, not encryption, and this is separate from audio extraction. Add `--redact-raw-bytes` to omit Base64 and hexadecimal byte fields while retaining typed candidate values. Redaction does not remove note or project metadata, so review output before sharing it. The groups option displays opaque candidate group values and does not assign them meaning.
 
 ## Extract referenced audio
 

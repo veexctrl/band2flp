@@ -1814,6 +1814,36 @@ class ParserTests(unittest.TestCase):
             decoded["project_data"]["assetsmetadata_plist"]["values"]["AudioFiles"],
         )
 
+    def test_json_cli_can_omit_serialized_byte_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.band"
+            make_fixture(fixture, include_events=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "band2flp.cli", "inspect", str(fixture), "--json", "--redact-raw-bytes"],
+                cwd=Path(__file__).parents[1], capture_output=True, text=True, check=True,
+            )
+            full_result = subprocess.run(
+                [sys.executable, "-m", "band2flp.cli", "inspect", str(fixture), "--json"],
+                cwd=Path(__file__).parents[1], capture_output=True, text=True, check=True,
+            )
+        decoded = json.loads(result.stdout)
+
+        def assert_redacted(value):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    self.assertNotEqual(key.lower(), "base64")
+                    self.assertFalse(key.lower().endswith("_hex"))
+                    assert_redacted(child)
+            elif isinstance(value, list):
+                for child in value:
+                    assert_redacted(child)
+
+        assert_redacted(decoded)
+        self.assertGreater(decoded["project_data"]["opaque_data_objects"][0]["length"], 0)
+        self.assertGreater(decoded["project_data"]["event_sequences"]["record_count"], 0)
+        full_model = json.loads(full_result.stdout)
+        self.assertIn("raw_hex", full_model["project_data"]["event_sequences"]["records"][0])
+
     def test_cli_groups_chunks_without_assigning_group_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.band"
