@@ -28,6 +28,7 @@ def profile_frame_field_pairs(
     """Rank non-overlapping byte-offset pairs whose u32 values sum to frames."""
     record_hits: dict[tuple[int, int], int] = defaultdict(int)
     source_hits: dict[tuple[int, int], set[int]] = defaultdict(set)
+    candidate_payloads_by_source: list[dict[tuple[int, int], list[bytes]]] = []
     maximum_payload = 0
     record_count = 0
     oversized_record_count = 0
@@ -36,6 +37,7 @@ def profile_frame_field_pairs(
         if type(frame_count) is not int or frame_count < 0:
             raise BandFormatError("source frame count is invalid")
         source_record_hits: set[tuple[int, int]] = set()
+        source_candidate_payloads: dict[tuple[int, int], list[bytes]] = defaultdict(list)
         for payload in payloads:
             if not isinstance(payload, bytes):
                 raise BandFormatError("AuRg payload is not bytes")
@@ -48,6 +50,14 @@ def profile_frame_field_pairs(
                 offset: int.from_bytes(payload[offset:offset + 4], "little")
                 for offset in range(max(0, len(payload) - 3))
             }
+            candidate_first = words.get(0x06)
+            candidate_second = words.get(0x16)
+            if (
+                candidate_first is not None
+                and candidate_second is not None
+                and candidate_first + candidate_second == frame_count
+            ):
+                source_candidate_payloads[(candidate_first, candidate_second)].append(payload)
             offsets = sorted(words)
             for index, first_offset in enumerate(offsets):
                 first = words[first_offset]
@@ -60,6 +70,7 @@ def profile_frame_field_pairs(
                         source_record_hits.add(pair)
         for pair in source_record_hits:
             source_hits[pair].add(source_index)
+        candidate_payloads_by_source.append(source_candidate_payloads)
 
     ranked = sorted(
         record_hits,
@@ -68,6 +79,15 @@ def profile_frame_field_pairs(
     candidate = (0x06, 0x16)
     candidate_rank = ranked.index(candidate) + 1 if candidate in record_hits else None
     max_hits = record_hits[ranked[0]] if ranked else 0
+    candidate_payload_groups = [
+        payloads
+        for source_groups in candidate_payloads_by_source
+        for payloads in source_groups.values()
+    ]
+    identical_candidate_payload_groups = sum(
+        len(set(payloads)) == 1 for payloads in candidate_payload_groups
+    )
+    distinct_candidate_payload_groups = len(candidate_payload_groups) - identical_candidate_payload_groups
     return {
         "source_count": len(sources),
         "region_record_count": record_count,
@@ -77,6 +97,12 @@ def profile_frame_field_pairs(
         "candidate_pair_rank": candidate_rank,
         "candidate_pair_record_match_count": record_hits.get(candidate, 0),
         "candidate_pair_source_match_count": len(source_hits.get(candidate, set())),
+        "candidate_pair_payload_group_count": len(candidate_payload_groups),
+        "candidate_pair_distinct_payload_count": sum(
+            len(set(payloads)) for payloads in candidate_payload_groups
+        ),
+        "candidate_pair_groups_with_identical_payloads": identical_candidate_payload_groups,
+        "candidate_pair_groups_with_distinct_payloads": distinct_candidate_payload_groups,
         "maximum_record_match_count": max_hits,
         "pairs_tied_for_maximum": sum(record_hits[pair] == max_hits for pair in ranked),
         "top_matching_offset_pairs": [
@@ -169,3 +195,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
