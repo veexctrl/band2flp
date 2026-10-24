@@ -28,6 +28,27 @@ class AudioFrameFieldPairProbeTests(unittest.TestCase):
         self.assertEqual(report["region_record_count"], 2)
         self.assertEqual(report["candidate_pair_record_match_count"], 2)
         self.assertEqual(report["candidate_pair_source_match_count"], 1)
+        self.assertEqual(report["candidate_pair_payload_group_count"], 1)
+        self.assertEqual(report["candidate_pair_distinct_payload_count"], 1)
+        self.assertEqual(report["candidate_pair_groups_with_identical_payloads"], 1)
+        self.assertEqual(report["candidate_pair_groups_with_distinct_payloads"], 0)
+
+    def test_candidate_pair_records_can_differ_outside_the_candidate_words(self) -> None:
+        first = bytearray(36)
+        first[0x06:0x0A] = (20).to_bytes(4, "little")
+        first[0x16:0x1A] = (80).to_bytes(4, "little")
+        second = bytearray(first)
+        second[0x02] = 1
+
+        report = profile_frame_field_pairs([(100, [bytes(first), bytes(second)])])
+
+        self.assertEqual(report["candidate_pair_record_match_count"], 2)
+        self.assertEqual(report["candidate_pair_payload_group_count"], 1)
+        self.assertEqual(report["candidate_pair_distinct_payload_count"], 2)
+        self.assertEqual(report["candidate_pair_groups_with_identical_payloads"], 0)
+        self.assertEqual(report["candidate_pair_groups_with_distinct_payloads"], 1)
+        self.assertNotIn(bytes(first).hex(), json.dumps(report))
+        self.assertNotIn(bytes(second).hex(), json.dumps(report))
 
     def test_rejects_invalid_source_counts_and_payload_types(self) -> None:
         with self.assertRaises(ValueError):
@@ -43,3 +64,4 @@ class AudioFrameFieldPairProbeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
