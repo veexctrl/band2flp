@@ -55,14 +55,17 @@ Text inspection gives a concise summary. JSON output preserves raw project paylo
 
 band2flp extract-audio path/to/project.band path/to/new-audio-folder
 band2flp extract-audio path/to/project.band path/to/new-wav-folder --to-wav
+band2flp extract-audio path/to/project.band path/to/new-audio-folder --source-root path/to/selected-media-folder
 
-Extraction is explicit. It copies only uniquely matched AudioFiles references, gives the files generated names such as audio-001.caf, and writes a JSON mapping. Use `--to-wav` to ask a separately installed FFmpeg executable to convert the referenced media to 16-bit PCM WAV; pass `--transcoder path/to/ffmpeg` if it is not on `PATH`. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
+Extraction is explicit. By default it copies only uniquely matched AudioFiles references found in the `.band` package. Use `--source-root` to let it search a folder you selected for external references, matching by basename only when exactly one file has that name. Duplicate basenames remain unresolved; the tool never searches elsewhere on the computer. Extracted files receive generated names such as audio-001.caf, and a JSON mapping is written. Use `--to-wav` to ask a separately installed FFmpeg executable to convert the referenced media to 16-bit PCM WAV; pass `--transcoder path/to/ffmpeg` if it is not on `PATH`. The destination folder must not already exist. Extracted recordings remain private project material unless you intentionally choose to share them.
 
 Extracting a referenced audio file recovers the media bytes, not its original GarageBand library classification. Some CAF sources carry beat-count and time-signature metadata; `inspect --json` reports it on the media reference. The parser cannot yet tell whether a source was imported audio, an Apple Loop, or audio used by a Live Loops cell, and it does not reconstruct Live Loops cell/grid state.
 
 ## Export an experimental FLP
 
     band2flp export-flp path/to/project.band path/to/new-project.flp --template path/to/blank.flp --media-dir path/to/new-media-folder --length-policy source-full --to-wav
+
+Add `--source-root path/to/selected-media-folder` when some AudioFiles references point outside the `.band` package. Only unique basename matches within that folder are used; unresolved references remain reported in the JSON output.
 
 The command extracts uniquely matched audio into the new media folder, writes the FLP, and saves a JSON report beside it. Both output paths must be new. Without source-full, export rejects audio regions whose duration is unknown. Source-full estimates a placeholder length from the full source file.
 
