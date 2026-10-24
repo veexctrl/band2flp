@@ -12,7 +12,7 @@ import zipfile
 from typing import Any
 
 from band2flp.parser import BandFormatError, _unique_candidate_region_field_pairs, parse_band
-from research.scripts.audio_frame_probe import audio_frame_count
+from research.scripts.audio_frame_probe import audio_frame_metadata_stream
 
 
 def profile_source_link_candidates(
@@ -330,7 +330,11 @@ def probe_project(path: str | Path) -> dict[str, Any]:
             frames = None
             if reference.package_member is not None:
                 source_count += 1
-                frames, _format = audio_frame_count(archive.read(reference.package_member))
+                info = archive.getinfo(reference.package_member)
+                with archive.open(info) as audio_stream:
+                    frames, _format, _sample_rate = audio_frame_metadata_stream(
+                        audio_stream, info.file_size
+                    )
                 if frames is not None:
                     decoded_source_count += 1
             regions = [
