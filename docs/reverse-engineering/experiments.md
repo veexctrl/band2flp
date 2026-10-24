@@ -1620,6 +1620,21 @@ Every start-matched note within each visible row has the same raw fractional-wor
 
 **Metadata-only validation:** The aggregate probes read ZIP member streams through the needed container headers and stop at the audio-data chunk. Synthetic WAVE, AIFF, and CAF tests verify the stream position remains before sample bytes. Re-running both supplied archives preserved the prior frame-count and source-link aggregates; no audio sample payload is copied into the probe output.
 
+
+ 
+## ARR-041 — rank source-frame sums against other AuRg field pairs
+
+**Question:** Is the observed `AuRg +0x06/+0x16` sum-to-source-frame relation more specific than other non-overlapping 32-bit field-pair candidates?
+
+**Fixture and method:** Run `research/scripts/audio_frame_field_pair_probe.py` on both supplied archives. For each embedded audio source with a filename-stem-associated `AuRg` payload, scan every byte offset for non-overlapping four-byte little-endian pairs and count exact sums per source and record. The probe bounds the quadratic scan to payloads of at most 4096 bytes and emits offsets and aggregates only. Read only audio-container metadata through ZIP streams; do not decode, extract, or publish audio. Independently read each candidate 20-byte range beginning at payload `+0x06` through IDA MCP and compare with Python.
+
+**Observation:** Only one source in the audio-bearing fixture had four associated region records; all four payloads are 216 bytes and all four `+0x06/+0x16` pairs sum to that source's frame count. Of all scanned non-overlapping offset pairs, `[+0x06, +0x16]` is the only pair matching four records; the next-best pairs match two. The four IDA-read ranges match Python byte-for-byte. The metadata-only fixture has no embedded source frame counts to compare.
+
+**Result:** The candidate sum is more specific than the other byte-pair sums tested in this one source. This strengthens a fixture-specific relation but does not identify either value as a source offset, remaining length, region duration, or trim field. No candidate timing value is added to the neutral model or exporter.
+
+**Confidence:** CONFIRMED for the rank, four record matches, one-source scope, and IDA/Python byte agreement. HYPOTHESIS for source-window semantics; UNKNOWN for region timing and trim behavior.
+
+**Next:** Compare controlled saves of the same source with its region boundary unchanged, then with only the head trim and only the tail trim changed.
 ## MIDI-028 - preserve placements without recognized note events
 
 **Question:** Does building neutral MIDI regions only from recognized note events omit placements that otherwise link to an `MSeq` chunk?
