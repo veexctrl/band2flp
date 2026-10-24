@@ -26,7 +26,11 @@ def _without_raw_byte_fields(value: object) -> object:
             key: _without_raw_byte_fields(item)
             for key, item in value.items()
             if not isinstance(key, str)
-            or (key.lower() != "base64" and not key.lower().endswith("_hex"))
+            or (
+                key.lower() != "base64"
+                and not key.lower().endswith("_base64")
+                and not key.lower().endswith("_hex")
+            )
         }
     if isinstance(value, list):
         return [_without_raw_byte_fields(item) for item in value]

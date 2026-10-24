@@ -48,7 +48,7 @@ from research.scripts.trak_group_probe import (
 from research.scripts.projectdata_diff import compare_payloads, load_logic_payload
 from research.scripts.trak_probe import probe_logic_payload as probe_trak_logic_payload
 from band2flp.model import MediaReference, Project, Region, Track
-from band2flp.cli import main as cli_main
+from band2flp.cli import _without_raw_byte_fields, main as cli_main
 from band2flp.media import MediaExtractionError, extract_referenced_audio
 from band2flp.flp_export import (
     _fl_playlist_track_index,
@@ -1832,6 +1832,7 @@ class ParserTests(unittest.TestCase):
             if isinstance(value, dict):
                 for key, child in value.items():
                     self.assertNotEqual(key.lower(), "base64")
+                    self.assertFalse(key.lower().endswith("_base64"))
                     self.assertFalse(key.lower().endswith("_hex"))
                     assert_redacted(child)
             elif isinstance(value, list):
@@ -1843,6 +1844,23 @@ class ParserTests(unittest.TestCase):
         self.assertGreater(decoded["project_data"]["event_sequences"]["record_count"], 0)
         full_model = json.loads(full_result.stdout)
         self.assertIn("raw_hex", full_model["project_data"]["event_sequences"]["records"][0])
+
+    def test_raw_byte_redactor_covers_suffixed_fields_and_keeps_typed_values(self) -> None:
+        value = {
+            "opaque": {
+                "base64": "encoded",
+                "payload_base64": "encoded",
+                "header_hex": "aabb",
+                "candidate_word": 42,
+            },
+            "items": [{"raw_hex": "00", "count": 3}],
+        }
+
+        self.assertEqual(
+            _without_raw_byte_fields(value),
+            {"opaque": {"candidate_word": 42}, "items": [{"count": 3}]},
+        )
+        self.assertEqual(value["opaque"]["base64"], "encoded")
 
     def test_cli_groups_chunks_without_assigning_group_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
