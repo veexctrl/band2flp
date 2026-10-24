@@ -100,7 +100,7 @@
 - The `AuCO` records likely represent a broader channel-strip collection based on the cross-format marker, padded-name record, and sequential strip values. TRK-004 falsifies a one-to-one count mapping against the seven- and twelve-track metadata values in two different projects; which records correspond to arrange tracks remains unknown.
 - Applying the Logic Pro descriptor classifier to the `AuCO` candidates yields a mixture of channel kinds and more audio/instrument candidates than the arrange-track count. This classifier is not used to label GarageBand tracks.
 
-- ARR-041 found that the `+0x06/+0x16` pair was the only non-overlapping byte-offset pair matching all four filename-stem-associated `AuRg` records for one embedded source; the next-best pairs matched two. IDA and Python agree on the four 20-byte ranges. This increases confidence in the fixture-specific source-frame relation, but the fields' roles remain unknown.
+- ARR-041 found that the `+0x06/+0x16` pair was the only non-overlapping byte-offset pair matching all four filename-stem-associated `AuRg` records for one embedded source; the next-best pairs matched two. IDA and Python agree on the four 20-byte ranges. This increases confidence in the fixture-specific source-frame relation, but the fields' roles remain unknown. The four records form two repeated exact field-pair groups but all four full payloads are distinct, so those words do not uniquely identify region records.
 ## Hypotheses
 
 - The duration summary may be in seconds. Its key and observed value suggest this, but controlled fixtures have not yet confirmed units or exact duration semantics.
