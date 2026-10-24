@@ -15,9 +15,12 @@ def profile_spacing(
     media_references: list[Any], placements: list[dict[str, Any]]
 ) -> dict[str, Any]:
     """Summarize phrase-spacing candidates without printing project values."""
-    tagged = [
+    audio_sources = [
         reference for reference in media_references
         if reference.category == "AudioFiles"
+    ]
+    tagged = [
+        reference for reference in audio_sources
         and isinstance(reference.source_loop_metadata, dict)
         and isinstance(reference.source_loop_metadata.get("beat_count"), int)
         and not isinstance(reference.source_loop_metadata.get("beat_count"), bool)
@@ -57,6 +60,9 @@ def profile_spacing(
                 phrase_interval_count += 1
 
     return {
+        "audio_sources_without_parsed_loop_metadata": sum(
+            reference.source_loop_metadata is None for reference in audio_sources
+        ),
         "beat_tagged_source_count": len(tagged),
         "tagged_sources_with_linked_placements": linked_source_count,
         "linked_placement_count": linked_placement_count,
