@@ -77,7 +77,11 @@ def inspect_caf_loop_metadata(
             if not allow_data_seek:
                 break
             try:
-                stream.seek(size, 1)
+                data_start = stream.tell()
+                stream_end = stream.seek(0, 2)
+                if data_start + size > stream_end:
+                    return None
+                stream.seek(data_start + size)
             except (AttributeError, OSError, ValueError):
                 break
             continue
