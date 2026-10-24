@@ -1887,3 +1887,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** HIGH CONFIDENCE for the reported GUI behavior of this output and static absence of audio sample paths; UNKNOWN for semantic correctness of the recovered GarageBand MIDI data.
 
 **Next:** Compare the exported candidate patterns against controlled GarageBand note and region edits when new minimal fixtures are available; retain the GUI compatibility check as a regression milestone.
+
+## MIDI-036 — compare type-0x32 position candidates by placement scope
+
+**Question:** Do the type-0x32 +0x02/+0x04 candidate position pairs match note-candidate positions only in uniquely placed, note-bearing MSeq groups, or also in groups without a placement candidate?
+
+**Fixtures and method:** Run the aggregate-only mseq_event_scope_probe across both local project archives. Classify each MSeq group using the current unique/ambiguous/no-placement candidate join, then compare the two type-0x32 words with note-candidate position pairs in the same group and anywhere in the same project. Read all 15 complete type-0x32 event ranges from the two extracted Logic Song payloads in IDA MCP and compare them with Python. No media is read and no position values, labels, group IDs, or payloads are emitted.
+
+**Observation:** In the first fixture, five type-0x32 records occur in uniquely placed groups with note candidates: four match a note position pair within the same group, and all five match some note-candidate pair in the project. The sixth record is in an unplaced group and matches no note candidate. In the second fixture, all nine type-0x32 records are in unplaced groups and none matches a note-candidate pair. No type-0x32 record occurs in an ambiguous group. All 15 complete event ranges match IDA byte-for-byte.
+
+**Result:** The observed exact position-pair matches are confined to note-bearing, uniquely placed groups in the first fixture, but one of the five matches only outside its own group. Other event families also share candidate positions. This is a fixture-specific positional correlation; it does not identify the 0x32 event role, establish timing units, or support exporting these records as notes.
+
+**Confidence:** CONFIRMED for the scope counts, candidate-position match counts, and IDA/Python byte agreement in these two fixtures. HYPOTHESIS for a relationship between the candidate pair and event position in one fixture. UNKNOWN for event semantics and generality.
+
+**Next:** Compare controlled empty and one-note GarageBand regions, then vary note start independently. Until then, preserve type-0x32 bytes as unknown event data.
