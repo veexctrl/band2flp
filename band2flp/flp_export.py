@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from collections import Counter
 from dataclasses import dataclass
 import errno
 from fractions import Fraction
@@ -752,29 +753,44 @@ def export_flp(
             raise FLPExportError("PyFLP round-trip changed the playlist item count")
         if getattr(roundtrip_playlist, "_struct_size", None) != 32:
             raise FLPExportError("PyFLP round-trip did not preserve base-size playlist records")
-        actual_playlist_by_index = {actual["item_index"]: actual for actual in roundtrip_playlist}
+        actual_playlist_entries = Counter(
+            (
+                actual["item_index"],
+                actual["position"],
+                actual["length"],
+                actual["track_rvidx"],
+            )
+            for actual in roundtrip_playlist
+        )
         expected_playlist_indices = {
             item["item_index"] for item in exported_items
         } | {
             20480 + item["pattern_iid"] for item in midi_preview_items
         }
-        if set(actual_playlist_by_index) != expected_playlist_indices:
+        if {item["item_index"] for item in roundtrip_playlist} != expected_playlist_indices:
             raise FLPExportError("PyFLP round-trip changed the playlist item references")
         for expected in exported_items:
-            actual = actual_playlist_by_index[expected["item_index"]]
-            if actual["position"] != expected["start_ticks"] or actual["length"] != expected["length_ticks"]:
+            identity = (
+                expected["item_index"],
+                expected["start_ticks"],
+                expected["length_ticks"],
+                (max_tracks - 1) - _fl_playlist_track_index(expected["track_index"], max_tracks),
+            )
+            if not actual_playlist_entries[identity]:
                 raise FLPExportError("PyFLP round-trip changed a playlist position or length")
-            if actual["item_index"] >= roundtrip.channel_count:
+            actual_playlist_entries[identity] -= 1
+            if expected["item_index"] >= roundtrip.channel_count:
                 raise FLPExportError("PyFLP round-trip left an audio clip without a channel")
         for expected in midi_preview_items:
-            actual = actual_playlist_by_index[20480 + expected["pattern_iid"]]
-            if (
-                actual["position"] != expected["position_ticks"]
-                or actual["track_rvidx"] != (max_tracks - 1) - expected["playlist_track_index"]
-                or actual["length"] != expected["length_ticks"]
-                or actual["item_index"] != 20480 + expected["pattern_iid"]
-            ):
+            identity = (
+                20480 + expected["pattern_iid"],
+                expected["position_ticks"],
+                expected["length_ticks"],
+                (max_tracks - 1) - expected["playlist_track_index"],
+            )
+            if not actual_playlist_entries[identity]:
                 raise FLPExportError("PyFLP round-trip changed a MIDI candidate playlist clip")
+            actual_playlist_entries[identity] -= 1
         patterns_by_iid = {pattern.iid: pattern for pattern in roundtrip.patterns}
         for expected in midi_preview_items:
             pattern = patterns_by_iid.get(expected["pattern_iid"])
