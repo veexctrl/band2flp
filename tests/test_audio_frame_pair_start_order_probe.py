@@ -32,6 +32,28 @@ class AudioFramePairStartOrderProbeTests(unittest.TestCase):
         self.assertEqual(report["distinct_source_frame_pair_count"], 1)
         self.assertEqual(report["window_group_order_concordant_count"], 0)
 
+    def test_compares_start_gap_with_beat_scaled_frame_offset_gap(self) -> None:
+        observations = [(0, 100, "0"), (25, 75, "1")]
+        exact = profile_pair_start_order(observations, 100, 4)
+        doubled = profile_pair_start_order([(0, 100, "0"), (25, 75, "2")], 100, 4)
+        halved = profile_pair_start_order([(0, 100, "0"), (25, 75, "1/2")], 100, 4)
+
+        self.assertEqual(exact["beat_scaled_frame_gap_exact_match_count"], 1)
+        self.assertEqual(doubled["beat_scaled_frame_gap_double_match_count"], 1)
+        self.assertEqual(halved["beat_scaled_frame_gap_half_match_count"], 1)
+        self.assertEqual(exact["beat_scaled_record_gap_exact_match_count"], 1)
+        self.assertEqual(doubled["beat_scaled_record_gap_double_match_count"], 1)
+        self.assertEqual(halved["beat_scaled_record_gap_half_match_count"], 1)
+
+    def test_beat_scaled_comparison_reports_other_and_repeated_pair_groups(self) -> None:
+        other = profile_pair_start_order([(0, 100, "0"), (25, 75, "3")], 100, 4)
+        repeated = profile_pair_start_order([(0, 100, "0"), (0, 100, "4")], 100, 4)
+
+        self.assertEqual(other["beat_scaled_frame_gap_other_count"], 1)
+        self.assertEqual(other["beat_scaled_record_gap_other_count"], 1)
+        self.assertEqual(repeated["distinct_source_frame_pair_count"], 1)
+        self.assertEqual(repeated["beat_tagged_window_group_comparison_count"], 0)
+
     def test_rejects_invalid_frame_counts_and_pair_values(self) -> None:
         with self.assertRaises(BandFormatError):
             profile_pair_start_order([], True)

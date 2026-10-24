@@ -1859,3 +1859,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the aggregate counts under the existing candidate links. HYPOTHESIS for a relationship between `+0x06` and placement start; UNKNOWN for field semantics and generality.
 
 **Next:** Compare controlled saves that move a region without trimming, then trim only the source head and only the tail while keeping placement fixed. Validate whether these candidate relations change independently.
+
+## ARR-043 — compare source-frame pair gaps with CAF beat-count scaling
+
+**Question:** Does the difference between source-frame-validated `AuRg +0x06` pair values predict the linked placement-start gap after scaling by the candidate CAF beat count?
+
+**Fixtures and method:** Re-run the aggregate-only probe on both supplied projects. Reuse the existing filename-stem, `+0x8a`/`+0x28), and source-frame-sum candidate relationships from ARR-040/042. For each linked record pair with different `+0x06) values, compare the absolute start gap against `frame difference / source frame count × CAF beat-count candidate`; test direct, half-time, and double-time matches. A second comparison uses the mean start of each exact frame-pair group. The probe reports counts only and reads audio-container metadata, not sample data.
+
+**Observation:** One source has two distinct frame-pair groups and four linked records, yielding four cross-group record comparisons. None matches the beat-scaled frame gap at direct, half-time, or double-time scale; all four fall into the other category. The sole comparison between the two group-mean starts also falls into the other category. The second fixture has no embedded source-frame comparator.
+
+**Result:** This disfavors a simple proportional mapping from the `+0x06) candidate to placement-start time under the CAF beat-count candidate and the tested half/double scales in this source. The beat tag's tempo meaning, region identity, stretch, and looping behavior remain unconfirmed, so other coordinate transforms remain possible. No timing field is promoted or used by the exporter.
+
+**Confidence:** CONFIRMED for the aggregate comparison counts. HYPOTHESIS that the tested simple mapping is not applicable to this source; UNKNOWN for the candidate fields' meanings and generality.
+
+**Next:** Create controlled saves that move a region without trimming, then alter only source-head trim and source-tail trim. Compare the same frame fields, placement starts, and CAF metadata across each save.

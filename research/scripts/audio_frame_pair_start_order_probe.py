@@ -3,7 +3,8 @@
 This aggregate-only probe tests whether distinct, source-frame-validated
 ``AuRg +0x06/+0x16`` pairs order consistently with starts on placements linked
 through the existing ``+0x8a``/``+0x28`` field candidate. It reads audio
-container metadata only and emits counts, not source data or field values.
+container metadata only and emits counts, not source data or field values. An
+optional CAF beat-count candidate tests simple source-frame-to-beat scaling.
 """
 
 from __future__ import annotations
@@ -33,7 +34,8 @@ def _order(first_value: int, first_start: Fraction,
 
 
 def profile_pair_start_order(
-    observations: list[tuple[int, int, str]], source_frames: int
+    observations: list[tuple[int, int, str]], source_frames: int,
+    source_beats_candidate: int | None = None,
 ) -> dict[str, int]:
     """Return order counts for source-frame-valid pairs and their starts."""
     if type(source_frames) is not int or source_frames < 0:
@@ -52,14 +54,30 @@ def profile_pair_start_order(
             valid.append((first, second, start))
 
     record_orders: Counter[str] = Counter()
+    beat_record_relations: Counter[str] = Counter()
     for index, (first, _second, start) in enumerate(valid):
         for other_first, _other_second, other_start in valid[index + 1:]:
             record_orders[_order(first, start, other_first, other_start)] += 1
+            if (
+                type(source_beats_candidate) is int and source_beats_candidate > 0
+                and source_frames > 0 and first != other_first
+            ):
+                expected_gap = Fraction(abs(first - other_first) * source_beats_candidate, source_frames)
+                observed_gap = abs(start - other_start)
+                if observed_gap == expected_gap:
+                    beat_record_relations["exact"] += 1
+                elif observed_gap == expected_gap * 2:
+                    beat_record_relations["double"] += 1
+                elif observed_gap * 2 == expected_gap:
+                    beat_record_relations["half"] += 1
+                else:
+                    beat_record_relations["other"] += 1
 
     starts_by_pair: dict[tuple[int, int], list[Fraction]] = defaultdict(list)
     for first, second, start in valid:
         starts_by_pair[(first, second)].append(start)
     group_orders: Counter[str] = Counter()
+    beat_gap_relations: Counter[str] = Counter()
     group_values = [
         (pair[0], sum(starts, Fraction()) / len(starts))
         for pair, starts in starts_by_pair.items()
@@ -67,6 +85,21 @@ def profile_pair_start_order(
     for index, (value, start) in enumerate(group_values):
         for other_value, other_start in group_values[index + 1:]:
             group_orders[_order(value, start, other_value, other_start)] += 1
+            if (
+                type(source_beats_candidate) is int and source_beats_candidate > 0
+                and source_frames > 0
+            ):
+                frame_delta = abs(value - other_value)
+                expected_gap = Fraction(frame_delta * source_beats_candidate, source_frames)
+                observed_gap = abs(start - other_start)
+                if observed_gap == expected_gap:
+                    beat_gap_relations["exact"] += 1
+                elif observed_gap == expected_gap * 2:
+                    beat_gap_relations["double"] += 1
+                elif observed_gap * 2 == expected_gap:
+                    beat_gap_relations["half"] += 1
+                else:
+                    beat_gap_relations["other"] += 1
 
     return {
         "source_frame_valid_linked_record_count": len(valid),
@@ -74,9 +107,19 @@ def profile_pair_start_order(
         "record_order_concordant_count": record_orders["concordant"],
         "record_order_discordant_count": record_orders["discordant"],
         "record_order_tie_count": record_orders["ties"],
+        "beat_scaled_record_gap_comparison_count": sum(beat_record_relations.values()),
+        "beat_scaled_record_gap_exact_match_count": beat_record_relations["exact"],
+        "beat_scaled_record_gap_half_match_count": beat_record_relations["half"],
+        "beat_scaled_record_gap_double_match_count": beat_record_relations["double"],
+        "beat_scaled_record_gap_other_count": beat_record_relations["other"],
         "window_group_order_concordant_count": group_orders["concordant"],
         "window_group_order_discordant_count": group_orders["discordant"],
         "window_group_order_tie_count": group_orders["ties"],
+        "beat_tagged_window_group_comparison_count": sum(beat_gap_relations.values()),
+        "beat_scaled_frame_gap_exact_match_count": beat_gap_relations["exact"],
+        "beat_scaled_frame_gap_half_match_count": beat_gap_relations["half"],
+        "beat_scaled_frame_gap_double_match_count": beat_gap_relations["double"],
+        "beat_scaled_frame_gap_other_count": beat_gap_relations["other"],
     }
 
 
@@ -170,7 +213,9 @@ def probe_project(path: str | Path) -> dict[str, Any]:
                 observations.append((first, second, start))
             if len(observations) < 2:
                 continue
-            report = profile_pair_start_order(observations, source_frames)
+            loop_metadata = reference.source_loop_metadata
+            beats = loop_metadata.get("beat_count") if isinstance(loop_metadata, dict) else None
+            report = profile_pair_start_order(observations, source_frames, beats)
             if report["distinct_source_frame_pair_count"] >= 2:
                 source_results.append(report)
 
@@ -183,6 +228,16 @@ def probe_project(path: str | Path) -> dict[str, Any]:
         "window_group_order_concordant_count",
         "window_group_order_discordant_count",
         "window_group_order_tie_count",
+        "beat_tagged_window_group_comparison_count",
+        "beat_scaled_record_gap_comparison_count",
+        "beat_scaled_record_gap_exact_match_count",
+        "beat_scaled_record_gap_half_match_count",
+        "beat_scaled_record_gap_double_match_count",
+        "beat_scaled_record_gap_other_count",
+        "beat_scaled_frame_gap_exact_match_count",
+        "beat_scaled_frame_gap_half_match_count",
+        "beat_scaled_frame_gap_double_match_count",
+        "beat_scaled_frame_gap_other_count",
     )
     return {
         "source_groups_with_multiple_linked_frame_pairs": len(source_results),
