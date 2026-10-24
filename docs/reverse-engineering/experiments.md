@@ -1845,3 +1845,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Privacy:** The reference files and media remain private and are not in the repository. No sample data was opened or copied.
 
 **Next:** Preserve the tested channel signature and 32-byte precedent as compatibility evidence, while keeping the exporter’s row serialization version-aware and validating each output in FL Studio. Do not promote fields from this cross-project resemblance to GarageBand semantics.
+
+## ARR-042 — compare source-frame pair order with linked placement starts
+
+**Question:** In the fixture with repeated source-frame-validated `AuRg +0x06/+0x16` pairs, does the `+0x06` ordering correspond to linked audio-placement start ordering?
+
+**Fixtures and method:** Re-run the aggregate-only probe on the two supplied projects. For each embedded audio source, retain only filename-stem-associated region records whose two frame candidates sum to that source's frame count, then use the existing `+0x8a`/`+0x28` candidate links to associate region records with placement starts. Compare pair-group mean starts and record-level orderings. The probe emits counts only and reads audio-container metadata without reading sample data. The underlying candidate fields were byte-checked through IDA in ARR-034, ARR-036, and ARR-040; this experiment assigns no new field meaning.
+
+**Observation:** One source in the audio-bearing fixture has four linked records across two distinct frame-pair groups. The sole comparison between the two pair-group mean starts agrees with the ordering of their `+0x06` values. Among all six record pairs, three order comparisons are concordant, one is discordant, and two are ties from repeated candidate values. The second fixture has no embedded source-frame comparator.
+
+**Result:** This is one group-level ordering match in one uncontrolled source. The record-level discordance and repeated pairs do not support a monotonic per-region mapping. The relation is a weak source-offset hypothesis lead only; no source offset, trim, duration, or timeline field is promoted to the neutral model or exporter.
+
+**Confidence:** CONFIRMED for the aggregate counts under the existing candidate links. HYPOTHESIS for a relationship between `+0x06` and placement start; UNKNOWN for field semantics and generality.
+
+**Next:** Compare controlled saves that move a region without trimming, then trim only the source head and only the tail while keeping placement fixed. Validate whether these candidate relations change independently.

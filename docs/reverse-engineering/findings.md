@@ -103,6 +103,8 @@
 - ARR-041 found that the `+0x06/+0x16` pair was the only non-overlapping byte-offset pair matching all four filename-stem-associated `AuRg` records for one embedded source; the next-best pairs matched two. IDA and Python agree on the four 20-byte ranges. This increases confidence in the fixture-specific source-frame relation, but the fields' roles remain unknown. The four records form two repeated exact field-pair groups but all four full payloads are distinct, so those words do not uniquely identify region records.
 ## Hypotheses
 
+- ARR-042 observed one concordant group-level comparison between the `+0x06` candidate order and linked placement starts, alongside one discordant record-level cross-group comparison, in one uncontrolled source. This is too little evidence to assign source-offset semantics or recover duration.
+
 - The duration summary may be in seconds. Its key and observed value suggest this, but controlled fixtures have not yet confirmed units or exact duration semantics.
 - The large `NS.data` payload contains the serialized logic/song arrangement. Its reference path, chunk types, and exact chunk framing make it the primary candidate, but internal semantics have not yet been decoded.
 - An independent Logic Pro 11.2.2 format write-up identifies `AuRg +0x16` as a region frame-count field in controlled Logic projects. This is a cross-format lead for GarageBand only: ARR-020 found that it does not consistently equal complete source-file frame counts, and ARR-024 found no match to preview-measured durations under an un-stretched playback assumption.
