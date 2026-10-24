@@ -1746,3 +1746,20 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for entry counts, lexical key-name counts, and IDA/Python byte agreement for the two cell/grid strings. UNKNOWN whether Live Loops content is stored elsewhere or under unrelated key names.
 
 **Next:** Compare a controlled project with one populated Live Loops cell against an otherwise identical project with an ordinary arrangement region, then trace changes across projectData and logic-song components.
+
+
+## CROSS-008 — CacheInfo UUID and Logic Song components
+
+**Question:** Does either saved `CacheInfo` validation UUID appear directly in either retained Logic Song component?
+
+**Fixtures:** Two private CacheInfo plist values and the two retained Logic Song binary components. Each CacheInfo plist is 276 bytes; duplicate package members were byte-identical. UUID values are intentionally not included in repository documentation.
+
+**Method:** Parsed the CacheInfo plists with Python's standard plist reader, then searched each Logic Song component for the UUID's ASCII text, standard 16-byte representation, and little-endian 16-byte representation. Repeated the same byte-pattern searches through IDA MCP against both Logic Song databases.
+
+**Observation:** All three forms returned zero matches for both UUIDs in both Logic Song components in Python and IDA MCP. No project audio was read.
+
+**Result:** The tested raw UUID forms do not directly link these CacheInfo values to either inspected Logic Song component. This does not rule out transformed identifiers, references in other components, or a relationship not represented by these UUIDs.
+
+**Confidence:** CONFIRMED for no matches in the tested representations and components. The UUID's semantic role and lifecycle remain UNKNOWN.
+
+**Next:** Compare CacheInfo across controlled save-only and content-edit fixtures, then search for relationships using other identifiers or transformed forms.

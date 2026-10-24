@@ -1,7 +1,7 @@
 # Unknowns and required evidence
 
 - Semantic field layouts and relationships for the observed chunk types inside the `DfLogicModelLogicSong` `NS.data` payload.
-- Semantics and lifecycle of the `CacheInfo` plist `cachesValidationUUID`. CROSS-006 directly matched the IDA-loaded component to two duplicate members in one archive, but found no match for its UUID in either archive’s `projectData`, summary, or asset plists. It is unknown whether the UUID validates a cache, save generation, or another object.
+- Semantics and lifecycle of the `CacheInfo` plist `cachesValidationUUID`. CROSS-006 matched the IDA-loaded component to duplicate package members and found no UUID match in `projectData`, summary, or asset plists. CROSS-008 also found no ASCII, standard-byte, or little-endian-byte match in either retained Logic Song component. These checks do not rule out transformed identifiers or references elsewhere; whether the UUID validates a cache, save generation, or another object remains unknown.
 - Whether Logic Pro chunk decoders transfer unchanged to iOS GarageBand versions.
 - Scope and semantics of the 32-bit header value at offset 8: it is reused by `TxSt` and audio chunk families, so it is not globally unique. Its role in source/region grouping needs validation with controlled projects and edits.
 - Whether `AuRg +0x16` is source-frame length for all GarageBand versions versus another cached length. Its values are preserved as candidates, not used as timeline duration.
