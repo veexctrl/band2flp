@@ -41,9 +41,9 @@ def _metadata_pairs(payload: bytes) -> dict[str, str] | None:
 
 
 def inspect_caf_loop_metadata(
-    stream: BinaryIO, *, allow_data_seek: bool = True
+    stream: BinaryIO, *, allow_data_seek: bool = False
 ) -> dict[str, object] | None:
-    """Return source metadata candidates; never infer an arrangement loop flag."""
+    """Return source metadata candidates; audio-data seeking requires opt-in."""
     if stream.read(8) != b"caff\0\x01\0\0":
         return None
     rate: float | None = None
