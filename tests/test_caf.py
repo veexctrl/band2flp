@@ -43,7 +43,7 @@ class ReadTrackingStream(BytesIO):
 class CafMetadataTests(unittest.TestCase):
     def test_source_beat_count_and_tempo_candidate(self) -> None:
         data = fixture({"time signature": "4/4", "beat count": "4", "category": "Drums"})
-        result = inspect_caf_loop_metadata(BytesIO(data))
+        result = inspect_caf_loop_metadata(BytesIO(data), allow_data_seek=True)
         assert result is not None
         self.assertEqual(result["beat_count"], 4)
         self.assertEqual(result["source_tempo_bpm_from_frames_candidate"], 60)
@@ -115,14 +115,19 @@ class CafMetadataTests(unittest.TestCase):
                 self.assertEqual(stream.tell(), data_header + 12)
 
     def test_unknown_uuid_is_not_interpreted(self) -> None:
-        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(fixture({"beat count": "4"}, uuid=bytes(16)))))
+        self.assertIsNone(
+            inspect_caf_loop_metadata(
+                BytesIO(fixture({"beat count": "4"}, uuid=bytes(16))),
+                allow_data_seek=True,
+            )
+        )
 
     def test_malformed_pair_count_is_rejected(self) -> None:
         data = fixture({"beat count": "4"}).replace(
             LOOP_METADATA_UUID + (1).to_bytes(4, "big"),
             LOOP_METADATA_UUID + (2).to_bytes(4, "big"),
         )
-        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(data)))
+        self.assertIsNone(inspect_caf_loop_metadata(BytesIO(data), allow_data_seek=True))
 
     def test_short_chunk_is_rejected(self) -> None:
         data = b"caff\0\x01\0\0" + b"uuid" + (30).to_bytes(8, "big") + b"short"
