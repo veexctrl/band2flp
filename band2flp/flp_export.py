@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+import errno
 from fractions import Fraction
 import importlib
 import importlib.metadata
@@ -230,6 +231,19 @@ def _atomic_publish(temp_path: Path, destination: Path) -> None:
     except FileExistsError as exc:
         raise FLPExportError(f"output already exists: {destination}") from exc
     except OSError as exc:
+        # Windows can deny hard-link creation even when the directory is
+        # writable. A same-directory rename remains atomic and, on Windows,
+        # fails if the destination already exists.
+        if os.name == "nt" and exc.errno in {errno.EACCES, errno.EPERM}:
+            try:
+                os.rename(temp_path, destination)
+                return
+            except FileExistsError as rename_exc:
+                raise FLPExportError(f"output already exists: {destination}") from rename_exc
+            except OSError as rename_exc:
+                raise FLPExportError(
+                    f"could not publish output without overwriting: {destination}"
+                ) from rename_exc
         raise FLPExportError(f"could not publish output without overwriting: {destination}") from exc
     temp_path.unlink()
 
