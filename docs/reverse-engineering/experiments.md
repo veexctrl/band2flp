@@ -1873,3 +1873,17 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the aggregate comparison counts. HYPOTHESIS that the tested simple mapping is not applicable to this source; UNKNOWN for the candidate fields' meanings and generality.
 
 **Next:** Create controlled saves that move a region without trimming, then alter only source-head trim and source-tail trim. Compare the same frame fields, placement starts, and CAF metadata across each save.
+
+## FLP-038 — validate the GarageBand MIDI-only CLI output in FL Studio 25
+
+**Question:** Does the new `--midi-only` command produce a project whose candidate notes can be edited in FL Studio 25, without adding audio or triggering the invalid-playlist warning?
+
+**Fixture and method:** Generate the MIDI-only output from a supplied GarageBand project using the CLI, with a blank FL Studio template. Static readback confirms MIDI patterns are present and audio sample paths are absent. The user opened this output in FL Studio 25 and tested note editing; the project was kept local.
+
+**Observation:** The user confirmed that the notes were editable and that no invalid-playlist warning appeared. The generated FLP is an audio-free MIDI preview.
+
+**Result:** The CLI path is GUI-validated for loading and note editability in this FL Studio 25 test. This confirms output compatibility only; it does not establish that the GarageBand-derived pitch, timing, velocity, grouping, or track candidates reproduce the source accurately.
+
+**Confidence:** HIGH CONFIDENCE for the reported GUI behavior of this output and static absence of audio sample paths; UNKNOWN for semantic correctness of the recovered GarageBand MIDI data.
+
+**Next:** Compare the exported candidate patterns against controlled GarageBand note and region edits when new minimal fixtures are available; retain the GUI compatibility check as a regression milestone.
