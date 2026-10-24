@@ -40,7 +40,9 @@ def _metadata_pairs(payload: bytes) -> dict[str, str] | None:
     return dict(zip(keys, values[1::2]))
 
 
-def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
+def inspect_caf_loop_metadata(
+    stream: BinaryIO, *, allow_data_seek: bool = True
+) -> dict[str, object] | None:
     """Return source metadata candidates; never infer an arrangement loop flag."""
     if stream.read(8) != b"caff\0\x01\0\0":
         return None
@@ -69,8 +71,11 @@ def inspect_caf_loop_metadata(stream: BinaryIO) -> dict[str, object] | None:
             return None
         if tag == b"data":
             # Sample payloads can be large and may be private recordings. Skip
-            # them without reading bytes into this parser. If the stream cannot
-            # seek, retain metadata already found and stop scanning.
+            # them without reading bytes into this parser. Some seekable stream
+            # wrappers decompress while seeking, so callers must opt in only
+            # for streams whose seek skips the payload without reading it.
+            if not allow_data_seek:
+                break
             try:
                 stream.seek(size, 1)
             except (AttributeError, OSError, ValueError):
