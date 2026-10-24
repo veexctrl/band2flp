@@ -18,6 +18,7 @@ class CafPlacementSpacingProbeTests(unittest.TestCase):
             for start in ("0", "4", "13", "17")
         ]
         result = profile_spacing([reference], placements)
+        self.assertEqual(result["audio_sources_without_parsed_loop_metadata"], 0)
         self.assertEqual(result["beat_tagged_source_count"], 1)
         self.assertEqual(result["tagged_sources_with_linked_placements"], 1)
         self.assertEqual(result["linked_placement_count"], 4)
@@ -26,6 +27,17 @@ class CafPlacementSpacingProbeTests(unittest.TestCase):
         self.assertNotIn("start_beats", result)
         self.assertNotIn("beat_count", result)
         self.assertNotIn("group_id_candidate", result)
+
+    def test_reports_audio_sources_without_parsed_loop_metadata(self) -> None:
+        reference = SimpleNamespace(
+            category="AudioFiles",
+            source_loop_metadata=None,
+            group_id_candidate=7,
+        )
+        result = profile_spacing([reference], [])
+        self.assertEqual(result["audio_sources_without_parsed_loop_metadata"], 1)
+        self.assertEqual(result["beat_tagged_source_count"], 0)
+        self.assertEqual(result["adjacent_start_interval_count"], 0)
 
     def test_ignores_non_audio_and_unlinked_references(self) -> None:
         audio_reference = SimpleNamespace(
