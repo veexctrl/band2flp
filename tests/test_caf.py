@@ -27,6 +27,18 @@ def fixture(fields: dict[str, str], *, uuid: bytes = LOOP_METADATA_UUID) -> byte
     )
 
 
+class ReadTrackingStream(BytesIO):
+    def __init__(self, data: bytes):
+        super().__init__(data)
+        self.read_ranges: list[tuple[int, int]] = []
+
+    def read(self, size: int = -1) -> bytes:
+        start = self.tell()
+        result = super().read(size)
+        self.read_ranges.append((start, self.tell()))
+        return result
+
+
 class CafMetadataTests(unittest.TestCase):
     def test_source_beat_count_and_tempo_candidate(self) -> None:
         data = fixture({"time signature": "4/4", "beat count": "4", "category": "Drums"})
@@ -57,6 +69,24 @@ class CafMetadataTests(unittest.TestCase):
             + result["packet_table"]["remainder_frames"],
         )
         self.assertNotIn("arrangement_loop", result)
+
+    def test_known_size_data_payload_is_skipped_without_reading_samples(self) -> None:
+        data = fixture({"beat count": "4"})
+        data_header = data.index(b"data", 8)
+        sample_start = data_header + 12
+        sample_end = sample_start + 30
+        stream = ReadTrackingStream(data)
+
+        result = inspect_caf_loop_metadata(stream)
+
+        self.assertIsNotNone(result)
+        self.assertTrue(
+            all(
+                end <= sample_start or start >= sample_end
+                for start, end in stream.read_ranges
+            )
+        )
+        self.assertGreaterEqual(stream.tell(), sample_end)
 
     def test_unknown_uuid_is_not_interpreted(self) -> None:
         self.assertIsNone(inspect_caf_loop_metadata(BytesIO(fixture({"beat count": "4"}, uuid=bytes(16)))))
