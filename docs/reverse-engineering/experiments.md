@@ -1813,3 +1813,18 @@ Every start-matched note within each visible row has the same raw fractional-wor
 **Confidence:** CONFIRMED for the reported object counts and lexical profiles in these two graphs. UNKNOWN whether arrangement structures are stored elsewhere.
 
 **Next:** Continue analyzing the Logic Song payload and compare a minimal GarageBand project with one controlled arrangement edit.
+## AUD-008 — determine whether available archives support beat-spacing comparisons
+
+**Question:** Do the inspected project archives provide parsed CAF beat metadata that can be compared with candidate audio-placement spacing?
+
+**Fixtures:** Two local project archives. Project names, source paths, identifiers, and audio are omitted.
+
+**Method:** Run the aggregate spacing probe against the archives. It counts audio references without parsed loop metadata separately from tagged sources and eligible adjacent-placement intervals. The parser reads package metadata only; external sources are not opened, and no audio samples are extracted or decoded.
+
+**Observation:** Each archive has six audio references with no parsed loop metadata. The probe finds no beat-tagged sources or eligible adjacent-start intervals in either archive.
+
+**Result:** These fixtures cannot test whether placement spacing follows a CAF beat-count tag. Zero matching intervals here are not evidence against beat-based spacing; the referenced sources are unavailable to the package parser.
+
+**Confidence:** CONFIRMED for the reported counts under the current parser and fixture set. UNKNOWN whether the external CAF sources carry beat metadata or whether their placement spacing follows that metadata.
+
+**Next:** Test a project whose referenced CAF source can be safely matched to a local file, or create a controlled project with an available source and vary only region placement. Keep samples out of logs and public artifacts.
