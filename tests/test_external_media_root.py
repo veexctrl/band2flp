@@ -8,7 +8,7 @@ import zipfile
 import pytest
 
 from band2flp.media import MediaExtractionError, extract_referenced_audio
-from band2flp.model import MediaReference
+from band2flp.model import MediaReference, Project, Region, Track
 from band2flp.cli import main
 
 
@@ -86,6 +86,27 @@ def test_extract_audio_cli_forwards_source_root() -> None:
     extract.assert_called_once_with(
         "project.band",
         "output",
+        to_wav=False,
+        transcoder="ffmpeg",
+        source_root="library",
+    )
+
+
+def test_export_cli_forwards_source_root_for_audio_regions() -> None:
+    project = Project(tracks=[Track(index=0, regions=[Region(kind="audio", duration_beats="4")])])
+    extraction_report = {"extracted": [], "unresolved_audio_reference_count": 1}
+    with patch("band2flp.cli.parse_band", return_value=project):
+        with patch("band2flp.cli.extract_referenced_audio", return_value=extraction_report) as extract:
+            with patch("band2flp.cli.export_flp", return_value={"output": "synthetic.flp"}):
+                with patch("band2flp.cli._print_json"):
+                    assert main([
+                        "export-flp", "project.band", "output.flp", "--template", "blank.flp",
+                        "--media-dir", "media", "--source-root", "library",
+                    ]) == 0
+
+    extract.assert_called_once_with(
+        "project.band",
+        "media",
         to_wav=False,
         transcoder="ffmpeg",
         source_root="library",
