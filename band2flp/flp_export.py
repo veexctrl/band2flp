@@ -836,6 +836,9 @@ def export_flp(
             "duration_policy": length_policy,
             "compatibility_shim_used": shim_used,
             "project_warnings": list(project.warnings),
+            "clock_policy": "project-summary-only",
+            "source_tempo_map_candidates": list(project.tempo_map),
+            "source_time_signature_candidates": list(project.time_signatures),
             "items": exported_items,
             "midi_candidates": [
                 {key: value for key, value in item.items() if not key.startswith("_")}
@@ -853,6 +856,10 @@ def export_flp(
                 "MSeq text candidates are used as preview labels only; their role as a track or region name is unconfirmed."
             ] if any(" - " in item["display_name"] for item in midi_preview_items) else []),
         }
+        if project.tempo_map or project.time_signatures:
+            report["warnings"].append(
+                "Tempo/meter timeline candidates are preserved in the sidecar but are not written as FL timeline changes; only project-level tempo and meter are exported."
+            )
         if midi_preview_items and midi_track_policy == "candidate-bindings":
             report["warnings"].append("MIDI track grouping uses provisional neutral bindings; GarageBand arrangement identity remains unconfirmed.")
             if report["midi_track_fallback_count"]:

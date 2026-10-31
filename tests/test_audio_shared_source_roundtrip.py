@@ -1,6 +1,7 @@
 """Synthetic FLP round-trip for multiple clips sharing one audio channel."""
 
 import os
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -23,6 +24,15 @@ class AudioSharedSourceRoundtripTests(unittest.TestCase):
             reference = "AudioFiles/synthetic.wav"
             project = Project(
                 tempo_bpm=120,
+                time_signature=(4, 4),
+                tempo_map=[
+                    {"bpm": 120, "position_raw": 100, "position_unit": "unknown"},
+                    {"bpm": 90, "position_raw": 200, "position_unit": "unknown"},
+                ],
+                time_signatures=[
+                    {"numerator": 3, "denominator": 4, "position_raw": 200,
+                     "position_unit": "unknown"},
+                ],
                 media_references=[MediaReference(
                     index=0,
                     category="AudioFiles",
@@ -42,6 +52,14 @@ class AudioSharedSourceRoundtripTests(unittest.TestCase):
                 output_path=root / "synthetic.flp",
                 media_by_reference={reference: media},
             )
+            sidecar = json.loads((root / result["report"]).read_text(encoding="utf-8"))
+
+        self.assertEqual(sidecar["clock_policy"], "project-summary-only")
+        self.assertEqual(sidecar["source_tempo_map_candidates"], project.tempo_map)
+        self.assertEqual(sidecar["source_time_signature_candidates"], project.time_signatures)
+        self.assertTrue(any("not written as FL timeline changes" in warning for warning in sidecar["warnings"]))
+        self.assertEqual(sidecar["tempo_bpm"], 120)
+        self.assertEqual(sidecar["time_signature"], [4, 4])
 
         items = result["summary"]["items"]
         self.assertEqual(len(items), 2)
