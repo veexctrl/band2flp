@@ -78,7 +78,7 @@ class CafMetadataTests(unittest.TestCase):
         sample_end = sample_start + 30
         stream = ReadTrackingStream(data)
 
-        result = inspect_caf_loop_metadata(stream)
+        result = inspect_caf_loop_metadata(stream, allow_data_seek=True)
 
         self.assertIsNotNone(result)
         self.assertTrue(

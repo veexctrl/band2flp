@@ -21,7 +21,7 @@ def profile_spacing(
     ]
     tagged = [
         reference for reference in audio_sources
-        and isinstance(reference.source_loop_metadata, dict)
+        if isinstance(reference.source_loop_metadata, dict)
         and isinstance(reference.source_loop_metadata.get("beat_count"), int)
         and not isinstance(reference.source_loop_metadata.get("beat_count"), bool)
         and reference.source_loop_metadata["beat_count"] > 0

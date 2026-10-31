@@ -1252,9 +1252,18 @@ def parse_band(path: str | Path) -> Project:
                         continue
                     if member not in loop_metadata_by_member:
                         try:
-                            with archive.open(info_by_name[member]) as source:
+                            member_info = info_by_name[member]
+                            # Unencrypted ZIP_STORED members support fast seeks
+                            # over the sample payload. Metadata reads may still
+                            # prefetch a small adjacent buffer. Other ZIP modes
+                            # may read/decompress the entire payload on seek.
+                            safe_data_seek = (
+                                member_info.compress_type == zipfile.ZIP_STORED
+                                and not (member_info.flag_bits & 0x1)
+                            )
+                            with archive.open(member_info) as source:
                                 loop_metadata_by_member[member] = inspect_caf_loop_metadata(
-                                    source, allow_data_seek=False
+                                    source, allow_data_seek=safe_data_seek
                                 )
                         except (
                             OSError, EOFError, zipfile.BadZipFile, RuntimeError,
