@@ -456,10 +456,10 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
         if record.get("type_byte") != 0x24:
             continue
         raw = bytes.fromhex(record["raw_hex"])
-        if len(raw) < 80 or raw[:4] != b"\x24\x00\x00\x00":
+        if len(raw) < 80 or raw[:2] != b"\x24\x00":
             continue
-        # These two marker bytes match the published Logic placement record
-        # and are present in all nine candidate placements in this fixture.
+        # Select by the event-family markers, without requiring the unknown
+        # low word at +0x02 to be zero (ARR-046).
         if (raw[0x17], raw[0x27], raw[0x37], raw[0x47]) != (0x89, 0xBC, 0x8A, 0x89):
             continue
         position_raw = struct.unpack_from("<I", raw, 4)[0]
@@ -471,6 +471,10 @@ def _parse_audio_placements(event_sequences: dict[str, Any]) -> list[dict[str, A
             "source_group_id_candidate": record["group_id_candidate"],
             "event_id_candidate": struct.unpack_from("<I", raw, 0x10)[0],
             "position_raw": position_raw,
+            "u16_at_0x02_candidate": struct.unpack_from("<H", raw, 0x02)[0],
+            "u16_at_0x02_interpretation": (
+                "UNKNOWN; retained raw and not applied to the integer start candidate"
+            ),
             "position_origin_raw": position_origin_raw,
             "position_ticks_from_origin": position_raw - position_origin_raw,
             "ppq_candidate": ppq,
