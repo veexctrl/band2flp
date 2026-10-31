@@ -1034,9 +1034,17 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
         ]
         identity = (placement.get("source_chunk_index"), placement.get("source_event_index"))
         field_matches = field_links_by_placement.get(identity, [])
+        extent_word = placement.get("u32_at_0x1c_candidate")
+        extent_ppq = placement.get("ppq_candidate")
+        extent_beats = None
+        if (type(extent_word) is int and 0 < extent_word <= 0xFFFFFFFF
+                and extent_word != 0x3FFFFFFF
+                and type(extent_ppq) is int and extent_ppq > 0):
+            extent_beats = str(Fraction(extent_word, extent_ppq))
         track.regions.append(Region(
             name=stem,
             start_beats=placement["start_beats"],
+            placement_extent_beats_candidate=extent_beats,
             kind="audio",
             source=reference.reference if reference else None,
             unknown={
@@ -1050,6 +1058,10 @@ def _attach_audio_placements(project: Project, placements: list[dict[str, Any]])
                     "and a unique zero-valued pair when anchored by them; zero-only groups did not link"
                 ),
                 "duration": "unknown",
+                "placement_extent_candidate_interpretation": (
+                    "HYPOTHESIS: finite +0x1c word in candidate PPQ units; "
+                    "duration/end and repeat/stretch semantics remain unconfirmed"
+                ),
                 "region_chunk_to_placement_ordinal": "unknown",
             },
         ))

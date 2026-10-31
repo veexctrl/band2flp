@@ -30,7 +30,8 @@ class AudioSharedSourceRoundtripTests(unittest.TestCase):
                     package_member="synthetic.wav",
                 )],
                 tracks=[Track(index=0, regions=[
-                    Region(kind="audio", source=reference, start_beats="0", duration_beats="2"),
+                    Region(kind="audio", source=reference, start_beats="0", duration_beats="2",
+                           placement_extent_beats_candidate="7"),
                     Region(kind="audio", source=reference, start_beats="4", duration_beats="3"),
                 ])],
             )
@@ -50,6 +51,8 @@ class AudioSharedSourceRoundtripTests(unittest.TestCase):
             [(0, 192), (384, 288)],
         )
         self.assertTrue(all(item["length_basis"] == "region-duration" for item in items))
+        self.assertEqual(items[0]["placement_extent_beats_candidate"], "7")
+        self.assertIsNone(items[1]["placement_extent_beats_candidate"])
 
 
 if __name__ == "__main__":

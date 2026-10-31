@@ -44,3 +44,18 @@ def test_unknown_low_word_is_preserved_without_becoming_fractional_timing(low_wo
 @pytest.mark.parametrize("item", [record(1, bad_marker=True), record(1, byte1=1)])
 def test_relaxation_keeps_other_family_filters(item):
     assert _parse_audio_placements({"records": [item]}) == []
+
+
+@pytest.mark.parametrize("word,expected", [
+    (1920, "2"), (1921, "1921/960"), (0, None),
+    (0x3FFFFFFF, None), (-1, None), (True, None), (0x100000000, None),
+])
+def test_extent_candidate_survives_neutral_serialization_without_becoming_duration(word, expected):
+    placement = _parse_audio_placements({"records": [record()]})[0]
+    placement["u32_at_0x1c_candidate"] = word
+    project = Project()
+    _attach_audio_placements(project, [placement])
+    region = project.to_dict()["tracks"][0]["regions"][0]
+    assert region["placement_extent_beats_candidate"] == expected
+    assert region["duration_beats"] is None
+    assert region["unknown"]["placement"]["u32_at_0x1c_candidate"] == word

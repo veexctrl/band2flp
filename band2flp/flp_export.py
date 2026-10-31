@@ -709,6 +709,7 @@ def export_flp(
                 "start_ticks": start_ticks,
                 "length_ticks": length_ticks,
                 "length_basis": "region-duration" if region.duration_beats is not None else "full-source-placeholder",
+                "placement_extent_beats_candidate": region.placement_extent_beats_candidate,
                 "media_file": source_paths[region.source].name,
             })
 

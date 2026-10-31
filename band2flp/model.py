@@ -16,6 +16,7 @@ class Region:
     source: str | None = None
     muted: bool | None = None
     unknown: dict[str, Any] = field(default_factory=dict)
+    placement_extent_beats_candidate: str | None = None
 
 
 @dataclass
